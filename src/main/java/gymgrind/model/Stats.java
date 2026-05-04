@@ -40,11 +40,26 @@ public final class Stats {
         return strength + muscle + stamina - fatigue / 2;
     }
 
+    public void addTrainingReward(TrainingReward reward) {
+        strength += reward.strength();
+        muscle += reward.muscle();
+        stamina += reward.stamina();
+        fatigue = clamp(fatigue + reward.fatigue(), 0, 100);
+    }
+
+    public void reduceFatigue(int amount) {
+        fatigue = clamp(fatigue - amount, 0, 100);
+    }
+
     public void reset() {
         strength = 10;
         muscle = 10;
         stamina = 10;
         fatigue = 0;
         money = 0;
+    }
+
+    private int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(value, max));
     }
 }

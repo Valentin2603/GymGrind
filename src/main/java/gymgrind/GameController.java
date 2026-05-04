@@ -2,11 +2,22 @@ package gymgrind;
 
 import gymgrind.logic.InteractionService;
 import gymgrind.logic.MovementService;
+import gymgrind.logic.SupplementService;
+import gymgrind.logic.TrainingService;
+import gymgrind.minigames.PowerMeterMinigame;
+import gymgrind.minigames.RhythmMinigame;
 import gymgrind.model.GameMap;
 import gymgrind.model.GymObject;
+import gymgrind.model.MachineType;
+import gymgrind.model.MinigameResult;
 import gymgrind.model.Player;
+import gymgrind.model.TrainingMachine;
+import gymgrind.model.TrainingOutcome;
+import gymgrind.model.TrainingSession;
+import gymgrind.model.TrainingWeight;
 import gymgrind.ui.GameView;
 import javafx.animation.AnimationTimer;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.stage.Stage;
@@ -25,6 +36,7 @@ public final class GameController {
     private final InputState inputState;
     private final MovementService movementService;
     private final InteractionService interactionService;
+    private final TrainingService trainingService;
     private final GameRenderer renderer;
 
     private GameState gameState;
@@ -40,6 +52,7 @@ public final class GameController {
         this.inputState = new InputState();
         this.movementService = new MovementService();
         this.interactionService = new InteractionService();
+        this.trainingService = new TrainingService(new SupplementService());
         this.renderer = new GameRenderer();
         this.gameState = GameState.MENU;
         this.nearbyObject = Optional.empty();
@@ -117,14 +130,15 @@ public final class GameController {
             case D, RIGHT -> inputState.setRight(true);
             case E -> tryInteract();
             case ENTER -> {
-                if (gameState == GameState.MENU) {
+                if (gameState == GameState.MENU || gameState == GameState.LOSE) {
                     startNewRun();
                 }
             }
             case ESCAPE -> {
-                if (gameState == GameState.PLAYING) {
+                if (gameState != GameState.MENU) {
                     gameState = GameState.MENU;
                     statusMessage = "Пауза. Нажмите «Начать», чтобы вернуться в зал.";
+                    view.hideOverlay();
                     refreshUi();
                 }
             }
@@ -150,7 +164,73 @@ public final class GameController {
         }
 
         GymObject gymObject = nearbyObject.get();
+
+        if (gymObject instanceof TrainingMachine trainingMachine) {
+            openWeightSelection(trainingMachine);
+            return;
+        }
+
         statusMessage = gymObject.interact();
         refreshUi();
+    }
+
+    private void openWeightSelection(TrainingMachine machine) {
+        if (!trainingService.isSupportedMinigame(machine.machineType())) {
+            statusMessage = machine.name() + ": мини-игра будет добавлена позже.";
+            refreshUi();
+            return;
+        }
+
+        inputState.clear();
+        gameState = GameState.MINIGAME;
+        statusMessage = "Выберите вес для тренировки.";
+        view.showTrainingSetup(
+                machine,
+                weight -> startTraining(machine, weight),
+                () -> {
+                    gameState = GameState.PLAYING;
+                    statusMessage = "Тренировка отменена.";
+                    view.hideOverlay();
+                    refreshUi();
+                    view.requestGameFocus();
+                }
+        );
+        refreshUi();
+    }
+
+    private void startTraining(TrainingMachine machine, TrainingWeight weight) {
+        TrainingSession session = trainingService.createSession(player, machine, weight);
+        Node minigame = createMinigame(session);
+        statusMessage = "Тренировка началась: " + machine.name() + ", вес: " + weight.label() + ".";
+        view.showOverlay(minigame);
+        refreshUi();
+        minigame.requestFocus();
+    }
+
+    private Node createMinigame(TrainingSession session) {
+        MachineType machineType = session.machine().machineType();
+        if (machineType == MachineType.DEADLIFT_PLATFORM) {
+            return new PowerMeterMinigame(session, result -> finishTraining(session, result));
+        }
+        if (machineType == MachineType.TREADMILL) {
+            return new RhythmMinigame(session, result -> finishTraining(session, result));
+        }
+        throw new IllegalArgumentException("Unsupported minigame: " + machineType);
+    }
+
+    private void finishTraining(TrainingSession session, MinigameResult result) {
+        TrainingOutcome outcome = trainingService.finishTraining(player, session, result);
+        statusMessage = outcome.message();
+        view.hideOverlay();
+
+        if (player.stats().fatigue() >= 100) {
+            gameState = GameState.LOSE;
+            statusMessage += " Усталость дошла до 100. Вы перетренировались.";
+        } else {
+            gameState = GameState.PLAYING;
+        }
+
+        refreshUi();
+        view.requestGameFocus();
     }
 }

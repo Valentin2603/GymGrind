@@ -38,4 +38,11 @@ public final class InputState {
     public void setRight(boolean right) {
         this.right = right;
     }
+
+    public void clear() {
+        up = false;
+        down = false;
+        left = false;
+        right = false;
+    }
 }

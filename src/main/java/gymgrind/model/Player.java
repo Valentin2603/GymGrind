@@ -11,6 +11,7 @@ public final class Player {
     private final double height;
     private final double speed;
     private final Stats stats;
+    private final ActiveSupplements activeSupplements;
 
     private Player(Position position, double width, double height, double speed, Stats stats) {
         this.position = position;
@@ -18,6 +19,7 @@ public final class Player {
         this.height = height;
         this.speed = speed;
         this.stats = stats;
+        this.activeSupplements = new ActiveSupplements();
     }
 
     public static Player createDefault(GameMap gameMap) {
@@ -28,6 +30,7 @@ public final class Player {
     public void reset(GameMap gameMap) {
         position = new Position(gameMap.left() + 40, gameMap.bottom() - 90);
         stats.reset();
+        activeSupplements.clear();
     }
 
     public Position position() {
@@ -52,6 +55,10 @@ public final class Player {
 
     public Stats stats() {
         return stats;
+    }
+
+    public ActiveSupplements activeSupplements() {
+        return activeSupplements;
     }
 
     public double centerX() {
