@@ -2,6 +2,7 @@ package gymgrind.ui;
 
 import gymgrind.GameState;
 import gymgrind.model.Player;
+import gymgrind.model.SupplementType;
 import gymgrind.model.TrainingMachine;
 import gymgrind.model.TrainingWeight;
 import javafx.geometry.Insets;
@@ -17,6 +18,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public final class GameView extends StackPane {
 
@@ -119,6 +121,66 @@ public final class GameView extends StackPane {
         cancel.setOnAction(event -> onCancel.run());
 
         panel.getChildren().addAll(title, subtitle, light, medium, heavy, cancel);
+        showOverlay(panel);
+    }
+
+    public void showShop(Player player,
+                         Function<SupplementType, String> onBuy,
+                         Runnable onClose) {
+        VBox panel = new VBox(12);
+        panel.setAlignment(Pos.CENTER);
+        panel.setMaxWidth(560);
+        panel.setPadding(new Insets(24));
+        panel.setStyle("-fx-background-color: rgba(8, 15, 23, 0.94);"
+                + "-fx-background-radius: 18;"
+                + "-fx-border-color: #F59E0B;"
+                + "-fx-border-radius: 18;"
+                + "-fx-border-width: 2;");
+
+        Label title = new Label("Магазин добавок");
+        title.setFont(Font.font("Segoe UI", 24));
+        title.setStyle("-fx-text-fill: #F8FAFC; -fx-font-weight: bold;");
+
+        Label moneyLabel = new Label();
+        moneyLabel.setFont(Font.font("Segoe UI", 16));
+        moneyLabel.setStyle("-fx-text-fill: #F8D66D;");
+
+        Label activeLabel = new Label();
+        activeLabel.setFont(Font.font("Segoe UI", 14));
+        activeLabel.setWrapText(true);
+        activeLabel.setStyle("-fx-text-fill: #CBD5E1;");
+
+        Label feedbackLabel = new Label("Выберите добавку.");
+        feedbackLabel.setFont(Font.font("Segoe UI", 14));
+        feedbackLabel.setWrapText(true);
+        feedbackLabel.setAlignment(Pos.CENTER);
+        feedbackLabel.setStyle("-fx-text-fill: #E2E8F0;");
+
+        Runnable refreshLabels = () -> {
+            moneyLabel.setText("Деньги: " + player.stats().money());
+            activeLabel.setText("Активные добавки: " + player.activeSupplements().labels());
+        };
+        refreshLabels.run();
+
+        panel.getChildren().addAll(title, moneyLabel, activeLabel, feedbackLabel);
+
+        for (SupplementType supplementType : SupplementType.values()) {
+            Button buyButton = createOverlayButton(
+                    supplementType.label() + " - " + supplementType.price() + " | " + supplementType.effect(),
+                    "#D97706"
+            );
+            buyButton.setPrefWidth(500);
+            buyButton.setOnAction(event -> {
+                feedbackLabel.setText(onBuy.apply(supplementType));
+                refreshLabels.run();
+            });
+            panel.getChildren().add(buyButton);
+        }
+
+        Button close = createOverlayButton("Закрыть", "#475569");
+        close.setOnAction(event -> onClose.run());
+        panel.getChildren().add(close);
+
         showOverlay(panel);
     }
 

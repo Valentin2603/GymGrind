@@ -51,12 +51,25 @@ public final class Stats {
         fatigue = clamp(fatigue - amount, 0, 100);
     }
 
+    public boolean spendMoney(int amount) {
+        if (money < amount) {
+            return false;
+        }
+
+        money -= amount;
+        return true;
+    }
+
+    public void addMoney(int amount) {
+        money = Math.max(0, money + amount);
+    }
+
     public void reset() {
         strength = 10;
         muscle = 10;
         stamina = 10;
         fatigue = 0;
-        money = 0;
+        money = 300;
     }
 
     private int clamp(int value, int min, int max) {

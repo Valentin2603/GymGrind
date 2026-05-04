@@ -9,12 +9,12 @@ public final class SupplementService {
     public TrainingReward applyRewardBonuses(ActiveSupplements supplements, TrainingReward reward) {
         TrainingReward result = reward;
 
-        if (supplements.has(SupplementType.CREATINE)) {
+        if (supplements.has(SupplementType.CREATINE) && result.strength() > 0) {
             result = result.withStrengthMultiplier(1.5);
             supplements.consume(SupplementType.CREATINE);
         }
 
-        if (supplements.has(SupplementType.PROTEIN)) {
+        if (supplements.has(SupplementType.PROTEIN) && result.muscle() > 0) {
             result = result.withMuscleMultiplier(1.5);
             supplements.consume(SupplementType.PROTEIN);
         }

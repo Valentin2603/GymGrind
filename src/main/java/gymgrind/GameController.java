@@ -2,6 +2,7 @@ package gymgrind;
 
 import gymgrind.logic.InteractionService;
 import gymgrind.logic.MovementService;
+import gymgrind.logic.ShopService;
 import gymgrind.logic.SupplementService;
 import gymgrind.logic.TrainingService;
 import gymgrind.minigames.PowerMeterMinigame;
@@ -11,10 +12,13 @@ import gymgrind.model.GymObject;
 import gymgrind.model.MachineType;
 import gymgrind.model.MinigameResult;
 import gymgrind.model.Player;
+import gymgrind.model.InteractiveZone;
+import gymgrind.model.ShopPurchaseResult;
 import gymgrind.model.TrainingMachine;
 import gymgrind.model.TrainingOutcome;
 import gymgrind.model.TrainingSession;
 import gymgrind.model.TrainingWeight;
+import gymgrind.model.ZoneType;
 import gymgrind.ui.GameView;
 import javafx.animation.AnimationTimer;
 import javafx.scene.Node;
@@ -37,6 +41,7 @@ public final class GameController {
     private final MovementService movementService;
     private final InteractionService interactionService;
     private final TrainingService trainingService;
+    private final ShopService shopService;
     private final GameRenderer renderer;
 
     private GameState gameState;
@@ -53,6 +58,7 @@ public final class GameController {
         this.movementService = new MovementService();
         this.interactionService = new InteractionService();
         this.trainingService = new TrainingService(new SupplementService());
+        this.shopService = new ShopService();
         this.renderer = new GameRenderer();
         this.gameState = GameState.MENU;
         this.nearbyObject = Optional.empty();
@@ -170,7 +176,35 @@ public final class GameController {
             return;
         }
 
+        if (gymObject instanceof InteractiveZone zone && zone.zoneType() == ZoneType.SHOP) {
+            openShop();
+            return;
+        }
+
         statusMessage = gymObject.interact();
+        refreshUi();
+    }
+
+    private void openShop() {
+        inputState.clear();
+        gameState = GameState.SHOP;
+        statusMessage = "Магазин открыт.";
+        view.showShop(
+                player,
+                supplementType -> {
+                    ShopPurchaseResult result = shopService.buy(player, supplementType);
+                    statusMessage = result.message();
+                    refreshUi();
+                    return result.message();
+                },
+                () -> {
+                    gameState = GameState.PLAYING;
+                    statusMessage = "Вы вышли из магазина.";
+                    view.hideOverlay();
+                    refreshUi();
+                    view.requestGameFocus();
+                }
+        );
         refreshUi();
     }
 

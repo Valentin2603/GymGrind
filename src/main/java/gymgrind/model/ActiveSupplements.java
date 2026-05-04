@@ -2,6 +2,7 @@ package gymgrind.model;
 
 import java.util.EnumSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public final class ActiveSupplements {
 
@@ -21,5 +22,15 @@ public final class ActiveSupplements {
 
     public void clear() {
         active.clear();
+    }
+
+    public String labels() {
+        if (active.isEmpty()) {
+            return "нет";
+        }
+
+        return active.stream()
+                .map(SupplementType::label)
+                .collect(Collectors.joining(", "));
     }
 }

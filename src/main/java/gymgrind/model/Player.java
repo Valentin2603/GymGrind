@@ -24,7 +24,7 @@ public final class Player {
 
     public static Player createDefault(GameMap gameMap) {
         Position spawnPoint = new Position(gameMap.left() + 40, gameMap.bottom() - 90);
-        return new Player(spawnPoint, DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_SPEED, new Stats(10, 10, 10, 0, 0));
+        return new Player(spawnPoint, DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_SPEED, new Stats(10, 10, 10, 0, 300));
     }
 
     public void reset(GameMap gameMap) {
