@@ -4,6 +4,7 @@ public enum GameState {
     MENU("Меню"),
     PLAYING("Игра"),
     MINIGAME("Мини-игра"),
+    RESULT("Результат"),
     SHOP("Магазин"),
     DIALOGUE("Диалог"),
     WIN("Победа"),
