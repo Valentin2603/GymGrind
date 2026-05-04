@@ -172,9 +172,9 @@ public final class RhythmMinigame extends VBox {
         timer.stop();
 
         TrainingGrade grade;
-        if (score >= 75) {
+        if (score >= 85) {
             grade = TrainingGrade.EXCELLENT;
-        } else if (score >= 45) {
+        } else if (score >= 60) {
             grade = TrainingGrade.NORMAL;
         } else {
             grade = TrainingGrade.FAIL;
