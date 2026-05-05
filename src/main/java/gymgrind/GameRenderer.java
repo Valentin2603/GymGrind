@@ -2,13 +2,21 @@ package gymgrind;
 
 import gymgrind.model.GameMap;
 import gymgrind.model.GymObject;
+import gymgrind.model.InteractiveZone;
+import gymgrind.model.MachineType;
 import gymgrind.model.Player;
+import gymgrind.model.TrainingMachine;
+import gymgrind.model.ZoneType;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 
+import java.io.InputStream;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.Optional;
 
 public final class GameRenderer {
@@ -22,6 +30,27 @@ public final class GameRenderer {
     private static final Color LABEL_COLOR = Color.web("#E2E8F0");
     private static final Color SUBTITLE_COLOR = Color.web("#94A3B8");
     private static final Color HIGHLIGHT = Color.web("#F8D66D");
+    private static final double TILE_SIZE = 64;
+
+    private final Image floorTile = loadImage("/assets/tiles/floor_tile.png");
+    private final Image wallTile = loadImage("/assets/tiles/wall_tile.png");
+    private final Image playerIdleFront = loadImage("/assets/characters/player_idle_front.png");
+    private final Map<MachineType, Image> machineImages;
+    private final Map<ZoneType, Image> zoneImages;
+
+    public GameRenderer() {
+        machineImages = new EnumMap<>(MachineType.class);
+        machineImages.put(MachineType.BENCH_PRESS, loadImage("/assets/machines/bench_press.png"));
+        machineImages.put(MachineType.SQUAT_RACK, loadImage("/assets/machines/squat_rack.png"));
+        machineImages.put(MachineType.TREADMILL, loadImage("/assets/machines/treadmill.png"));
+        machineImages.put(MachineType.DEADLIFT_PLATFORM, loadImage("/assets/machines/deadlift_platform.png"));
+
+        zoneImages = new EnumMap<>(ZoneType.class);
+        zoneImages.put(ZoneType.SHOP, loadImage("/assets/machines/shop_counter.png"));
+        zoneImages.put(ZoneType.REST, loadImage("/assets/machines/rest_zone.png"));
+        zoneImages.put(ZoneType.STAGE, loadImage("/assets/tiles/stage_tile.png"));
+        zoneImages.put(ZoneType.COACH, loadImage("/assets/npcs/trainer_npc.png"));
+    }
 
     public void render(GraphicsContext graphicsContext,
                        GameMap gameMap,
@@ -44,13 +73,34 @@ public final class GameRenderer {
         graphicsContext.setFill(FLOOR);
         graphicsContext.fillRoundRect(gameMap.left(), gameMap.top(), gameMap.width(), gameMap.height(), 28, 28);
 
-        graphicsContext.setStroke(FLOOR_GRID);
-        graphicsContext.setLineWidth(1);
-        for (double x = gameMap.left() + 30; x < gameMap.right(); x += 60) {
-            graphicsContext.strokeLine(x, gameMap.top() + 10, x, gameMap.bottom() - 10);
+        if (floorTile != null) {
+            for (double y = gameMap.top(); y < gameMap.bottom(); y += TILE_SIZE) {
+                for (double x = gameMap.left(); x < gameMap.right(); x += TILE_SIZE) {
+                    double width = Math.min(TILE_SIZE, gameMap.right() - x);
+                    double height = Math.min(TILE_SIZE, gameMap.bottom() - y);
+                    graphicsContext.drawImage(floorTile, 0, 0, width, height, x, y, width, height);
+                }
+            }
+        } else {
+            graphicsContext.setStroke(FLOOR_GRID);
+            graphicsContext.setLineWidth(1);
+            for (double x = gameMap.left() + 30; x < gameMap.right(); x += 60) {
+                graphicsContext.strokeLine(x, gameMap.top() + 10, x, gameMap.bottom() - 10);
+            }
+            for (double y = gameMap.top() + 30; y < gameMap.bottom(); y += 60) {
+                graphicsContext.strokeLine(gameMap.left() + 10, y, gameMap.right() - 10, y);
+            }
         }
-        for (double y = gameMap.top() + 30; y < gameMap.bottom(); y += 60) {
-            graphicsContext.strokeLine(gameMap.left() + 10, y, gameMap.right() - 10, y);
+
+        if (wallTile != null) {
+            for (double x = gameMap.left(); x < gameMap.right(); x += TILE_SIZE) {
+                graphicsContext.drawImage(wallTile, x, gameMap.top() - 16, TILE_SIZE, 32);
+                graphicsContext.drawImage(wallTile, x, gameMap.bottom() - 16, TILE_SIZE, 32);
+            }
+            for (double y = gameMap.top(); y < gameMap.bottom(); y += TILE_SIZE) {
+                graphicsContext.drawImage(wallTile, gameMap.left() - 16, y, 32, TILE_SIZE);
+                graphicsContext.drawImage(wallTile, gameMap.right() - 16, y, 32, TILE_SIZE);
+            }
         }
 
         graphicsContext.setStroke(BORDER);
@@ -65,15 +115,26 @@ public final class GameRenderer {
         graphicsContext.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
 
         for (GymObject gymObject : gameMap.objects()) {
-            graphicsContext.setFill(gymObject.color());
-            graphicsContext.fillRoundRect(
-                    gymObject.left(),
-                    gymObject.top(),
-                    gymObject.width(),
-                    gymObject.height(),
-                    20,
-                    20
-            );
+            Image image = imageFor(gymObject);
+            if (image == null) {
+                graphicsContext.setFill(gymObject.color());
+                graphicsContext.fillRoundRect(
+                        gymObject.left(),
+                        gymObject.top(),
+                        gymObject.width(),
+                        gymObject.height(),
+                        20,
+                        20
+                );
+            } else {
+                graphicsContext.drawImage(
+                        image,
+                        gymObject.left(),
+                        gymObject.top(),
+                        gymObject.width(),
+                        gymObject.height()
+                );
+            }
 
             Color outline = nearbyObject.filter(object -> object == gymObject).isPresent() ? HIGHLIGHT : BORDER;
             graphicsContext.setStroke(outline);
@@ -106,12 +167,40 @@ public final class GameRenderer {
     }
 
     private void drawPlayer(GraphicsContext graphicsContext, Player player) {
-        graphicsContext.setFill(PLAYER_COLOR);
-        graphicsContext.fillOval(player.position().x(), player.position().y(), player.width(), player.height());
+        if (playerIdleFront != null) {
+            graphicsContext.drawImage(
+                    playerIdleFront,
+                    player.position().x() - 15,
+                    player.position().y() - 24,
+                    64,
+                    64
+            );
+        } else {
+            graphicsContext.setFill(PLAYER_COLOR);
+            graphicsContext.fillOval(player.position().x(), player.position().y(), player.width(), player.height());
+        }
 
         graphicsContext.setStroke(PLAYER_OUTLINE);
         graphicsContext.setLineWidth(3);
         graphicsContext.strokeOval(player.position().x(), player.position().y(), player.width(), player.height());
+    }
+
+    private Image imageFor(GymObject gymObject) {
+        if (gymObject instanceof TrainingMachine trainingMachine) {
+            return machineImages.get(trainingMachine.machineType());
+        }
+        if (gymObject instanceof InteractiveZone interactiveZone) {
+            return zoneImages.get(interactiveZone.zoneType());
+        }
+        return null;
+    }
+
+    private Image loadImage(String resourcePath) {
+        InputStream inputStream = GameRenderer.class.getResourceAsStream(resourcePath);
+        if (inputStream == null) {
+            return null;
+        }
+        return new Image(inputStream);
     }
 
     private void drawLegend(GraphicsContext graphicsContext,
