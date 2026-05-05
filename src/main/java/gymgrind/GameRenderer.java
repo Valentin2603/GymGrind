@@ -27,7 +27,6 @@ public final class GameRenderer {
     private static final Color FLOOR_GRID = Color.web("#213247");
     private static final Color BORDER = Color.web("#7FDBA4");
     private static final Color PLAYER_COLOR = Color.web("#F8FAFC");
-    private static final Color PLAYER_OUTLINE = Color.web("#49C16D");
     private static final Color LABEL_COLOR = Color.web("#E2E8F0");
     private static final Color SUBTITLE_COLOR = Color.web("#94A3B8");
     private static final Color HIGHLIGHT = Color.web("#F8D66D");
@@ -151,17 +150,18 @@ public final class GameRenderer {
                 );
             }
 
-            Color outline = nearbyObject.filter(object -> object == gymObject).isPresent() ? HIGHLIGHT : BORDER;
-            graphicsContext.setStroke(outline);
-            graphicsContext.setLineWidth(3);
-            graphicsContext.strokeRoundRect(
-                    gymObject.left(),
-                    gymObject.top(),
-                    gymObject.width(),
-                    gymObject.height(),
-                    20,
-                    20
-            );
+            if (nearbyObject.filter(object -> object == gymObject).isPresent()) {
+                graphicsContext.setStroke(HIGHLIGHT);
+                graphicsContext.setLineWidth(3);
+                graphicsContext.strokeRoundRect(
+                        gymObject.left(),
+                        gymObject.top(),
+                        gymObject.width(),
+                        gymObject.height(),
+                        20,
+                        20
+                );
+            }
 
             graphicsContext.setFill(LABEL_COLOR);
             graphicsContext.fillText(
@@ -195,10 +195,6 @@ public final class GameRenderer {
             graphicsContext.setFill(PLAYER_COLOR);
             graphicsContext.fillOval(player.position().x(), player.position().y(), player.width(), player.height());
         }
-
-        graphicsContext.setStroke(PLAYER_OUTLINE);
-        graphicsContext.setLineWidth(3);
-        graphicsContext.strokeOval(player.position().x(), player.position().y(), player.width(), player.height());
     }
 
     private Image playerImageFor(Player player) {
