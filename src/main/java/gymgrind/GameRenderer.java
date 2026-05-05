@@ -5,6 +5,7 @@ import gymgrind.model.GymObject;
 import gymgrind.model.InteractiveZone;
 import gymgrind.model.MachineType;
 import gymgrind.model.Player;
+import gymgrind.model.PlayerDirection;
 import gymgrind.model.TrainingMachine;
 import gymgrind.model.ZoneType;
 import javafx.scene.canvas.GraphicsContext;
@@ -31,12 +32,14 @@ public final class GameRenderer {
     private static final Color SUBTITLE_COLOR = Color.web("#94A3B8");
     private static final Color HIGHLIGHT = Color.web("#F8D66D");
     private static final double TILE_SIZE = 64;
+    private static final long WALK_FRAME_NANOS = 180_000_000L;
 
     private final Image floorTile = loadImage("/assets/tiles/floor_tile.png");
     private final Image wallTile = loadImage("/assets/tiles/wall_tile.png");
-    private final Image playerIdleFront = loadImage("/assets/characters/player_idle_front.png");
     private final Map<MachineType, Image> machineImages;
     private final Map<ZoneType, Image> zoneImages;
+    private final Map<PlayerDirection, Image> playerIdleImages;
+    private final Map<PlayerDirection, Image> playerWalkImages;
 
     public GameRenderer() {
         machineImages = new EnumMap<>(MachineType.class);
@@ -50,6 +53,18 @@ public final class GameRenderer {
         zoneImages.put(ZoneType.REST, loadImage("/assets/machines/rest_zone.png"));
         zoneImages.put(ZoneType.STAGE, loadImage("/assets/tiles/stage_tile.png"));
         zoneImages.put(ZoneType.COACH, loadImage("/assets/npcs/trainer_npc.png"));
+
+        playerIdleImages = new EnumMap<>(PlayerDirection.class);
+        playerIdleImages.put(PlayerDirection.FRONT, loadImage("/assets/characters/player_idle_front.png"));
+        playerIdleImages.put(PlayerDirection.BACK, loadImage("/assets/characters/player_idle_back.png"));
+        playerIdleImages.put(PlayerDirection.LEFT, loadImage("/assets/characters/player_idle_left.png"));
+        playerIdleImages.put(PlayerDirection.RIGHT, loadImage("/assets/characters/player_idle_right.png"));
+
+        playerWalkImages = new EnumMap<>(PlayerDirection.class);
+        playerWalkImages.put(PlayerDirection.FRONT, loadImage("/assets/characters/player_walk_front.png"));
+        playerWalkImages.put(PlayerDirection.BACK, loadImage("/assets/characters/player_walk_back.png"));
+        playerWalkImages.put(PlayerDirection.LEFT, loadImage("/assets/characters/player_walk_left.png"));
+        playerWalkImages.put(PlayerDirection.RIGHT, loadImage("/assets/characters/player_walk_right.png"));
     }
 
     public void render(GraphicsContext graphicsContext,
@@ -167,9 +182,10 @@ public final class GameRenderer {
     }
 
     private void drawPlayer(GraphicsContext graphicsContext, Player player) {
-        if (playerIdleFront != null) {
+        Image playerImage = playerImageFor(player);
+        if (playerImage != null) {
             graphicsContext.drawImage(
-                    playerIdleFront,
+                    playerImage,
                     player.position().x() - 15,
                     player.position().y() - 24,
                     64,
@@ -183,6 +199,20 @@ public final class GameRenderer {
         graphicsContext.setStroke(PLAYER_OUTLINE);
         graphicsContext.setLineWidth(3);
         graphicsContext.strokeOval(player.position().x(), player.position().y(), player.width(), player.height());
+    }
+
+    private Image playerImageFor(Player player) {
+        if (player.isMoving() && shouldShowWalkFrame()) {
+            Image walkImage = playerWalkImages.get(player.direction());
+            if (walkImage != null) {
+                return walkImage;
+            }
+        }
+        return playerIdleImages.get(player.direction());
+    }
+
+    private boolean shouldShowWalkFrame() {
+        return (System.nanoTime() / WALK_FRAME_NANOS) % 2 == 0;
     }
 
     private Image imageFor(GymObject gymObject) {
