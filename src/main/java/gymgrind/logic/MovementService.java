@@ -3,6 +3,7 @@ package gymgrind.logic;
 import gymgrind.InputState;
 import gymgrind.model.GameMap;
 import gymgrind.model.Player;
+import gymgrind.model.PlayerDirection;
 import gymgrind.model.Position;
 
 public final class MovementService {
@@ -25,8 +26,12 @@ public final class MovementService {
         }
 
         if (dx == 0 && dy == 0) {
+            player.setMoving(false);
             return;
         }
+
+        player.setMoving(true);
+        player.setDirection(directionFor(dx, dy));
 
         double length = Math.hypot(dx, dy);
         double stepX = dx / length * player.speed() * deltaSeconds;
@@ -48,5 +53,12 @@ public final class MovementService {
 
     private double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(value, max));
+    }
+
+    private PlayerDirection directionFor(double dx, double dy) {
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return dx < 0 ? PlayerDirection.LEFT : PlayerDirection.RIGHT;
+        }
+        return dy < 0 ? PlayerDirection.BACK : PlayerDirection.FRONT;
     }
 }
