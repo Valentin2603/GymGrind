@@ -40,6 +40,14 @@ public final class Stats {
         return strength + muscle + stamina - fatigue / 2;
     }
 
+    public void applyDeltas(int strengthDelta, int muscleDelta, int staminaDelta, int fatigueDelta, int moneyDelta) {
+        strength = Math.max(0, strength + strengthDelta);
+        muscle = Math.max(0, muscle + muscleDelta);
+        stamina = Math.max(0, stamina + staminaDelta);
+        fatigue = Math.max(0, fatigue + fatigueDelta);
+        money = Math.max(0, money + moneyDelta);
+    }
+
     public void reset() {
         strength = 10;
         muscle = 10;

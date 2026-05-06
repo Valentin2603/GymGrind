@@ -25,13 +25,13 @@ public final class GameMap {
                 590,
                 List.of(
                         new TrainingMachine(
-                                "Жим лёжа",
+                                "Жим лежа",
                                 MachineType.BENCH_PRESS,
                                 new Position(110, 145),
                                 170,
                                 80,
                                 Color.web("#2D6A4F"),
-                                "Жим лёжа: здесь будет мини-игра на быстрые нажатия пробела."
+                                "Жим лежа: здесь будет мини-игра на быстрые нажатия пробела."
                         ),
                         new TrainingMachine(
                                 "Присед",
