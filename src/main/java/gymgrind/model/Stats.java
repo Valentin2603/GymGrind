@@ -41,10 +41,15 @@ public final class Stats {
     }
 
     public void addTrainingReward(TrainingReward reward) {
-        strength += reward.strength();
-        muscle += reward.muscle();
-        stamina += reward.stamina();
-        fatigue = clamp(fatigue + reward.fatigue(), 0, 100);
+        applyDeltas(reward.strength(), reward.muscle(), reward.stamina(), reward.fatigue(), 0);
+    }
+
+    public void applyDeltas(int strengthDelta, int muscleDelta, int staminaDelta, int fatigueDelta, int moneyDelta) {
+        strength = Math.max(0, strength + strengthDelta);
+        muscle = Math.max(0, muscle + muscleDelta);
+        stamina = Math.max(0, stamina + staminaDelta);
+        fatigue = clamp(fatigue + fatigueDelta, 0, 100);
+        money = Math.max(0, money + moneyDelta);
     }
 
     public void reduceFatigue(int amount) {

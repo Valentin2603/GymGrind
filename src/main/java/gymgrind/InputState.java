@@ -45,4 +45,8 @@ public final class InputState {
         left = false;
         right = false;
     }
+
+    public void reset() {
+        clear();
+    }
 }
