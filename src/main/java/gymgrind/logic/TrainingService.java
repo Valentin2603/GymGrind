@@ -64,14 +64,14 @@ public final class TrainingService {
     }
 
     public boolean isSupportedMinigame(MachineType machineType) {
-        return machineType == MachineType.TREADMILL || machineType == MachineType.DEADLIFT_PLATFORM;
+        return true;
     }
 
     private TrainingReward baseReward(MachineType machineType) {
         return switch (machineType) {
             case BENCH_PRESS -> new TrainingReward(4, 2, 0, 15);
-            case SQUAT_RACK -> new TrainingReward(3, 4, 0, 20);
-            case TREADMILL -> new TrainingReward(0, 0, 4, 10);
+            case SQUAT_RACK -> new TrainingReward(3, 4, 1, 20);
+            case TREADMILL -> new TrainingReward(0, 0, 5, 10);
             case DEADLIFT_PLATFORM -> new TrainingReward(5, 2, 0, 22);
         };
     }

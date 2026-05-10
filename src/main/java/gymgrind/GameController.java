@@ -17,6 +17,7 @@ import gymgrind.model.Player;
 import gymgrind.model.ShopPurchaseResult;
 import gymgrind.model.SkillCheckResult;
 import gymgrind.model.SkillCheckSession;
+import gymgrind.model.TrainingGrade;
 import gymgrind.model.TrainingMachine;
 import gymgrind.model.TrainingOutcome;
 import gymgrind.model.TrainingSession;
@@ -51,6 +52,7 @@ public final class GameController {
     private GameState gameState;
     private Optional<GymObject> nearbyObject;
     private Optional<SkillCheckSession> activeSkillCheck;
+    private Optional<TrainingSession> activeTrainingSession;
     private Optional<SkillCheckResult> pendingSuccessResult;
     private String statusMessage;
     private AnimationTimer gameLoop;
@@ -70,6 +72,7 @@ public final class GameController {
         this.gameState = GameState.MENU;
         this.nearbyObject = Optional.empty();
         this.activeSkillCheck = Optional.empty();
+        this.activeTrainingSession = Optional.empty();
         this.pendingSuccessResult = Optional.empty();
         this.statusMessage = "Нажмите «Начать», чтобы войти в зал.";
     }
@@ -113,6 +116,7 @@ public final class GameController {
         gameState = GameState.PLAYING;
         nearbyObject = Optional.empty();
         activeSkillCheck = Optional.empty();
+        activeTrainingSession = Optional.empty();
         pendingSuccessResult = Optional.empty();
         view.hideOverlay();
         statusMessage = "Осмотритесь в зале. Подойдите к объекту и нажмите E.";
@@ -217,11 +221,7 @@ public final class GameController {
 
         GymObject gymObject = nearbyObject.get();
         if (gymObject instanceof TrainingMachine trainingMachine) {
-            if (trainingService.isSupportedMinigame(trainingMachine.machineType())) {
-                openWeightSelection(trainingMachine);
-            } else {
-                startSkillCheck(trainingMachine);
-            }
+            openWeightSelection(trainingMachine);
             return;
         }
 
@@ -261,6 +261,7 @@ public final class GameController {
         inputState.clear();
         gameState = GameState.MINIGAME;
         activeSkillCheck = Optional.empty();
+        activeTrainingSession = Optional.empty();
         pendingSuccessResult = Optional.empty();
         statusMessage = "Выберите вес для тренировки.";
         view.showTrainingSetup(
@@ -278,7 +279,13 @@ public final class GameController {
     }
 
     private void startTraining(TrainingMachine machine, TrainingWeight weight) {
+        view.hideOverlay();
         TrainingSession session = trainingService.createSession(player, machine, weight);
+        if (usesSkillCheck(machine.machineType())) {
+            startSkillCheck(session);
+            return;
+        }
+
         Node minigame = createMinigame(session);
         statusMessage = "Тренировка началась: " + machine.name() + ", вес: " + weight.label() + ".";
         view.showOverlay(minigame);
@@ -293,6 +300,9 @@ public final class GameController {
         }
         if (machineType == MachineType.TREADMILL) {
             return new RhythmMinigame(session, result -> finishTraining(session, result));
+        }
+        if (machineType == MachineType.DEADLIFT_PLATFORM) {
+            return new PowerMeterMinigame(session, result -> finishTraining(session, result));
         }
         throw new IllegalArgumentException("Unsupported minigame: " + machineType);
     }
@@ -378,13 +388,15 @@ public final class GameController {
         refreshUi();
     }
 
-    private void startSkillCheck(TrainingMachine machine) {
+    private void startSkillCheck(TrainingSession trainingSession) {
         inputState.clear();
         pendingSuccessResult = Optional.empty();
+        activeTrainingSession = Optional.of(trainingSession);
+        TrainingMachine machine = trainingSession.machine();
         SkillCheckSession session = skillCheckService.startSession(machine, player.stats().strength());
         activeSkillCheck = Optional.of(session);
         gameState = GameState.MINIGAME;
-        statusMessage = buildSkillCheckStartMessage(session);
+        statusMessage = buildSkillCheckStartMessage(session) + " Вес: " + trainingSession.weight().label() + ".";
         refreshUi();
     }
 
@@ -410,24 +422,56 @@ public final class GameController {
     }
 
     private void finishSkillCheck(SkillCheckResult result) {
-        player.stats().applyDeltas(
-                result.strengthDelta(),
-                result.muscleDelta(),
-                result.staminaDelta(),
-                result.fatigueDelta(),
-                0
-        );
+        TrainingSession trainingSession = activeTrainingSession.orElse(null);
+        if (trainingSession == null) {
+            player.stats().applyDeltas(
+                    result.strengthDelta(),
+                    result.muscleDelta(),
+                    result.staminaDelta(),
+                    result.fatigueDelta(),
+                    0
+            );
+            activeSkillCheck = Optional.empty();
+            gameState = GameState.PLAYING;
+            statusMessage = result.message();
+            refreshUi();
+            return;
+        }
 
         activeSkillCheck = Optional.empty();
+        activeTrainingSession = Optional.empty();
+        TrainingGrade grade = result.success() ? TrainingGrade.NORMAL : TrainingGrade.FAIL;
+        TrainingOutcome outcome = trainingService.finishTraining(
+                player,
+                trainingSession,
+                new MinigameResult(grade, result.success() ? "Подход выполнен." : "Подход сорван.")
+        );
+        SkillCheckResult displayResult = new SkillCheckResult(
+                result.success(),
+                outcome.message(),
+                outcome.finalReward().strength(),
+                outcome.finalReward().muscle(),
+                outcome.finalReward().stamina(),
+                outcome.finalReward().fatigue()
+        );
+
+        if (player.stats().fatigue() >= 100) {
+            pendingSuccessResult = Optional.empty();
+            gameState = GameState.LOSE;
+            statusMessage = outcome.message() + " Усталость дошла до 100. Вы перетренировались.";
+            refreshUi();
+            return;
+        }
+
         if (result.success()) {
-            openSuccessResult(result);
+            openSuccessResult(displayResult);
             return;
         }
 
         pendingSuccessResult = Optional.empty();
         gameState = GameState.PLAYING;
         nearbyObject = interactionService.findNearbyObject(player, gameMap);
-        statusMessage = result.message();
+        statusMessage = outcome.message();
         refreshUi();
     }
 
@@ -481,6 +525,7 @@ public final class GameController {
         }
 
         activeSkillCheck = Optional.empty();
+        activeTrainingSession = Optional.empty();
         gameState = GameState.PLAYING;
         nearbyObject = interactionService.findNearbyObject(player, gameMap);
         statusMessage = "Подход отменён. Можно попробовать ещё раз.";
@@ -490,10 +535,15 @@ public final class GameController {
     private void returnToMenu() {
         inputState.clear();
         activeSkillCheck = Optional.empty();
+        activeTrainingSession = Optional.empty();
         pendingSuccessResult = Optional.empty();
         gameState = GameState.MENU;
         statusMessage = "Пауза. Нажмите «Начать», чтобы вернуться в зал.";
         view.hideOverlay();
         refreshUi();
+    }
+
+    private boolean usesSkillCheck(MachineType machineType) {
+        return machineType == MachineType.BENCH_PRESS || machineType == MachineType.SQUAT_RACK;
     }
 }

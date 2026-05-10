@@ -134,35 +134,35 @@ public final class SkillCheckService {
                             + session.completedHits()
                             + "/"
                             + session.requiredHits()
-                            + ". Прогресса нет, усталость +2.",
+                            + ". Прогресса нет, усталость +5.",
                     0,
                     0,
                     0,
-                    2
+                    5
             );
             case SQUAT_RACK -> new SkillCheckResult(
                     false,
-                    session.machine().name() + ": ритм развалился, полоса опустела. Прогресса нет, усталость +2.",
+                    session.machine().name() + ": ритм развалился, полоса опустела. Прогресса нет, усталость +7.",
                     0,
                     0,
                     0,
-                    2
+                    7
             );
             case TREADMILL -> new SkillCheckResult(
                     false,
-                    session.machine().name() + ": темп сорван. Прогресса нет, усталость +1.",
+                    session.machine().name() + ": темп сорван. Прогресса нет, усталость +5.",
                     0,
                     0,
                     0,
-                    1
+                    5
             );
             case DEADLIFT_PLATFORM -> new SkillCheckResult(
                     false,
-                    session.machine().name() + ": мимо зелёной зоны. Прогресса нет, усталость +2.",
+                    session.machine().name() + ": мимо зелёной зоны. Прогресса нет, усталость +7.",
                     0,
                     0,
                     0,
-                    2
+                    7
             );
         };
     }
