@@ -1,27 +1,34 @@
 # Gym Grind: Road to Stage
 
-Week 1 prototype of a JavaFX top-down gym simulator.
+2D JavaFX-симулятор тренажерного зала с тренировками, мини-играми, усталостью, магазином добавок и подготовкой к сцене.
 
-## Current status
+## Структура проекта
 
-The project already contains:
+```text
+gymgrind/
+  app/                         запуск JavaFX-приложения
+  game/                        главный игровой контроллер, состояния, ввод
+  gym/                         карта зала, позиции, взаимодействие с объектами
+    objects/                   базовые объекты зала: тренажеры, зоны, NPC, сцена
+  player/                      игрок, характеристики, движение, активные добавки
+  training/                    тренировки, выбор веса, расчет наград и усталости
+    minigames/                 мини-игры тренировок: skill check, power meter, rhythm
+  shop/                        магазин, типы добавок, покупка и эффекты
+  ui/                          JavaFX-интерфейс: HUD, меню, окна выбора
+    render/                    отрисовка карты, игрока, объектов и overlay
+  assets/                      точки подключения будущих спрайтов и моделек
+```
 
-- JavaFX application entry point
-- main menu with `Start` and `Exit`
-- game state enum
-- top-down gym map
-- controllable player with `WASD` / arrow keys
-- map boundaries
-- interactive gym objects
-- interaction prompt near objects
-- first skill-check minigame on training machines
-- starter HUD with stats and form formula
-- local Git repository initialized
+## Управление
 
-## Controls
+- `W`, `A`, `S`, `D` или стрелки: движение
+- `E`: взаимодействие
+- `Space`, `Enter` или `E`: действие в skill check
+- `Enter`: старт из меню
+- `Esc`: меню или отмена действия
 
-- `W`, `A`, `S`, `D` or arrow keys: move
-- `E`: interact with nearby object
-- `Space`, `Enter`, or `E`: stop the marker during a skill check
-- `Enter`: start game from menu
-- `Esc`: return to menu
+## Запуск
+
+```bash
+mvn javafx:run
+```

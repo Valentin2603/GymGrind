@@ -1,10 +1,10 @@
 package gymgrind.ui;
 
-import gymgrind.GameState;
-import gymgrind.model.Player;
-import gymgrind.model.SupplementType;
-import gymgrind.model.TrainingMachine;
-import gymgrind.model.TrainingWeight;
+import gymgrind.game.GameState;
+import gymgrind.player.Player;
+import gymgrind.shop.SupplementType;
+import gymgrind.training.TrainingMachine;
+import gymgrind.training.TrainingWeight;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.application.Platform;

@@ -53,7 +53,7 @@
                     <execution>
                         <id>default-cli</id>
                         <configuration>
-                            <mainClass>gymgrind/gymgrind.Main</mainClass>
+                            <mainClass>gymgrind/gymgrind.app.Main</mainClass>
                             <launcher>app</launcher>
                             <jlinkZipName>app</jlinkZipName>
                             <jlinkImageName>app</jlinkImageName>

@@ -1,8 +1,8 @@
 package gymgrind.ui;
 
-import gymgrind.GameState;
-import gymgrind.model.Player;
-import gymgrind.model.Stats;
+import gymgrind.game.GameState;
+import gymgrind.player.Player;
+import gymgrind.player.Stats;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
