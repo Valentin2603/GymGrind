@@ -81,9 +81,9 @@ public final class GameMap {
                         new InteractiveZone(
                                 "Тренер",
                                 ZoneType.COACH,
-                                new Position(365, 340),
-                                140,
-                                130,
+                                new Position(385, 355),
+                                96,
+                                96,
                                 Color.web("#DB2777"),
                                 "Тренер: 'Следи за усталостью и не выходи на сцену слишком рано.'"
                         ),

@@ -14,7 +14,7 @@ The project already contains:
 - map boundaries
 - interactive gym objects
 - interaction prompt near objects
-- placeholder interaction messages on `E`
+- first skill-check minigame on training machines
 - starter HUD with stats and form formula
 - local Git repository initialized
 
@@ -22,6 +22,6 @@ The project already contains:
 
 - `W`, `A`, `S`, `D` or arrow keys: move
 - `E`: interact with nearby object
+- `Space`, `Enter`, or `E`: stop the marker during a skill check
 - `Enter`: start game from menu
 - `Esc`: return to menu
-

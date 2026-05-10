@@ -20,16 +20,16 @@ public final class Hud extends VBox {
     private final Label formLabel;
 
     public Hud() {
-        setSpacing(8);
-        setPadding(new Insets(18));
-        setMaxWidth(230);
+        setSpacing(3);
+        setPadding(new Insets(10));
+        setMaxWidth(150);
         setStyle("-fx-background-color: rgba(8, 15, 23, 0.88);"
-                + "-fx-background-radius: 20;"
+                + "-fx-background-radius: 10;"
                 + "-fx-border-color: #7FDBA4;"
-                + "-fx-border-radius: 20;");
+                + "-fx-border-radius: 10;");
 
         Label title = new Label("Параметры");
-        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 19));
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
         title.setStyle("-fx-text-fill: #F8FAFC;");
 
         stateLabel = createLabel();
@@ -65,7 +65,7 @@ public final class Hud extends VBox {
 
     private Label createLabel() {
         Label label = new Label();
-        label.setFont(Font.font("Segoe UI", 15));
+        label.setFont(Font.font("Segoe UI", 11));
         label.setStyle("-fx-text-fill: #E2E8F0;");
         return label;
     }

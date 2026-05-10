@@ -7,27 +7,36 @@ public final class Player {
     private static final double DEFAULT_SPEED = 250;
 
     private Position position;
+    private PlayerDirection direction;
+    private boolean moving;
     private final double width;
     private final double height;
     private final double speed;
     private final Stats stats;
+    private final ActiveSupplements activeSupplements;
 
     private Player(Position position, double width, double height, double speed, Stats stats) {
         this.position = position;
+        this.direction = PlayerDirection.FRONT;
+        this.moving = false;
         this.width = width;
         this.height = height;
         this.speed = speed;
         this.stats = stats;
+        this.activeSupplements = new ActiveSupplements();
     }
 
     public static Player createDefault(GameMap gameMap) {
         Position spawnPoint = new Position(gameMap.left() + 40, gameMap.bottom() - 90);
-        return new Player(spawnPoint, DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_SPEED, new Stats(10, 10, 10, 0, 0));
+        return new Player(spawnPoint, DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_SPEED, new Stats(10, 10, 10, 0, 300));
     }
 
     public void reset(GameMap gameMap) {
         position = new Position(gameMap.left() + 40, gameMap.bottom() - 90);
+        direction = PlayerDirection.FRONT;
+        moving = false;
         stats.reset();
+        activeSupplements.clear();
     }
 
     public Position position() {
@@ -36,6 +45,22 @@ public final class Player {
 
     public void setPosition(Position position) {
         this.position = position;
+    }
+
+    public PlayerDirection direction() {
+        return direction;
+    }
+
+    public void setDirection(PlayerDirection direction) {
+        this.direction = direction;
+    }
+
+    public boolean isMoving() {
+        return moving;
+    }
+
+    public void setMoving(boolean moving) {
+        this.moving = moving;
     }
 
     public double width() {
@@ -52,6 +77,10 @@ public final class Player {
 
     public Stats stats() {
         return stats;
+    }
+
+    public ActiveSupplements activeSupplements() {
+        return activeSupplements;
     }
 
     public double centerX() {
