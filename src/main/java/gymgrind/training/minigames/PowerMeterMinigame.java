@@ -90,16 +90,23 @@ public final class PowerMeterMinigame extends VBox {
         elapsedSeconds += deltaSeconds;
         flashSeconds = Math.max(0, flashSeconds - deltaSeconds);
 
-        zoneCenter = 0.62 + Math.sin(elapsedSeconds * 1.15 * session.tuning().speedMultiplier()) * 0.08;
+        zoneCenter = 0.62
+                + Math.sin(elapsedSeconds * 1.35 * session.tuning().speedMultiplier()) * 0.09
+                + Math.sin(elapsedSeconds * 2.10) * 0.035;
         marker = clamp(marker - drainSpeed * deltaSeconds, 0.0, 1.0);
 
         if (isInZone()) {
-            score += 20 * deltaSeconds;
+            score += 16 * deltaSeconds;
         } else {
-            score -= 24 * deltaSeconds;
+            score -= 32 * deltaSeconds * session.tuning().speedMultiplier();
             flashSeconds = Math.max(flashSeconds, 0.08);
         }
         score = clamp(score, 0, 100);
+
+        if (score <= 0) {
+            finish();
+            return;
+        }
 
         draw();
 

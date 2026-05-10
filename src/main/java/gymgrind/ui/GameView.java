@@ -1,6 +1,7 @@
 package gymgrind.ui;
 
 import gymgrind.game.GameState;
+import gymgrind.game.CalendarState;
 import gymgrind.player.Player;
 import gymgrind.shop.SupplementType;
 import gymgrind.training.TrainingMachine;
@@ -60,8 +61,8 @@ public final class GameView extends StackPane {
         return canvas.getGraphicsContext2D();
     }
 
-    public void updateHud(Player player, GameState gameState) {
-        hud.update(player, gameState);
+    public void updateHud(Player player, GameState gameState, CalendarState calendarState) {
+        hud.update(player, gameState, calendarState);
     }
 
     public void setInteractionPrompt(String text) {

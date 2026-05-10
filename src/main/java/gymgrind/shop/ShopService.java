@@ -1,8 +1,6 @@
 package gymgrind.shop;
 
 import gymgrind.player.Player;
-import gymgrind.shop.ShopPurchaseResult;
-import gymgrind.shop.SupplementType;
 
 public final class ShopService {
 

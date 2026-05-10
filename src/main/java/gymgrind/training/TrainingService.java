@@ -1,17 +1,8 @@
 package gymgrind.training;
 
-import gymgrind.shop.SupplementService;
-import gymgrind.training.FatigueProfile;
-import gymgrind.training.MachineType;
-import gymgrind.training.MinigameResult;
 import gymgrind.player.Player;
+import gymgrind.shop.SupplementService;
 import gymgrind.shop.SupplementType;
-import gymgrind.training.TrainingMachine;
-import gymgrind.training.TrainingOutcome;
-import gymgrind.training.TrainingReward;
-import gymgrind.training.TrainingSession;
-import gymgrind.training.TrainingTuning;
-import gymgrind.training.TrainingWeight;
 
 public final class TrainingService {
 
@@ -66,7 +57,8 @@ public final class TrainingService {
     }
 
     public boolean isSupportedMinigame(MachineType machineType) {
-        return true;
+        return machineType == MachineType.BENCH_PRESS
+                || machineType == MachineType.DEADLIFT_PLATFORM;
     }
 
     private TrainingReward baseReward(MachineType machineType) {

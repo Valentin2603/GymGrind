@@ -1,7 +1,6 @@
 package gymgrind.shop;
 
 import gymgrind.player.ActiveSupplements;
-import gymgrind.shop.SupplementType;
 import gymgrind.training.TrainingReward;
 
 public final class SupplementService {

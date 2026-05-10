@@ -11,6 +11,9 @@ public final class SkillCheckSession {
     private double successZoneWidth;
     private double markerProgress;
     private double markerVelocity;
+    private double markerSpeedMultiplier;
+    private double successZoneShrink;
+    private double minSuccessZoneWidth;
     private int completedHits;
     private String sequencePrompt;
     private double barProgress;
@@ -25,6 +28,9 @@ public final class SkillCheckSession {
                               double successZoneWidth,
                               double markerProgress,
                               double markerVelocity,
+                              double markerSpeedMultiplier,
+                              double successZoneShrink,
+                              double minSuccessZoneWidth,
                               int completedHits,
                               String sequencePrompt,
                               double barProgress,
@@ -38,6 +44,9 @@ public final class SkillCheckSession {
         this.successZoneWidth = successZoneWidth;
         this.markerProgress = markerProgress;
         this.markerVelocity = markerVelocity;
+        this.markerSpeedMultiplier = markerSpeedMultiplier;
+        this.successZoneShrink = successZoneShrink;
+        this.minSuccessZoneWidth = minSuccessZoneWidth;
         this.completedHits = completedHits;
         this.sequencePrompt = sequencePrompt;
         this.barProgress = barProgress;
@@ -51,6 +60,9 @@ public final class SkillCheckSession {
                                                double markerVelocity,
                                                double successZoneStart,
                                                double successZoneWidth,
+                                               double markerSpeedMultiplier,
+                                               double successZoneShrink,
+                                               double minSuccessZoneWidth,
                                                int requiredHits,
                                                int completedHits) {
         return new SkillCheckSession(
@@ -61,6 +73,9 @@ public final class SkillCheckSession {
                 successZoneWidth,
                 markerProgress,
                 markerVelocity,
+                markerSpeedMultiplier,
+                successZoneShrink,
+                minSuccessZoneWidth,
                 completedHits,
                 "",
                 0.0,
@@ -82,6 +97,9 @@ public final class SkillCheckSession {
                 0,
                 0.0,
                 0.0,
+                0.0,
+                0.0,
+                1.0,
                 0.0,
                 0.0,
                 0,
@@ -123,6 +141,18 @@ public final class SkillCheckSession {
 
     public void setMarkerVelocity(double markerVelocity) {
         this.markerVelocity = markerVelocity;
+    }
+
+    public double markerSpeedMultiplier() {
+        return markerSpeedMultiplier;
+    }
+
+    public double successZoneShrink() {
+        return successZoneShrink;
+    }
+
+    public double minSuccessZoneWidth() {
+        return minSuccessZoneWidth;
     }
 
     public double successZoneStart() {

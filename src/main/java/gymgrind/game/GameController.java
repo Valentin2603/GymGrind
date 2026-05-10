@@ -1,15 +1,14 @@
 package gymgrind.game;
 
-import gymgrind.game.GameState;
-import gymgrind.game.InputState;
 import gymgrind.gym.InteractionService;
 import gymgrind.player.MovementService;
 import gymgrind.shop.ShopService;
 import gymgrind.training.minigames.SkillCheckService;
 import gymgrind.shop.SupplementService;
 import gymgrind.training.TrainingService;
+import gymgrind.training.minigames.BalanceBarMinigame;
 import gymgrind.training.minigames.PowerMeterMinigame;
-import gymgrind.training.minigames.RhythmMinigame;
+import gymgrind.training.minigames.WorkRushMinigame;
 import gymgrind.gym.GameMap;
 import gymgrind.gym.objects.GymObject;
 import gymgrind.gym.objects.InteractiveZone;
@@ -51,6 +50,7 @@ public final class GameController {
     private final ShopService shopService;
     private final SkillCheckService skillCheckService;
     private final GameRenderer renderer;
+    private final CalendarState calendarState;
 
     private GameState gameState;
     private Optional<GymObject> nearbyObject;
@@ -72,6 +72,7 @@ public final class GameController {
         this.shopService = new ShopService();
         this.skillCheckService = new SkillCheckService();
         this.renderer = new GameRenderer();
+        this.calendarState = CalendarState.createDefault();
         this.gameState = GameState.MENU;
         this.nearbyObject = Optional.empty();
         this.activeSkillCheck = Optional.empty();
@@ -115,6 +116,7 @@ public final class GameController {
 
     private void startNewRun() {
         player.reset(gameMap);
+        calendarState.reset();
         inputState.clear();
         gameState = GameState.PLAYING;
         nearbyObject = Optional.empty();
@@ -164,7 +166,7 @@ public final class GameController {
     }
 
     private void refreshUi() {
-        view.updateHud(player, gameState);
+        view.updateHud(player, gameState, calendarState);
         view.setMainMenuVisible(gameState == GameState.MENU);
         view.setInteractionPrompt(buildPrompt());
         view.setStatusMessage(statusMessage);
@@ -188,7 +190,7 @@ public final class GameController {
             case D, RIGHT -> inputState.setRight(true);
             case E -> tryInteract();
             case ENTER -> {
-                if (gameState == GameState.MENU || gameState == GameState.LOSE) {
+                if (gameState == GameState.MENU || gameState == GameState.LOSE || gameState == GameState.WIN) {
                     startNewRun();
                 }
             }
@@ -228,8 +230,17 @@ public final class GameController {
             return;
         }
 
-        if (gymObject instanceof InteractiveZone zone && zone.zoneType() == ZoneType.SHOP) {
-            openShop();
+        if (gymObject instanceof InteractiveZone zone) {
+            switch (zone.zoneType()) {
+                case SHOP -> openShop();
+                case REST -> rest();
+                case STAGE -> tryStage();
+                case WORK -> startWork();
+                default -> {
+                    statusMessage = gymObject.interact();
+                    refreshUi();
+                }
+            }
             return;
         }
 
@@ -258,6 +269,94 @@ public final class GameController {
                 }
         );
         refreshUi();
+    }
+
+    private void rest() {
+        if (calendarState.isLastDay()) {
+            gameState = GameState.LOSE;
+            statusMessage = "Дни подготовки закончились. Вы не успели выйти на сцену.";
+            refreshUi();
+            return;
+        }
+
+        int fatigueBefore = player.stats().fatigue();
+        player.stats().reduceFatigue(35);
+        calendarState.nextDay();
+
+        int restored = fatigueBefore - player.stats().fatigue();
+        statusMessage = "Вы отдохнули. Усталость -" + restored
+                + ". Наступил день " + calendarState.currentDay()
+                + "/" + calendarState.maxDays() + ".";
+        refreshUi();
+    }
+
+    private void tryStage() {
+        int form = player.stats().form();
+        int fatigue = player.stats().fatigue();
+
+        if (form >= 100 && fatigue < 80) {
+            gameState = GameState.WIN;
+            statusMessage = "Победа! Вы вышли на сцену. Форма: "
+                    + form + ", усталость: " + fatigue + ". Enter - начать заново.";
+        } else {
+            gameState = GameState.LOSE;
+            statusMessage = "Поражение. Вы вышли на сцену слишком рано. Форма: "
+                    + form + ", усталость: " + fatigue + ". Enter - начать заново.";
+        }
+
+        inputState.clear();
+        refreshUi();
+    }
+
+    private void startWork() {
+        inputState.clear();
+        activeSkillCheck = Optional.empty();
+        activeTrainingSession = Optional.empty();
+        pendingSuccessResult = Optional.empty();
+        gameState = GameState.MINIGAME;
+        statusMessage = "Подработка началась: обслуживайте клиентов.";
+        view.showOverlay(new WorkRushMinigame(this::finishWork));
+        refreshUi();
+    }
+
+    private void finishWork(MinigameResult result) {
+        int moneyDelta;
+        int fatigueDelta;
+
+        switch (result.grade()) {
+            case EXCELLENT -> {
+                moneyDelta = 180;
+                fatigueDelta = 10;
+            }
+            case NORMAL -> {
+                moneyDelta = 100;
+                fatigueDelta = 10;
+            }
+            case FAIL -> {
+                moneyDelta = 40;
+                fatigueDelta = 15;
+            }
+            default -> {
+                moneyDelta = 40;
+                fatigueDelta = 15;
+            }
+        }
+
+        player.stats().applyDeltas(0, 0, 0, fatigueDelta, moneyDelta);
+        statusMessage = "Работа завершена. " + result.details()
+                + " Деньги +" + moneyDelta
+                + ", усталость +" + fatigueDelta + ".";
+
+        view.hideOverlay();
+        if (player.stats().fatigue() >= 100) {
+            gameState = GameState.LOSE;
+            statusMessage += " Усталость дошла до 100. Вы выгорели.";
+        } else {
+            gameState = GameState.PLAYING;
+        }
+
+        refreshUi();
+        view.requestGameFocus();
     }
 
     private void openWeightSelection(TrainingMachine machine) {
@@ -298,11 +397,8 @@ public final class GameController {
 
     private Node createMinigame(TrainingSession session) {
         MachineType machineType = session.machine().machineType();
-        if (machineType == MachineType.DEADLIFT_PLATFORM) {
-            return new PowerMeterMinigame(session, result -> finishTraining(session, result));
-        }
-        if (machineType == MachineType.TREADMILL) {
-            return new RhythmMinigame(session, result -> finishTraining(session, result));
+        if (machineType == MachineType.BENCH_PRESS) {
+            return new BalanceBarMinigame(session, result -> finishTraining(session, result));
         }
         if (machineType == MachineType.DEADLIFT_PLATFORM) {
             return new PowerMeterMinigame(session, result -> finishTraining(session, result));
@@ -346,7 +442,7 @@ public final class GameController {
         if (activeSkillCheck.isEmpty()) {
             if (keyCode == KeyCode.ESCAPE) {
                 gameState = GameState.PLAYING;
-                statusMessage = "Тренировка отменена.";
+                statusMessage = "Действие отменено.";
                 view.hideOverlay();
                 refreshUi();
                 view.requestGameFocus();
@@ -396,7 +492,7 @@ public final class GameController {
         pendingSuccessResult = Optional.empty();
         activeTrainingSession = Optional.of(trainingSession);
         TrainingMachine machine = trainingSession.machine();
-        SkillCheckSession session = skillCheckService.startSession(machine, player.stats().strength());
+        SkillCheckSession session = skillCheckService.startSession(trainingSession, player.stats().strength());
         activeSkillCheck = Optional.of(session);
         gameState = GameState.MINIGAME;
         statusMessage = buildSkillCheckStartMessage(session) + " Вес: " + trainingSession.weight().label() + ".";
@@ -444,10 +540,15 @@ public final class GameController {
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
         TrainingGrade grade = result.success() ? TrainingGrade.NORMAL : TrainingGrade.FAIL;
+        String details = result.message();
+        String machinePrefix = trainingSession.machine().name() + ": ";
+        if (details.startsWith(machinePrefix)) {
+            details = details.substring(machinePrefix.length());
+        }
         TrainingOutcome outcome = trainingService.finishTraining(
                 player,
                 trainingSession,
-                new MinigameResult(grade, result.success() ? "Подход выполнен." : "Подход сорван.")
+                new MinigameResult(grade, details)
         );
         SkillCheckResult displayResult = new SkillCheckResult(
                 result.success(),
@@ -513,6 +614,13 @@ public final class GameController {
         }
 
         if (session.requiresMultipleHits()) {
+            if (session.machine().machineType() == MachineType.TREADMILL) {
+                return session.machine().name()
+                        + ": выдержите "
+                        + session.requiredHits()
+                        + " беговых интервалов подряд.";
+            }
+
             return session.machine().name()
                     + ": попадите в зелёную зону "
                     + session.requiredHits()
@@ -547,6 +655,6 @@ public final class GameController {
     }
 
     private boolean usesSkillCheck(MachineType machineType) {
-        return machineType == MachineType.BENCH_PRESS || machineType == MachineType.SQUAT_RACK;
+        return !trainingService.isSupportedMinigame(machineType);
     }
 }

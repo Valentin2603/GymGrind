@@ -1,6 +1,7 @@
 package gymgrind.ui;
 
 import gymgrind.game.GameState;
+import gymgrind.game.CalendarState;
 import gymgrind.player.Player;
 import gymgrind.player.Stats;
 import javafx.geometry.Insets;
@@ -12,6 +13,7 @@ import javafx.scene.text.FontWeight;
 public final class Hud extends VBox {
 
     private final Label stateLabel;
+    private final Label dayLabel;
     private final Label strengthLabel;
     private final Label muscleLabel;
     private final Label staminaLabel;
@@ -33,6 +35,7 @@ public final class Hud extends VBox {
         title.setStyle("-fx-text-fill: #F8FAFC;");
 
         stateLabel = createLabel();
+        dayLabel = createLabel();
         strengthLabel = createLabel();
         muscleLabel = createLabel();
         staminaLabel = createLabel();
@@ -43,6 +46,7 @@ public final class Hud extends VBox {
         getChildren().addAll(
                 title,
                 stateLabel,
+                dayLabel,
                 strengthLabel,
                 muscleLabel,
                 staminaLabel,
@@ -52,9 +56,10 @@ public final class Hud extends VBox {
         );
     }
 
-    public void update(Player player, GameState gameState) {
+    public void update(Player player, GameState gameState, CalendarState calendarState) {
         Stats stats = player.stats();
         stateLabel.setText("Режим: " + gameState.title());
+        dayLabel.setText("День: " + calendarState.currentDay() + "/" + calendarState.maxDays());
         strengthLabel.setText("Сила: " + stats.strength());
         muscleLabel.setText("Масса: " + stats.muscle());
         staminaLabel.setText("Выносливость: " + stats.stamina());

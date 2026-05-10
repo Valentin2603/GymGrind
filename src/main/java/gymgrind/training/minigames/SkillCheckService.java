@@ -1,9 +1,9 @@
 package gymgrind.training.minigames;
 
 import gymgrind.training.MachineType;
-import gymgrind.training.minigames.SkillCheckResult;
-import gymgrind.training.minigames.SkillCheckSession;
 import gymgrind.training.TrainingMachine;
+import gymgrind.training.TrainingSession;
+import gymgrind.training.TrainingTuning;
 import javafx.scene.input.KeyCode;
 
 import java.util.concurrent.ThreadLocalRandom;
@@ -13,30 +13,30 @@ public final class SkillCheckService {
     private static final double MIN_MARKER_PROGRESS = 0.0;
     private static final double MAX_MARKER_PROGRESS = 1.0;
 
-    private static final int BENCH_PRESS_REQUIRED_HITS = 5;
-    private static final double BENCH_PRESS_SUCCESS_ZONE_SHRINK = 0.02;
-    private static final double BENCH_PRESS_MIN_SUCCESS_ZONE_WIDTH = 0.11;
-    private static final double BENCH_PRESS_STRENGTH_SPEED_FACTOR = 0.025;
-    private static final double BENCH_PRESS_MAX_STRENGTH_BONUS = 0.75;
+    private static final int TREADMILL_REQUIRED_HITS = 6;
+    private static final double TREADMILL_SUCCESS_ZONE_SHRINK = 0.018;
+    private static final double TREADMILL_MIN_SUCCESS_ZONE_WIDTH = 0.09;
 
-    private static final int SQUAT_PROMPT_LENGTH = 5;
+    private static final int SQUAT_PROMPT_LENGTH = 7;
     private static final double SQUAT_START_BAR_PROGRESS = 0.45;
-    private static final double SQUAT_DRAIN_PER_SECOND = 0.11;
-    private static final double SQUAT_CORRECT_GAIN = 0.17;
-    private static final double SQUAT_WRONG_PENALTY = 0.18;
+    private static final double SQUAT_DRAIN_PER_SECOND = 0.14;
+    private static final double SQUAT_CORRECT_GAIN = 0.15;
+    private static final double SQUAT_WRONG_PENALTY = 0.22;
     private static final char[] SQUAT_SYMBOLS = {'A', 'S', 'D', 'F', 'J', 'K', 'L'};
 
-    public SkillCheckSession startSession(TrainingMachine machine, int strength) {
+    public SkillCheckSession startSession(TrainingSession trainingSession, int strength) {
+        TrainingMachine machine = trainingSession.machine();
+        TrainingTuning tuning = trainingSession.tuning();
         return switch (machine.machineType()) {
             case SQUAT_RACK -> SkillCheckSession.sequenceBar(
                     machine,
-                    randomSequencePrompt(SQUAT_PROMPT_LENGTH),
+                    randomSequencePrompt(Math.max(SQUAT_PROMPT_LENGTH, tuning.rhythmLength())),
                     SQUAT_START_BAR_PROGRESS,
-                    SQUAT_DRAIN_PER_SECOND,
+                    SQUAT_DRAIN_PER_SECOND * tuning.speedMultiplier(),
                     SQUAT_CORRECT_GAIN,
-                    SQUAT_WRONG_PENALTY
+                    SQUAT_WRONG_PENALTY * Math.sqrt(tuning.speedMultiplier())
             );
-            default -> startTimingSession(machine, strength);
+            default -> startTimingSession(trainingSession, strength);
         };
     }
 
@@ -108,11 +108,11 @@ public final class SkillCheckService {
             );
             case TREADMILL -> new SkillCheckResult(
                     true,
-                    session.machine().name() + ": темп выдержан. Выносливость +2, усталость +4.",
+                    session.machine().name() + ": интервальный бег выдержан. Выносливость +4, усталость +7.",
                     0,
                     0,
-                    2,
-                    4
+                    4,
+                    7
             );
             case DEADLIFT_PLATFORM -> new SkillCheckResult(
                     true,
@@ -150,11 +150,16 @@ public final class SkillCheckService {
             );
             case TREADMILL -> new SkillCheckResult(
                     false,
-                    session.machine().name() + ": темп сорван. Прогресса нет, усталость +5.",
+                    session.machine().name()
+                            + ": темп сорван на "
+                            + session.completedHits()
+                            + "/"
+                            + session.requiredHits()
+                            + ". Прогресса нет, усталость +2.",
                     0,
                     0,
                     0,
-                    5
+                    2
             );
             case DEADLIFT_PLATFORM -> new SkillCheckResult(
                     false,
@@ -170,6 +175,17 @@ public final class SkillCheckService {
     public String buildTimingProgressMessage(SkillCheckSession session) {
         if (!session.requiresMultipleHits()) {
             return session.machine().name() + ": попадание засчитано.";
+        }
+
+        if (session.machine().machineType() == MachineType.TREADMILL) {
+            return session.machine().name()
+                    + ": интервал "
+                    + session.completedHits()
+                    + "/"
+                    + session.requiredHits()
+                    + ". Ещё "
+                    + session.remainingHits()
+                    + " точных интервалов. Зона стала уже.";
         }
 
         return session.machine().name()
@@ -201,15 +217,25 @@ public final class SkillCheckService {
                 + "%.";
     }
 
-    private SkillCheckSession startTimingSession(TrainingMachine machine, int strength) {
-        double successZoneWidth = successZoneWidthFor(machine.machineType());
+    private SkillCheckSession startTimingSession(TrainingSession trainingSession, int strength) {
+        TrainingMachine machine = trainingSession.machine();
+        TrainingTuning tuning = trainingSession.tuning();
+        double successZoneWidth = clamp(
+                successZoneWidthFor(machine.machineType()) * tuning.zoneMultiplier(),
+                0.08,
+                0.24
+        );
+        double markerSpeedMultiplier = tuning.speedMultiplier();
         return SkillCheckSession.timingZone(
                 machine,
                 randomMarkerProgress(),
-                randomMarkerVelocity(machine.machineType(), strength),
+                randomMarkerVelocity(machine.machineType(), strength, markerSpeedMultiplier),
                 randomSuccessZoneStart(successZoneWidth),
                 successZoneWidth,
-                requiredHitsFor(machine.machineType()),
+                markerSpeedMultiplier,
+                TREADMILL_SUCCESS_ZONE_SHRINK,
+                TREADMILL_MIN_SUCCESS_ZONE_WIDTH * tuning.zoneMultiplier(),
+                requiredHitsFor(machine.machineType(), tuning),
                 0
         );
     }
@@ -233,22 +259,26 @@ public final class SkillCheckService {
     }
 
     private void prepareNextTimingHit(SkillCheckSession session, int strength) {
-        if (session.machine().machineType() == MachineType.BENCH_PRESS) {
+        if (session.machine().machineType() == MachineType.TREADMILL) {
             double nextWidth = Math.max(
-                    BENCH_PRESS_MIN_SUCCESS_ZONE_WIDTH,
-                    session.successZoneWidth() - BENCH_PRESS_SUCCESS_ZONE_SHRINK
+                    session.minSuccessZoneWidth(),
+                    session.successZoneWidth() - session.successZoneShrink()
             );
             session.setSuccessZoneWidth(nextWidth);
         }
 
         session.setSuccessZoneStart(randomSuccessZoneStart(session.successZoneWidth()));
         session.setMarkerProgress(randomMarkerProgress());
-        session.setMarkerVelocity(randomMarkerVelocity(session.machine().machineType(), strength));
+        session.setMarkerVelocity(randomMarkerVelocity(
+                session.machine().machineType(),
+                strength,
+                session.markerSpeedMultiplier()
+        ));
     }
 
-    private int requiredHitsFor(MachineType machineType) {
+    private int requiredHitsFor(MachineType machineType, TrainingTuning tuning) {
         return switch (machineType) {
-            case BENCH_PRESS -> BENCH_PRESS_REQUIRED_HITS;
+            case TREADMILL -> Math.max(TREADMILL_REQUIRED_HITS, tuning.rhythmLength());
             default -> 1;
         };
     }
@@ -256,7 +286,7 @@ public final class SkillCheckService {
     private double successZoneWidthFor(MachineType machineType) {
         return switch (machineType) {
             case BENCH_PRESS -> 0.19;
-            case TREADMILL -> 0.15;
+            case TREADMILL -> 0.16;
             case DEADLIFT_PLATFORM -> 0.14;
             case SQUAT_RACK -> 0.17;
         };
@@ -264,8 +294,8 @@ public final class SkillCheckService {
 
     private double markerSpeedFor(MachineType machineType, int strength) {
         return switch (machineType) {
-            case BENCH_PRESS -> 0.90 + Math.min(BENCH_PRESS_MAX_STRENGTH_BONUS, Math.max(0, strength) * BENCH_PRESS_STRENGTH_SPEED_FACTOR);
-            case TREADMILL -> 1.25;
+            case BENCH_PRESS -> 1.00;
+            case TREADMILL -> 1.55;
             case DEADLIFT_PLATFORM -> 1.12;
             case SQUAT_RACK -> 1.00;
         };
@@ -279,12 +309,16 @@ public final class SkillCheckService {
         return ThreadLocalRandom.current().nextDouble(0.08, 0.92);
     }
 
-    private double randomMarkerVelocity(MachineType machineType, int strength) {
-        double markerVelocity = markerSpeedFor(machineType, strength);
+    private double randomMarkerVelocity(MachineType machineType, int strength, double speedMultiplier) {
+        double markerVelocity = markerSpeedFor(machineType, strength) * speedMultiplier;
         if (ThreadLocalRandom.current().nextBoolean()) {
             markerVelocity *= -1;
         }
         return markerVelocity;
+    }
+
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(value, max));
     }
 
     private String randomSequencePrompt(int length) {

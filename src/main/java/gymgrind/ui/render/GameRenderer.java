@@ -236,7 +236,7 @@ public final class GameRenderer {
         graphicsContext.setFill(SUBTITLE_COLOR);
         graphicsContext.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
         graphicsContext.fillText(
-                "Неделя 1: движение, границы карты, интерактивные зоны, магазин и мини-игры",
+                "Тренировки, вес, усталость, магазин, работа, отдых и выход на сцену",
                 gameMap.left(),
                 60
         );
@@ -434,7 +434,11 @@ public final class GameRenderer {
 
     private String footerText(SkillCheckSession session) {
         if (session.requiresMultipleHits()) {
-            return "Для жима нужно собрать все повторы подряд: каждое попадание делает зелёную зону уже.";
+            if (session.machine().machineType() == MachineType.TREADMILL) {
+                return "Для беговой нужно выдержать серию интервалов: каждое попадание сужает зелёную зону.";
+            }
+
+            return "Нужно собрать все повторы подряд: каждое попадание делает зелёную зону уже.";
         }
 
         return "Остановите маркер максимально точно, чтобы получить прибавку к характеристикам.";

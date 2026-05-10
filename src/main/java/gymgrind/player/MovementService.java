@@ -2,8 +2,6 @@ package gymgrind.player;
 
 import gymgrind.game.InputState;
 import gymgrind.gym.GameMap;
-import gymgrind.player.Player;
-import gymgrind.player.PlayerDirection;
 import gymgrind.gym.Position;
 
 public final class MovementService {
