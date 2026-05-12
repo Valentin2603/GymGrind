@@ -16,6 +16,8 @@ public final class GameApp extends Application {
         stage.setMinWidth(1100);
         stage.setMinHeight(720);
         stage.setScene(scene);
+        stage.sizeToScene();
+        stage.centerOnScreen();
         stage.show();
 
         controller.start();

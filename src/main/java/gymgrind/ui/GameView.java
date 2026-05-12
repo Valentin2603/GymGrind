@@ -37,6 +37,8 @@ public final class GameView extends StackPane {
         canvas = new Canvas(width, height);
         hud = new Hud();
         mainMenu = new MainMenu();
+        mainMenu.prefWidthProperty().bind(widthProperty());
+        mainMenu.prefHeightProperty().bind(heightProperty());
         interactionPrompt = createMessageLabel("#F8FAFC", "rgba(15, 23, 42, 0.88)");
         statusMessage = createMessageLabel("#E2E8F0", "rgba(15, 23, 42, 0.82)");
         overlayLayer = new StackPane();
