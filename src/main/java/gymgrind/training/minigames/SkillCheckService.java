@@ -96,7 +96,8 @@ public final class SkillCheckService {
                     2,
                     1,
                     0,
-                    6
+                    6,
+                    0
             );
             case SQUAT_RACK -> new SkillCheckResult(
                     true,
@@ -104,15 +105,17 @@ public final class SkillCheckService {
                     1,
                     2,
                     1,
-                    8
+                    8,
+                    0
             );
             case TREADMILL -> new SkillCheckResult(
                     true,
-                    session.machine().name() + ": интервальный бег выдержан. Выносливость +4, усталость +7.",
+                    session.machine().name() + ": интервальный бег выдержан. Выносливость +4, усталость +7, % жира -2.",
                     0,
                     0,
                     4,
-                    7
+                    7,
+                    -2
             );
             case DEADLIFT_PLATFORM -> new SkillCheckResult(
                     true,
@@ -120,7 +123,8 @@ public final class SkillCheckService {
                     2,
                     1,
                     1,
-                    9
+                    9,
+                    0
             );
         };
     }
@@ -138,7 +142,8 @@ public final class SkillCheckService {
                     0,
                     0,
                     0,
-                    5
+                    5,
+                    0
             );
             case SQUAT_RACK -> new SkillCheckResult(
                     false,
@@ -146,7 +151,8 @@ public final class SkillCheckService {
                     0,
                     0,
                     0,
-                    7
+                    7,
+                    0
             );
             case TREADMILL -> new SkillCheckResult(
                     false,
@@ -159,7 +165,8 @@ public final class SkillCheckService {
                     0,
                     0,
                     0,
-                    2
+                    2,
+                    0
             );
             case DEADLIFT_PLATFORM -> new SkillCheckResult(
                     false,
@@ -167,7 +174,8 @@ public final class SkillCheckService {
                     0,
                     0,
                     0,
-                    7
+                    7,
+                    0
             );
         };
     }

@@ -6,6 +6,7 @@ public record SkillCheckResult(
         int strengthDelta,
         int muscleDelta,
         int staminaDelta,
-        int fatigueDelta
+        int fatigueDelta,
+        int bodyFatDelta
 ) {
 }

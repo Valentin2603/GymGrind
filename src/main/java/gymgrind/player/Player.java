@@ -17,8 +17,9 @@ public final class Player {
     private final double speed;
     private final Stats stats;
     private final ActiveSupplements activeSupplements;
+    private PlayerProfile profile;
 
-    private Player(Position position, double width, double height, double speed, Stats stats) {
+    private Player(Position position, double width, double height, double speed, Stats stats, PlayerProfile profile) {
         this.position = position;
         this.direction = PlayerDirection.FRONT;
         this.moving = false;
@@ -27,11 +28,27 @@ public final class Player {
         this.speed = speed;
         this.stats = stats;
         this.activeSupplements = new ActiveSupplements();
+        this.profile = profile;
     }
 
     public static Player createDefault(GameMap gameMap) {
+        PlayerProfile defaultProfile = PlayerProfiles.defaultProfile();
         Position spawnPoint = new Position(gameMap.left() + 40, gameMap.bottom() - 90);
-        return new Player(spawnPoint, DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_SPEED, new Stats(10, 10, 10, 0, 300));
+        return new Player(
+                spawnPoint,
+                DEFAULT_WIDTH,
+                DEFAULT_HEIGHT,
+                DEFAULT_SPEED,
+                new Stats(
+                        defaultProfile.baseStrength(),
+                        defaultProfile.baseMuscle(),
+                        defaultProfile.baseStamina(),
+                        defaultProfile.baseFatigue(),
+                        defaultProfile.baseMoney(),
+                        defaultProfile.baseBodyFat()
+                ),
+                defaultProfile
+        );
     }
 
     public void reset(GameMap gameMap) {
@@ -40,6 +57,19 @@ public final class Player {
         moving = false;
         stats.reset();
         activeSupplements.clear();
+    }
+
+    public void applyProfile(PlayerProfile profile, GameMap gameMap) {
+        this.profile = profile;
+        stats.configureBaseValues(
+                profile.baseStrength(),
+                profile.baseMuscle(),
+                profile.baseStamina(),
+                profile.baseFatigue(),
+                profile.baseMoney(),
+                profile.baseBodyFat()
+        );
+        reset(gameMap);
     }
 
     public Position position() {
@@ -84,6 +114,10 @@ public final class Player {
 
     public ActiveSupplements activeSupplements() {
         return activeSupplements;
+    }
+
+    public PlayerProfile profile() {
+        return profile;
     }
 
     public double centerX() {

@@ -115,7 +115,7 @@ public final class GameController {
     }
 
     private void startNewRun() {
-        player.reset(gameMap);
+        player.applyProfile(view.selectedProfile(), gameMap);
         calendarState.reset();
         inputState.clear();
         gameState = GameState.PLAYING;
@@ -342,7 +342,7 @@ public final class GameController {
             }
         }
 
-        player.stats().applyDeltas(0, 0, 0, fatigueDelta, moneyDelta);
+        player.stats().applyDeltas(0, 0, 0, fatigueDelta, moneyDelta, 0);
         statusMessage = "Работа завершена. " + result.details()
                 + " Деньги +" + moneyDelta
                 + ", усталость +" + fatigueDelta + ".";
@@ -528,7 +528,8 @@ public final class GameController {
                     result.muscleDelta(),
                     result.staminaDelta(),
                     result.fatigueDelta(),
-                    0
+                    0,
+                    result.bodyFatDelta()
             );
             activeSkillCheck = Optional.empty();
             gameState = GameState.PLAYING;
@@ -556,7 +557,8 @@ public final class GameController {
                 outcome.finalReward().strength(),
                 outcome.finalReward().muscle(),
                 outcome.finalReward().stamina(),
-                outcome.finalReward().fatigue()
+                outcome.finalReward().fatigue(),
+                outcome.finalReward().bodyFat()
         );
 
         if (player.stats().fatigue() >= 100) {

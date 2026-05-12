@@ -4,9 +4,10 @@ import gymgrind.game.GameState;
 import gymgrind.gym.GameMap;
 import gymgrind.gym.objects.GymObject;
 import gymgrind.gym.objects.InteractiveZone;
-import gymgrind.training.MachineType;
 import gymgrind.player.Player;
 import gymgrind.player.PlayerDirection;
+import gymgrind.player.PlayerProfile;
+import gymgrind.training.MachineType;
 import gymgrind.training.minigames.SkillCheckResult;
 import gymgrind.training.minigames.SkillCheckSession;
 import gymgrind.training.TrainingMachine;
@@ -20,6 +21,7 @@ import javafx.scene.text.TextAlignment;
 
 import java.io.InputStream;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -45,8 +47,7 @@ public final class GameRenderer {
     private final Image wallTile = loadImage("/assets/tiles/wall_tile.png");
     private final Map<MachineType, Image> machineImages;
     private final Map<ZoneType, Image> zoneImages;
-    private final Map<PlayerDirection, Image> playerIdleImages;
-    private final Map<PlayerDirection, Image> playerWalkImages;
+    private final Map<String, PlayerSpriteSet> playerSpriteSets;
 
     public GameRenderer() {
         machineImages = new EnumMap<>(MachineType.class);
@@ -61,17 +62,7 @@ public final class GameRenderer {
         zoneImages.put(ZoneType.STAGE, loadImage("/assets/tiles/stage_tile.png"));
         zoneImages.put(ZoneType.COACH, loadImage("/assets/npcs/trainer_npc.png"));
 
-        playerIdleImages = new EnumMap<>(PlayerDirection.class);
-        playerIdleImages.put(PlayerDirection.FRONT, loadImage("/assets/characters/player_idle_front.png"));
-        playerIdleImages.put(PlayerDirection.BACK, loadImage("/assets/characters/player_idle_back.png"));
-        playerIdleImages.put(PlayerDirection.LEFT, loadImage("/assets/characters/player_idle_left.png"));
-        playerIdleImages.put(PlayerDirection.RIGHT, loadImage("/assets/characters/player_idle_right.png"));
-
-        playerWalkImages = new EnumMap<>(PlayerDirection.class);
-        playerWalkImages.put(PlayerDirection.FRONT, loadImage("/assets/characters/player_walk_front.png"));
-        playerWalkImages.put(PlayerDirection.BACK, loadImage("/assets/characters/player_walk_back.png"));
-        playerWalkImages.put(PlayerDirection.LEFT, loadImage("/assets/characters/player_walk_left.png"));
-        playerWalkImages.put(PlayerDirection.RIGHT, loadImage("/assets/characters/player_walk_right.png"));
+        playerSpriteSets = new HashMap<>();
     }
 
     public void render(GraphicsContext graphicsContext,
@@ -186,7 +177,11 @@ public final class GameRenderer {
     private void drawPlayer(GraphicsContext graphicsContext, Player player) {
         Image playerImage = playerImageFor(player);
         if (playerImage != null) {
-            graphicsContext.drawImage(playerImage, player.position().x() - 15, player.position().y() - 24, 64, 64);
+            double renderWidth = player.profile().renderWidth();
+            double renderHeight = player.profile().renderHeight();
+            double drawX = player.centerX() - renderWidth / 2.0;
+            double drawY = player.position().y() + player.height() - renderHeight;
+            graphicsContext.drawImage(playerImage, drawX, drawY, renderWidth, renderHeight);
         } else {
             graphicsContext.setFill(PLAYER_COLOR);
             graphicsContext.fillOval(player.position().x(), player.position().y(), player.width(), player.height());
@@ -194,17 +189,48 @@ public final class GameRenderer {
     }
 
     private Image playerImageFor(Player player) {
+        PlayerSpriteSet spriteSet = spriteSetFor(player.profile());
         if (player.isMoving() && shouldShowWalkFrame()) {
-            Image walkImage = playerWalkImages.get(player.direction());
+            Image walkImage = directionalImage(spriteSet.walkFrames(), player.direction());
             if (walkImage != null) {
                 return walkImage;
             }
         }
-        return playerIdleImages.get(player.direction());
+        return directionalImage(spriteSet.idleFrames(), player.direction());
     }
 
     private boolean shouldShowWalkFrame() {
         return (System.nanoTime() / WALK_FRAME_NANOS) % 2 == 0;
+    }
+
+    private PlayerSpriteSet spriteSetFor(PlayerProfile profile) {
+        return playerSpriteSets.computeIfAbsent(profile.id(), ignored -> loadPlayerSpriteSet(profile));
+    }
+
+    private PlayerSpriteSet loadPlayerSpriteSet(PlayerProfile profile) {
+        Map<PlayerDirection, Image> idleFrames = new EnumMap<>(PlayerDirection.class);
+        Map<PlayerDirection, Image> walkFrames = new EnumMap<>(PlayerDirection.class);
+
+        for (PlayerDirection direction : PlayerDirection.values()) {
+            idleFrames.put(direction, loadImage(profile.idleSpritePath(direction)));
+            walkFrames.put(direction, loadImage(profile.walkSpritePath(direction)));
+        }
+
+        return new PlayerSpriteSet(idleFrames, walkFrames);
+    }
+
+    private Image directionalImage(Map<PlayerDirection, Image> frames, PlayerDirection direction) {
+        Image image = frames.get(direction);
+        if (image != null) {
+            return image;
+        }
+        if (direction == PlayerDirection.LEFT) {
+            return frames.get(PlayerDirection.RIGHT);
+        }
+        if (direction == PlayerDirection.RIGHT) {
+            return frames.get(PlayerDirection.LEFT);
+        }
+        return frames.get(PlayerDirection.FRONT);
     }
 
     private Image imageFor(GymObject gymObject) {
@@ -240,7 +266,6 @@ public final class GameRenderer {
                 gameMap.left(),
                 60
         );
-        graphicsContext.fillText("Режим: " + gameState.title(), gameMap.right() - 185, 38);
         graphicsContext.fillText("WASD/стрелки - ходьба | E - действие | Esc - меню", gameMap.right() - 360, 60);
     }
 
@@ -389,7 +414,7 @@ public final class GameRenderer {
 
         graphicsContext.setFill(HIGHLIGHT);
         graphicsContext.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        graphicsContext.fillText("Эффект: " + buildResultSummary(result), panelLeft + 36, panelTop + 208, panelWidth - 72);
+        graphicsContext.fillText("Эффект: " + buildExtendedResultSummary(result), panelLeft + 36, panelTop + 208, panelWidth - 72);
 
         graphicsContext.setFill(SUBTITLE_COLOR);
         graphicsContext.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 15));
@@ -472,5 +497,24 @@ public final class GameRenderer {
             builder.append("+");
         }
         builder.append(delta);
+    }
+
+    private String buildExtendedResultSummary(SkillCheckResult result) {
+        StringBuilder builder = new StringBuilder();
+        appendDelta(builder, "сила", result.strengthDelta());
+        appendDelta(builder, "масса", result.muscleDelta());
+        appendDelta(builder, "выносливость", result.staminaDelta());
+        appendDelta(builder, "усталость", result.fatigueDelta());
+        appendDelta(builder, "% жира", result.bodyFatDelta());
+
+        if (builder.isEmpty()) {
+            return "без изменений";
+        }
+
+        return builder.toString();
+    }
+
+    private record PlayerSpriteSet(Map<PlayerDirection, Image> idleFrames,
+                                   Map<PlayerDirection, Image> walkFrames) {
     }
 }

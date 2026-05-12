@@ -51,7 +51,8 @@ public final class TrainingService {
                 + " Получено: сила +" + finalReward.strength()
                 + ", масса +" + finalReward.muscle()
                 + ", выносливость +" + finalReward.stamina()
-                + ", усталость +" + finalReward.fatigue() + ".";
+                + ", усталость +" + finalReward.fatigue()
+                + bodyFatSuffix(finalReward) + ".";
 
         return new TrainingOutcome(finalReward, message);
     }
@@ -63,10 +64,17 @@ public final class TrainingService {
 
     private TrainingReward baseReward(MachineType machineType) {
         return switch (machineType) {
-            case BENCH_PRESS -> new TrainingReward(4, 2, 0, 15);
-            case SQUAT_RACK -> new TrainingReward(3, 4, 1, 20);
-            case TREADMILL -> new TrainingReward(0, 0, 5, 10);
-            case DEADLIFT_PLATFORM -> new TrainingReward(5, 2, 0, 22);
+            case BENCH_PRESS -> new TrainingReward(4, 2, 0, 15, 0);
+            case SQUAT_RACK -> new TrainingReward(3, 4, 1, 20, 0);
+            case TREADMILL -> new TrainingReward(0, 0, 5, 10, -2);
+            case DEADLIFT_PLATFORM -> new TrainingReward(5, 2, 0, 22, 0);
         };
+    }
+
+    private String bodyFatSuffix(TrainingReward reward) {
+        if (reward.bodyFat() == 0) {
+            return "";
+        }
+        return ", % жира " + reward.bodyFat() + "%";
     }
 }

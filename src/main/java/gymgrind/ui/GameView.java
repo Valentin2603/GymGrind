@@ -3,6 +3,7 @@ package gymgrind.ui;
 import gymgrind.game.GameState;
 import gymgrind.game.CalendarState;
 import gymgrind.player.Player;
+import gymgrind.player.PlayerProfile;
 import gymgrind.shop.SupplementType;
 import gymgrind.training.TrainingMachine;
 import gymgrind.training.TrainingWeight;
@@ -52,8 +53,8 @@ public final class GameView extends StackPane {
 
         getChildren().addAll(canvas, hud, bottomMessages, overlayLayer, mainMenu);
 
-        StackPane.setAlignment(hud, Pos.TOP_LEFT);
-        StackPane.setMargin(hud, new Insets(20, 0, 0, 20));
+        StackPane.setAlignment(hud, Pos.TOP_RIGHT);
+        StackPane.setMargin(hud, new Insets(20, 20, 0, 0));
         StackPane.setAlignment(bottomMessages, Pos.BOTTOM_CENTER);
         StackPane.setAlignment(overlayLayer, Pos.CENTER);
         StackPane.setAlignment(mainMenu, Pos.CENTER);
@@ -88,6 +89,10 @@ public final class GameView extends StackPane {
 
     public void setOnExit(Runnable action) {
         mainMenu.setOnExit(action);
+    }
+
+    public PlayerProfile selectedProfile() {
+        return mainMenu.selectedProfile();
     }
 
     public void showTrainingSetup(TrainingMachine machine,

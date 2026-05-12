@@ -1,16 +1,22 @@
 package gymgrind.ui;
 
+import gymgrind.player.PlayerProfile;
+import gymgrind.player.PlayerProfiles;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BackgroundImage;
 import javafx.scene.layout.BackgroundPosition;
 import javafx.scene.layout.BackgroundRepeat;
 import javafx.scene.layout.BackgroundSize;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.image.Image;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -22,6 +28,8 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public final class MainMenu extends StackPane {
 
@@ -38,6 +46,8 @@ public final class MainMenu extends StackPane {
 
     private final Button startButton;
     private final Button exitButton;
+    private final Map<PlayerProfile, Button> profileButtons;
+    private PlayerProfile selectedProfile;
 
     public MainMenu() {
         setMinSize(0, 0);
@@ -51,16 +61,18 @@ public final class MainMenu extends StackPane {
         overlay.prefWidthProperty().bind(widthProperty());
         overlay.prefHeightProperty().bind(heightProperty());
 
+        profileButtons = new LinkedHashMap<>();
+
         VBox copyBlock = new VBox(16);
         copyBlock.setAlignment(Pos.CENTER_LEFT);
         copyBlock.setFillWidth(true);
-        copyBlock.setPrefWidth(520);
-        copyBlock.setMaxWidth(520);
+        copyBlock.setPrefWidth(560);
+        copyBlock.setMaxWidth(560);
         copyBlock.setMaxHeight(Region.USE_PREF_SIZE);
         copyBlock.setPadding(new Insets(28, 32, 28, 32));
-        copyBlock.setStyle("-fx-background-color: rgba(2, 6, 23, 0.62);"
+        copyBlock.setStyle("-fx-background-color: rgba(2, 6, 23, 0.68);"
                 + "-fx-background-radius: 26;"
-                + "-fx-border-color: rgba(125, 211, 252, 0.18);"
+                + "-fx-border-color: rgba(125, 211, 252, 0.22);"
                 + "-fx-border-radius: 26;"
                 + "-fx-border-width: 1.5;");
 
@@ -75,12 +87,24 @@ public final class MainMenu extends StackPane {
         title.setMaxWidth(Double.MAX_VALUE);
 
         Label subtitle = new Label(
-                "Прокачай форму, выйди в зал и начни забег к сцене с персональной заставки на весь экран."
+                "Перед стартом выбери героя. Сейчас доступен один персонаж, но меню уже готово для новых бойцов."
         );
         subtitle.setFont(Font.font("Segoe UI", 18));
         subtitle.setStyle("-fx-text-fill: #CBD5E1;");
         subtitle.setWrapText(true);
         subtitle.setMaxWidth(Double.MAX_VALUE);
+
+        Label chooseLabel = new Label("Выбор героя");
+        chooseLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        chooseLabel.setStyle("-fx-text-fill: #F8FAFC;");
+
+        VBox profileList = new VBox(12);
+        profileList.setFillWidth(true);
+        for (PlayerProfile profile : PlayerProfiles.all()) {
+            Button button = createProfileButton(profile);
+            profileButtons.put(profile, button);
+            profileList.getChildren().add(button);
+        }
 
         Label controls = new Label("Управление: WASD или стрелки - движение, E - действие, Esc - меню");
         controls.setFont(Font.font("Segoe UI", 14));
@@ -91,22 +115,24 @@ public final class MainMenu extends StackPane {
         startButton = new Button("Начать игру");
         startButton.setMaxWidth(Double.MAX_VALUE);
         startButton.setPrefHeight(52);
-        startButton.setStyle(buttonStyle("#22C55E", "#14532D"));
+        startButton.setStyle(actionButtonStyle("#22C55E", "#14532D"));
 
         exitButton = new Button("Выход");
         exitButton.setMaxWidth(Double.MAX_VALUE);
         exitButton.setPrefHeight(52);
-        exitButton.setStyle(buttonStyle("#EF4444", "#7F1D1D"));
+        exitButton.setStyle(actionButtonStyle("#EF4444", "#7F1D1D"));
 
         VBox buttons = new VBox(12, startButton, exitButton);
         buttons.setAlignment(Pos.CENTER_LEFT);
         buttons.setFillWidth(true);
 
-        copyBlock.getChildren().addAll(eyebrow, title, subtitle, controls, buttons);
-
+        copyBlock.getChildren().addAll(eyebrow, title, subtitle, chooseLabel, profileList, controls, buttons);
         getChildren().addAll(backgroundView, overlay, copyBlock);
+
         StackPane.setAlignment(copyBlock, Pos.CENTER_LEFT);
         StackPane.setMargin(copyBlock, new Insets(32, 32, 32, 32));
+
+        selectProfile(PlayerProfiles.defaultProfile());
     }
 
     public void setOnStart(Runnable action) {
@@ -115,6 +141,78 @@ public final class MainMenu extends StackPane {
 
     public void setOnExit(Runnable action) {
         exitButton.setOnAction(event -> action.run());
+    }
+
+    public PlayerProfile selectedProfile() {
+        return selectedProfile != null ? selectedProfile : PlayerProfiles.defaultProfile();
+    }
+
+    private Button createProfileButton(PlayerProfile profile) {
+        Button button = new Button();
+        button.setAlignment(Pos.CENTER_LEFT);
+        button.setMaxWidth(Double.MAX_VALUE);
+        button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        button.setGraphic(buildProfileGraphic(profile));
+        button.setOnAction(event -> selectProfile(profile));
+        button.setStyle(profileButtonStyle(false));
+        return button;
+    }
+
+    private HBox buildProfileGraphic(PlayerProfile profile) {
+        HBox root = new HBox(16);
+        root.setAlignment(Pos.CENTER_LEFT);
+
+        ImageView preview = buildPreview(profile.previewSpritePath());
+        VBox textBlock = new VBox(6);
+        textBlock.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(textBlock, Priority.ALWAYS);
+
+        Label name = new Label(profile.displayName());
+        name.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        name.setStyle("-fx-text-fill: #F8FAFC;");
+
+        Label description = new Label(profile.description());
+        description.setFont(Font.font("Segoe UI", 13));
+        description.setStyle("-fx-text-fill: #CBD5E1;");
+        description.setWrapText(true);
+        description.setMaxWidth(360);
+
+        Label stats = new Label(
+                "Сила: " + profile.baseStrength()
+                        + " | Масса: " + profile.baseMuscle()
+                        + " | Выносливость: " + profile.baseStamina()
+                        + " | % жира: " + profile.baseBodyFat() + "%"
+        );
+        stats.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+        stats.setStyle("-fx-text-fill: #F8FAFC;");
+        stats.setWrapText(true);
+
+        textBlock.getChildren().addAll(name, description, stats);
+        root.getChildren().addAll(preview, textBlock);
+        return root;
+    }
+
+    private ImageView buildPreview(String previewPath) {
+        ImageView imageView = new ImageView();
+        imageView.setFitWidth(82);
+        imageView.setFitHeight(82);
+        imageView.setPreserveRatio(true);
+        imageView.setSmooth(true);
+
+        URL resource = MainMenu.class.getResource(previewPath);
+        if (resource != null) {
+            imageView.setImage(new Image(resource.toExternalForm()));
+        }
+        return imageView;
+    }
+
+    private void selectProfile(PlayerProfile profile) {
+        selectedProfile = profile;
+        startButton.setDisable(selectedProfile == null);
+        for (Map.Entry<PlayerProfile, Button> entry : profileButtons.entrySet()) {
+            boolean selected = entry.getKey().equals(selectedProfile);
+            entry.getValue().setStyle(profileButtonStyle(selected));
+        }
     }
 
     private Region createBackgroundLayer() {
@@ -127,9 +225,7 @@ public final class MainMenu extends StackPane {
 
         Image splashImage = loadSplashImage();
         if (splashImage != null) {
-            BackgroundSize coverSize = new BackgroundSize(
-                    100, 100, true, true, false, true
-            );
+            BackgroundSize coverSize = new BackgroundSize(100, 100, true, true, false, true);
             BackgroundImage backgroundImage = new BackgroundImage(
                     splashImage,
                     BackgroundRepeat.NO_REPEAT,
@@ -189,7 +285,7 @@ public final class MainMenu extends StackPane {
         return new Image(path.toUri().toString());
     }
 
-    private String buttonStyle(String accentColor, String borderColor) {
+    private String actionButtonStyle(String accentColor, String borderColor) {
         return "-fx-background-color: " + accentColor + ";"
                 + "-fx-text-fill: white;"
                 + "-fx-font-size: 16px;"
@@ -199,5 +295,16 @@ public final class MainMenu extends StackPane {
                 + "-fx-border-width: 1.5;"
                 + "-fx-border-color: " + borderColor + ";"
                 + "-fx-padding: 12 18 12 18;";
+    }
+
+    private String profileButtonStyle(boolean selected) {
+        String borderColor = selected ? "#7FDBA4" : "rgba(148, 163, 184, 0.28)";
+        String background = selected ? "rgba(15, 23, 42, 0.92)" : "rgba(15, 23, 42, 0.62)";
+        return "-fx-background-color: " + background + ";"
+                + "-fx-background-radius: 18;"
+                + "-fx-border-color: " + borderColor + ";"
+                + "-fx-border-radius: 18;"
+                + "-fx-border-width: 1.6;"
+                + "-fx-padding: 12 14 12 14;";
     }
 }
