@@ -58,6 +58,7 @@ public final class GameRenderer {
 
         zoneImages = new EnumMap<>(ZoneType.class);
         zoneImages.put(ZoneType.SHOP, loadImage("/assets/machines/shop_counter.png"));
+        zoneImages.put(ZoneType.COMPUTER, loadImage("/assets/machines/shop_counter.png"));
         zoneImages.put(ZoneType.REST, loadImage("/assets/machines/rest_zone.png"));
         zoneImages.put(ZoneType.STAGE, loadImage("/assets/tiles/stage_tile.png"));
         zoneImages.put(ZoneType.COACH, loadImage("/assets/npcs/trainer_npc.png"));

@@ -1,7 +1,6 @@
 package gymgrind.gym;
 
 import gymgrind.game.GameState;
-import gymgrind.gym.GameMap;
 import gymgrind.gym.objects.GymObject;
 import gymgrind.player.Player;
 
@@ -25,7 +24,7 @@ public final class InteractionService {
 
         return nearbyObject
                 .map(object -> "Нажмите E: " + object.name())
-                .orElse("Подойдите ближе к тренажёру или зоне.");
+                .orElse("Подойдите ближе к объекту, двери или тренажёру.");
     }
 
     private double distanceBetween(Player player, GymObject gymObject) {

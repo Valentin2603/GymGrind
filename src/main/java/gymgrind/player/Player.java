@@ -33,9 +33,8 @@ public final class Player {
 
     public static Player createDefault(GameMap gameMap) {
         PlayerProfile defaultProfile = PlayerProfiles.defaultProfile();
-        Position spawnPoint = new Position(gameMap.left() + 40, gameMap.bottom() - 90);
         return new Player(
-                spawnPoint,
+                gameMap.spawnPoint(),
                 DEFAULT_WIDTH,
                 DEFAULT_HEIGHT,
                 DEFAULT_SPEED,
@@ -52,11 +51,17 @@ public final class Player {
     }
 
     public void reset(GameMap gameMap) {
-        position = new Position(gameMap.left() + 40, gameMap.bottom() - 90);
+        position = gameMap.spawnPoint();
         direction = PlayerDirection.FRONT;
         moving = false;
         stats.reset();
         activeSupplements.clear();
+    }
+
+    public void moveToSpawn(GameMap gameMap) {
+        position = gameMap.spawnPoint();
+        direction = PlayerDirection.FRONT;
+        moving = false;
     }
 
     public void applyProfile(PlayerProfile profile, GameMap gameMap) {

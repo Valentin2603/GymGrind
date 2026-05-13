@@ -6,6 +6,7 @@ public final class Stats {
 
     private static final int MIN_BODY_FAT = 3;
     private static final int MAX_BODY_FAT = 40;
+    private static final int MAX_FATIGUE = 100;
 
     private int strength;
     private int muscle;
@@ -42,6 +43,14 @@ public final class Stats {
         return fatigue;
     }
 
+    public int availableStamina() {
+        return MAX_FATIGUE - fatigue;
+    }
+
+    public int maxAvailableStamina() {
+        return MAX_FATIGUE;
+    }
+
     public int money() {
         return money;
     }
@@ -67,13 +76,13 @@ public final class Stats {
         strength = Math.max(0, strength + strengthDelta);
         muscle = Math.max(0, muscle + muscleDelta);
         stamina = Math.max(0, stamina + staminaDelta);
-        fatigue = clamp(fatigue + fatigueDelta, 0, 100);
+        fatigue = clamp(fatigue + fatigueDelta, 0, MAX_FATIGUE);
         money = Math.max(0, money + moneyDelta);
         bodyFat = clamp(bodyFat + bodyFatDelta, MIN_BODY_FAT, MAX_BODY_FAT);
     }
 
     public void reduceFatigue(int amount) {
-        fatigue = clamp(fatigue - amount, 0, 100);
+        fatigue = clamp(fatigue - amount, 0, MAX_FATIGUE);
     }
 
     public boolean spendMoney(int amount) {
@@ -93,7 +102,7 @@ public final class Stats {
         baseStrength = Math.max(0, strength);
         baseMuscle = Math.max(0, muscle);
         baseStamina = Math.max(0, stamina);
-        baseFatigue = clamp(fatigue, 0, 100);
+        baseFatigue = clamp(fatigue, 0, MAX_FATIGUE);
         baseMoney = Math.max(0, money);
         baseBodyFat = clamp(bodyFat, MIN_BODY_FAT, MAX_BODY_FAT);
     }

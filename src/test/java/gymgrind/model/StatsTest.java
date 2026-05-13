@@ -17,7 +17,20 @@ final class StatsTest {
         assertEquals(5, stats.muscle());
         assertEquals(7, stats.stamina());
         assertEquals(0, stats.fatigue());
+        assertEquals(100, stats.availableStamina());
+        assertEquals(100, stats.maxAvailableStamina());
         assertEquals(0, stats.money());
         assertEquals(3, stats.bodyFat());
+    }
+
+    @Test
+    void availableStaminaTracksFatigue() {
+        Stats stats = new Stats(10, 8, 6, 35, 100, 14);
+
+        assertEquals(65, stats.availableStamina());
+
+        stats.reduceFatigue(15);
+
+        assertEquals(80, stats.availableStamina());
     }
 }

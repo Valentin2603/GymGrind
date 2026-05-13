@@ -11,23 +11,82 @@ import java.util.List;
 
 public final class GameMap {
 
+    private static final Position DEFAULT_ORIGIN = new Position(40, 90);
+    private static final double DEFAULT_WIDTH = 1200;
+    private static final double DEFAULT_HEIGHT = 590;
+
+    private final String name;
+    private final String description;
     private final Position origin;
     private final double width;
     private final double height;
+    private final Position spawnPoint;
     private final List<GymObject> objects;
 
-    public GameMap(Position origin, double width, double height, List<GymObject> objects) {
+    public GameMap(String name,
+                   String description,
+                   Position origin,
+                   double width,
+                   double height,
+                   Position spawnPoint,
+                   List<GymObject> objects) {
+        this.name = name;
+        this.description = description;
         this.origin = origin;
         this.width = width;
         this.height = height;
+        this.spawnPoint = spawnPoint;
         this.objects = List.copyOf(objects);
     }
 
-    public static GameMap createWeekOneLayout() {
+    public static GameMap createHomeLayout() {
         return new GameMap(
-                new Position(40, 90),
-                1200,
-                590,
+                "Комната игрока",
+                "Домашняя база: здесь можно поспать, открыть магазин на компьютере и выйти в другие локации.",
+                DEFAULT_ORIGIN,
+                DEFAULT_WIDTH,
+                DEFAULT_HEIGHT,
+                new Position(140, 560),
+                List.of(
+                        new InteractiveZone(
+                                "Кровать",
+                                ZoneType.BED,
+                                new Position(120, 180),
+                                260,
+                                130,
+                                Color.web("#C084FC"),
+                                "Кровать: восстановит силы и переведёт игру на следующий день."
+                        ),
+                        new InteractiveZone(
+                                "Компьютер",
+                                ZoneType.COMPUTER,
+                                new Position(790, 170),
+                                220,
+                                140,
+                                Color.web("#38BDF8"),
+                                "Компьютер: здесь можно открыть магазин добавок."
+                        ),
+                        new InteractiveZone(
+                                "Дверь",
+                                ZoneType.DOOR,
+                                new Position(1035, 255),
+                                120,
+                                180,
+                                Color.web("#F59E0B"),
+                                "Дверь: отсюда можно перейти в другие локации."
+                        )
+                )
+        );
+    }
+
+    public static GameMap createGymLayout() {
+        return new GameMap(
+                "Зал",
+                "Тренировочная локация с существующими тренажёрами. Магазин и переходы вынесены домой.",
+                DEFAULT_ORIGIN,
+                DEFAULT_WIDTH,
+                DEFAULT_HEIGHT,
+                new Position(110, 560),
                 List.of(
                         new TrainingMachine(
                                 "Жим лёжа",
@@ -45,7 +104,7 @@ public final class GameMap {
                                 170,
                                 80,
                                 Color.web("#1D7874"),
-                                "Присед: сюда позже подключим мини-игру, где будут skill checks."
+                                "Присед: сюда позже подключим мини-игру со skill checks."
                         ),
                         new TrainingMachine(
                                 "Беговая дорожка",
@@ -63,55 +122,84 @@ public final class GameMap {
                                 170,
                                 80,
                                 Color.web("#6D597A"),
-                                "Становая тяга: пока заглушка, добавим мини-игру."
-                        ),
-                        new InteractiveZone(
-                                "Магазин",
-                                ZoneType.SHOP,
-                                new Position(1020, 135),
-                                165,
-                                110,
-                                Color.web("#D97706"),
-                                "Магазин: скоро здесь откроется покупка добавок."
-                        ),
-                        new InteractiveZone(
-                                "Работа",
-                                ZoneType.WORK,
-                                new Position(130, 355),
-                                170,
-                                100,
-                                Color.web("#8B5CF6"),
-                                "Работа: сюда подключим мини-игру для заработка денег."
+                                "Становая тяга: пока заглушка, позже добавим полноценную мини-игру."
                         ),
                         new InteractiveZone(
                                 "Тренер",
                                 ZoneType.COACH,
-                                new Position(385, 355),
+                                new Position(390, 350),
                                 96,
                                 96,
                                 Color.web("#DB2777"),
-                                "Тренер: 'Следи за усталостью и не выходи на сцену слишком рано.'"
+                                "Тренер: 'Следи за усталостью и грамотно распределяй тренировки по дням.'"
                         ),
                         new InteractiveZone(
-                                "Отдых",
-                                ZoneType.REST,
-                                new Position(565, 350),
-                                170,
-                                100,
-                                Color.web("#14B8A6"),
-                                "Зона отдыха: позже здесь будет восстановление усталости."
-                        ),
-                        new InteractiveZone(
-                                "Сцена",
-                                ZoneType.STAGE,
-                                new Position(815, 325),
-                                285,
-                                145,
-                                Color.web("#B91C1C"),
-                                "Сцена: финальная проверка формы появится после системы статов и победы."
+                                "Дверь",
+                                ZoneType.DOOR,
+                                new Position(1035, 300),
+                                120,
+                                180,
+                                Color.web("#F59E0B"),
+                                "Дверь: отсюда можно перейти в другие локации."
                         )
                 )
         );
+    }
+
+    public static GameMap createWorkLayout() {
+        return new GameMap(
+                "Работа",
+                "Отдельная локация под будущую систему заработка. Пока здесь только точка перехода.",
+                DEFAULT_ORIGIN,
+                DEFAULT_WIDTH,
+                DEFAULT_HEIGHT,
+                new Position(140, 560),
+                List.of(
+                        new InteractiveZone(
+                                "Дверь",
+                                ZoneType.DOOR,
+                                new Position(1035, 255),
+                                120,
+                                180,
+                                Color.web("#F59E0B"),
+                                "Дверь: отсюда можно перейти в другие локации."
+                        )
+                )
+        );
+    }
+
+    public static GameMap createStageLayout() {
+        return new GameMap(
+                "Сцена",
+                "Отдельная локация под будущие выступления. Пока здесь только точка перехода.",
+                DEFAULT_ORIGIN,
+                DEFAULT_WIDTH,
+                DEFAULT_HEIGHT,
+                new Position(140, 560),
+                List.of(
+                        new InteractiveZone(
+                                "Дверь",
+                                ZoneType.DOOR,
+                                new Position(1035, 255),
+                                120,
+                                180,
+                                Color.web("#F59E0B"),
+                                "Дверь: отсюда можно перейти в другие локации."
+                        )
+                )
+        );
+    }
+
+    public static GameMap createWeekOneLayout() {
+        return createGymLayout();
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public String description() {
+        return description;
     }
 
     public Position origin() {
@@ -124,6 +212,10 @@ public final class GameMap {
 
     public double height() {
         return height;
+    }
+
+    public Position spawnPoint() {
+        return spawnPoint;
     }
 
     public double left() {

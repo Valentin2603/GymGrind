@@ -1,15 +1,16 @@
 package gymgrind.ui;
 
-import gymgrind.game.GameState;
 import gymgrind.game.CalendarState;
+import gymgrind.game.GameState;
+import gymgrind.game.LocationId;
 import gymgrind.player.Player;
 import gymgrind.player.PlayerProfile;
 import gymgrind.shop.SupplementType;
 import gymgrind.training.TrainingMachine;
 import gymgrind.training.TrainingWeight;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -19,6 +20,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -54,7 +56,7 @@ public final class GameView extends StackPane {
         getChildren().addAll(canvas, hud, bottomMessages, overlayLayer, mainMenu);
 
         StackPane.setAlignment(hud, Pos.TOP_RIGHT);
-        StackPane.setMargin(hud, new Insets(20, 20, 0, 0));
+        StackPane.setMargin(hud, new Insets(16, 16, 0, 0));
         StackPane.setAlignment(bottomMessages, Pos.BOTTOM_CENTER);
         StackPane.setAlignment(overlayLayer, Pos.CENTER);
         StackPane.setAlignment(mainMenu, Pos.CENTER);
@@ -188,6 +190,53 @@ public final class GameView extends StackPane {
         Button close = createOverlayButton("Закрыть", "#475569");
         close.setOnAction(event -> onClose.run());
         panel.getChildren().add(close);
+
+        showOverlay(panel);
+    }
+
+    public void showLocationMenu(LocationId currentLocation,
+                                 List<LocationId> destinations,
+                                 Consumer<LocationId> onSelect,
+                                 Runnable onClose) {
+        VBox panel = new VBox(12);
+        panel.setAlignment(Pos.CENTER);
+        panel.setMaxWidth(460);
+        panel.setPadding(new Insets(24));
+        panel.setStyle("-fx-background-color: rgba(8, 15, 23, 0.94);"
+                + "-fx-background-radius: 18;"
+                + "-fx-border-color: #38BDF8;"
+                + "-fx-border-radius: 18;"
+                + "-fx-border-width: 2;");
+
+        Label title = new Label("Выбор локации");
+        title.setFont(Font.font("Segoe UI", 24));
+        title.setStyle("-fx-text-fill: #F8FAFC; -fx-font-weight: bold;");
+
+        Label subtitle = new Label("Сейчас: " + currentLocation.displayName());
+        subtitle.setFont(Font.font("Segoe UI", 15));
+        subtitle.setWrapText(true);
+        subtitle.setAlignment(Pos.CENTER);
+        subtitle.setStyle("-fx-text-fill: #CBD5E1;");
+
+        panel.getChildren().addAll(title, subtitle);
+
+        if (destinations.isEmpty()) {
+            Label emptyLabel = new Label("Других доступных локаций пока нет.");
+            emptyLabel.setFont(Font.font("Segoe UI", 14));
+            emptyLabel.setStyle("-fx-text-fill: #E2E8F0;");
+            panel.getChildren().add(emptyLabel);
+        } else {
+            for (LocationId destination : destinations) {
+                Button button = createOverlayButton(destination.displayName(), "#0EA5E9");
+                button.setPrefWidth(320);
+                button.setOnAction(event -> onSelect.accept(destination));
+                panel.getChildren().add(button);
+            }
+        }
+
+        Button cancel = createOverlayButton("Отмена", "#475569");
+        cancel.setOnAction(event -> onClose.run());
+        panel.getChildren().add(cancel);
 
         showOverlay(panel);
     }

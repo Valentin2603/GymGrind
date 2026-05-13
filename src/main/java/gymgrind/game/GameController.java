@@ -1,31 +1,31 @@
 package gymgrind.game;
 
-import gymgrind.gym.InteractionService;
-import gymgrind.player.MovementService;
-import gymgrind.shop.ShopService;
-import gymgrind.training.minigames.SkillCheckService;
-import gymgrind.shop.SupplementService;
-import gymgrind.training.TrainingService;
-import gymgrind.training.minigames.BalanceBarMinigame;
-import gymgrind.training.minigames.PowerMeterMinigame;
-import gymgrind.training.minigames.WorkRushMinigame;
 import gymgrind.gym.GameMap;
+import gymgrind.gym.InteractionService;
 import gymgrind.gym.objects.GymObject;
 import gymgrind.gym.objects.InteractiveZone;
-import gymgrind.training.MachineType;
-import gymgrind.training.MinigameResult;
+import gymgrind.gym.objects.ZoneType;
+import gymgrind.player.MovementService;
 import gymgrind.player.Player;
 import gymgrind.shop.ShopPurchaseResult;
-import gymgrind.training.minigames.SkillCheckResult;
-import gymgrind.training.minigames.SkillCheckSession;
+import gymgrind.shop.ShopService;
+import gymgrind.shop.SupplementService;
+import gymgrind.training.MachineType;
+import gymgrind.training.MinigameResult;
 import gymgrind.training.TrainingGrade;
 import gymgrind.training.TrainingMachine;
 import gymgrind.training.TrainingOutcome;
+import gymgrind.training.TrainingService;
 import gymgrind.training.TrainingSession;
 import gymgrind.training.TrainingWeight;
-import gymgrind.gym.objects.ZoneType;
-import gymgrind.ui.render.GameRenderer;
+import gymgrind.training.minigames.BalanceBarMinigame;
+import gymgrind.training.minigames.PowerMeterMinigame;
+import gymgrind.training.minigames.SkillCheckResult;
+import gymgrind.training.minigames.SkillCheckService;
+import gymgrind.training.minigames.SkillCheckSession;
+import gymgrind.training.minigames.WorkRushMinigame;
 import gymgrind.ui.GameView;
+import gymgrind.ui.render.GameRenderer;
 import javafx.animation.AnimationTimer;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -41,7 +41,7 @@ public final class GameController {
 
     private final Stage stage;
     private final GameView view;
-    private final GameMap gameMap;
+    private final LocationManager locationManager;
     private final Player player;
     private final InputState inputState;
     private final MovementService movementService;
@@ -63,8 +63,8 @@ public final class GameController {
     public GameController(Stage stage) {
         this.stage = stage;
         this.view = new GameView(WINDOW_WIDTH, WINDOW_HEIGHT);
-        this.gameMap = GameMap.createWeekOneLayout();
-        this.player = Player.createDefault(gameMap);
+        this.locationManager = new LocationManager();
+        this.player = Player.createDefault(currentMap());
         this.inputState = new InputState();
         this.movementService = new MovementService();
         this.interactionService = new InteractionService();
@@ -78,7 +78,7 @@ public final class GameController {
         this.activeSkillCheck = Optional.empty();
         this.activeTrainingSession = Optional.empty();
         this.pendingSuccessResult = Optional.empty();
-        this.statusMessage = "Нажмите «Начать», чтобы войти в зал.";
+        this.statusMessage = "Нажмите «Начать», чтобы начать день в комнате игрока.";
     }
 
     public Scene createScene() {
@@ -115,7 +115,8 @@ public final class GameController {
     }
 
     private void startNewRun() {
-        player.applyProfile(view.selectedProfile(), gameMap);
+        locationManager.reset();
+        player.applyProfile(view.selectedProfile(), currentMap());
         calendarState.reset();
         inputState.clear();
         gameState = GameState.PLAYING;
@@ -124,7 +125,7 @@ public final class GameController {
         activeTrainingSession = Optional.empty();
         pendingSuccessResult = Optional.empty();
         view.hideOverlay();
-        statusMessage = "Осмотритесь в зале. Подойдите к объекту и нажмите E.";
+        statusMessage = "Вы дома. Подойдите к кровати, компьютеру или двери и нажмите E.";
         refreshUi();
         view.requestGameFocus();
     }
@@ -132,8 +133,8 @@ public final class GameController {
     private void update(double deltaSeconds) {
         switch (gameState) {
             case PLAYING -> {
-                movementService.movePlayer(player, inputState, gameMap, deltaSeconds);
-                nearbyObject = interactionService.findNearbyObject(player, gameMap);
+                movementService.movePlayer(player, inputState, currentMap(), deltaSeconds);
+                nearbyObject = interactionService.findNearbyObject(player, currentMap());
             }
             case MINIGAME -> {
                 nearbyObject = Optional.empty();
@@ -146,7 +147,7 @@ public final class GameController {
                     }
                 }
             }
-            case RESULT, SHOP -> nearbyObject = Optional.empty();
+            case RESULT, SHOP, DIALOGUE -> nearbyObject = Optional.empty();
             default -> nearbyObject = Optional.empty();
         }
 
@@ -156,7 +157,7 @@ public final class GameController {
     private void render() {
         renderer.render(
                 view.getGraphicsContext(),
-                gameMap,
+                currentMap(),
                 player,
                 nearbyObject,
                 gameState,
@@ -183,6 +184,16 @@ public final class GameController {
             return;
         }
 
+        if (gameState == GameState.DIALOGUE) {
+            handleDialogueKeyPressed(keyCode);
+            return;
+        }
+
+        if (gameState == GameState.SHOP) {
+            handleShopKeyPressed(keyCode);
+            return;
+        }
+
         switch (keyCode) {
             case W, UP -> inputState.setUp(true);
             case S, DOWN -> inputState.setDown(true);
@@ -205,7 +216,7 @@ public final class GameController {
     }
 
     private void handleKeyReleased(KeyCode keyCode) {
-        if (gameState == GameState.MINIGAME || gameState == GameState.RESULT) {
+        if (gameState == GameState.MINIGAME || gameState == GameState.RESULT || gameState == GameState.DIALOGUE) {
             return;
         }
 
@@ -232,7 +243,9 @@ public final class GameController {
 
         if (gymObject instanceof InteractiveZone zone) {
             switch (zone.zoneType()) {
-                case SHOP -> openShop();
+                case COMPUTER, SHOP -> openShop();
+                case BED -> sleepAtHome();
+                case DOOR -> openLocationMenu();
                 case REST -> rest();
                 case STAGE -> tryStage();
                 case WORK -> startWork();
@@ -260,18 +273,70 @@ public final class GameController {
                     refreshUi();
                     return result.message();
                 },
-                () -> {
-                    gameState = GameState.PLAYING;
-                    statusMessage = "Вы вышли из магазина.";
-                    view.hideOverlay();
-                    refreshUi();
-                    view.requestGameFocus();
-                }
+                this::closeShop
         );
         refreshUi();
     }
 
+    private void closeShop() {
+        view.hideOverlay();
+        gameState = GameState.PLAYING;
+        statusMessage = "Вы закрыли магазин.";
+        refreshUi();
+        view.requestGameFocus();
+    }
+
+    private void openLocationMenu() {
+        inputState.clear();
+        gameState = GameState.DIALOGUE;
+        statusMessage = "Выберите локацию для перехода.";
+        view.showLocationMenu(
+                locationManager.currentLocation(),
+                locationManager.availableDestinations(),
+                this::travelToLocation,
+                this::closeLocationMenu
+        );
+        refreshUi();
+    }
+
+    private void closeLocationMenu() {
+        if (gameState != GameState.DIALOGUE) {
+            return;
+        }
+
+        view.hideOverlay();
+        gameState = GameState.PLAYING;
+        nearbyObject = interactionService.findNearbyObject(player, currentMap());
+        statusMessage = "Переход отменён.";
+        refreshUi();
+        view.requestGameFocus();
+    }
+
+    private void travelToLocation(LocationId locationId) {
+        inputState.clear();
+        activeSkillCheck = Optional.empty();
+        activeTrainingSession = Optional.empty();
+        pendingSuccessResult = Optional.empty();
+        view.hideOverlay();
+
+        GameMap destinationMap = locationManager.travelTo(locationId);
+        player.moveToSpawn(destinationMap);
+        gameState = GameState.PLAYING;
+        nearbyObject = Optional.empty();
+        statusMessage = "Вы перешли в локацию: " + locationId.displayName() + ".";
+        refreshUi();
+        view.requestGameFocus();
+    }
+
+    private void sleepAtHome() {
+        advanceDayWithFatigueRecovery(player.stats().fatigue(), "Вы выспались дома.");
+    }
+
     private void rest() {
+        advanceDayWithFatigueRecovery(35, "Вы отдохнули.");
+    }
+
+    private void advanceDayWithFatigueRecovery(int fatigueRecovery, String actionText) {
         if (calendarState.isLastDay()) {
             gameState = GameState.LOSE;
             statusMessage = "Дни подготовки закончились. Вы не успели выйти на сцену.";
@@ -280,11 +345,11 @@ public final class GameController {
         }
 
         int fatigueBefore = player.stats().fatigue();
-        player.stats().reduceFatigue(35);
+        player.stats().reduceFatigue(fatigueRecovery);
         calendarState.nextDay();
 
         int restored = fatigueBefore - player.stats().fatigue();
-        statusMessage = "Вы отдохнули. Усталость -" + restored
+        statusMessage = actionText + " Усталость -" + restored
                 + ". Наступил день " + calendarState.currentDay()
                 + "/" + calendarState.maxDays() + ".";
         refreshUi();
@@ -435,7 +500,23 @@ public final class GameController {
             return "Space/Enter/E - зафиксировать попытку, Esc - отмена подхода.";
         }
 
+        if (gameState == GameState.DIALOGUE) {
+            return "Выберите локацию мышью или нажмите Esc для отмены.";
+        }
+
         return interactionService.buildPrompt(nearbyObject, gameState);
+    }
+
+    private void handleDialogueKeyPressed(KeyCode keyCode) {
+        if (keyCode == KeyCode.ESCAPE) {
+            closeLocationMenu();
+        }
+    }
+
+    private void handleShopKeyPressed(KeyCode keyCode) {
+        if (keyCode == KeyCode.ESCAPE) {
+            closeShop();
+        }
     }
 
     private void handleMinigameKeyPressed(KeyCode keyCode) {
@@ -491,7 +572,6 @@ public final class GameController {
         inputState.clear();
         pendingSuccessResult = Optional.empty();
         activeTrainingSession = Optional.of(trainingSession);
-        TrainingMachine machine = trainingSession.machine();
         SkillCheckSession session = skillCheckService.startSession(trainingSession, player.stats().strength());
         activeSkillCheck = Optional.of(session);
         gameState = GameState.MINIGAME;
@@ -576,7 +656,7 @@ public final class GameController {
 
         pendingSuccessResult = Optional.empty();
         gameState = GameState.PLAYING;
-        nearbyObject = interactionService.findNearbyObject(player, gameMap);
+        nearbyObject = interactionService.findNearbyObject(player, currentMap());
         statusMessage = outcome.message();
         refreshUi();
     }
@@ -603,7 +683,7 @@ public final class GameController {
         SkillCheckResult result = pendingSuccessResult.get();
         pendingSuccessResult = Optional.empty();
         gameState = GameState.PLAYING;
-        nearbyObject = interactionService.findNearbyObject(player, gameMap);
+        nearbyObject = interactionService.findNearbyObject(player, currentMap());
         statusMessage = result.message();
         refreshUi();
         view.requestGameFocus();
@@ -640,7 +720,7 @@ public final class GameController {
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
         gameState = GameState.PLAYING;
-        nearbyObject = interactionService.findNearbyObject(player, gameMap);
+        nearbyObject = interactionService.findNearbyObject(player, currentMap());
         statusMessage = "Подход отменён. Можно попробовать ещё раз.";
         refreshUi();
     }
@@ -651,12 +731,16 @@ public final class GameController {
         activeTrainingSession = Optional.empty();
         pendingSuccessResult = Optional.empty();
         gameState = GameState.MENU;
-        statusMessage = "Пауза. Нажмите «Начать», чтобы вернуться в зал.";
+        statusMessage = "Пауза. Нажмите «Начать», чтобы вернуться в игру.";
         view.hideOverlay();
         refreshUi();
     }
 
     private boolean usesSkillCheck(MachineType machineType) {
         return !trainingService.isSupportedMinigame(machineType);
+    }
+
+    private GameMap currentMap() {
+        return locationManager.currentMap();
     }
 }

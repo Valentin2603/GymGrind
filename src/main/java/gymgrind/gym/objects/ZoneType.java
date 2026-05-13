@@ -1,6 +1,9 @@
 package gymgrind.gym.objects;
 
 public enum ZoneType {
+    DOOR("Переход"),
+    BED("Сон"),
+    COMPUTER("Покупки"),
     SHOP("Экономика"),
     STAGE("Финальная цель"),
     COACH("Подсказки"),
