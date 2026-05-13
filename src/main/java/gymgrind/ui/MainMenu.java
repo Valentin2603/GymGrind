@@ -87,7 +87,7 @@ public final class MainMenu extends StackPane {
         title.setMaxWidth(Double.MAX_VALUE);
 
         Label subtitle = new Label(
-                "Перед стартом выбери героя. Сейчас доступен один персонаж, но меню уже готово для новых бойцов."
+                "Перед стартом выбери героя. Теперь в меню есть разные стили старта: быстрый сухой новичок и тяжёлый силовик."
         );
         subtitle.setFont(Font.font("Segoe UI", 18));
         subtitle.setStyle("-fx-text-fill: #CBD5E1;");
