@@ -40,7 +40,24 @@ public final class PlayerProfiles {
             96
     );
 
-    private static final List<PlayerProfile> ALL = List.of(STREET_ROOKIE, DARK_DRUN);
+    private static final PlayerProfile FATTY_POPKA = new PlayerProfile(
+            "fatty_popka",
+            "Жирная Попка",
+            "Сверхтяжёлый персонаж с огромной массой и силой, но почти без выносливости. Идеален для жёсткого старта.",
+            "/assets/characters/fatty_popka_preview.png",
+            idleSprites("fatty_popka"),
+            walkSprites("fatty_popka"),
+            18,
+            132,
+            3,
+            0,
+            300,
+            60,
+            96,
+            96
+    );
+
+    private static final List<PlayerProfile> ALL = List.of(STREET_ROOKIE, DARK_DRUN, FATTY_POPKA);
 
     private PlayerProfiles() {
     }

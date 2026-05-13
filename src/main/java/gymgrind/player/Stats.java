@@ -5,7 +5,7 @@ import gymgrind.training.TrainingReward;
 public final class Stats {
 
     private static final int MIN_BODY_FAT = 3;
-    private static final int MAX_BODY_FAT = 40;
+    private static final int MAX_BODY_FAT = 100;
     private static final int MAX_FATIGUE = 100;
 
     private int strength;

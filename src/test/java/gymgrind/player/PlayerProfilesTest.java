@@ -22,4 +22,18 @@ final class PlayerProfilesTest {
         assertEquals(6, darkDrun.get().baseStamina());
         assertEquals(35, darkDrun.get().baseBodyFat());
     }
+
+    @Test
+    void containsFattyPopkaProfileWithExpectedBaseStats() {
+        Optional<PlayerProfile> fattyPopka = PlayerProfiles.all().stream()
+                .filter(profile -> "fatty_popka".equals(profile.id()))
+                .findFirst();
+
+        assertTrue(fattyPopka.isPresent());
+        assertEquals("Жирная Попка", fattyPopka.get().displayName());
+        assertEquals(18, fattyPopka.get().baseStrength());
+        assertEquals(132, fattyPopka.get().baseMuscle());
+        assertEquals(3, fattyPopka.get().baseStamina());
+        assertEquals(60, fattyPopka.get().baseBodyFat());
+    }
 }

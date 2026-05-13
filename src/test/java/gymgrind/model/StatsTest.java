@@ -33,4 +33,11 @@ final class StatsTest {
 
         assertEquals(80, stats.availableStamina());
     }
+
+    @Test
+    void supportsHighBodyFatValuesForHeavyProfiles() {
+        Stats stats = new Stats(10, 8, 6, 0, 100, 60);
+
+        assertEquals(60, stats.bodyFat());
+    }
 }
