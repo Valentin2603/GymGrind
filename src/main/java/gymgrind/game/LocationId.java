@@ -1,7 +1,7 @@
 package gymgrind.game;
 
 public enum LocationId {
-    HOME("Дом"),
+    HOME("Спальня"),
     GYM("Зал"),
     WORK("Работа"),
     STAGE("Сцена");

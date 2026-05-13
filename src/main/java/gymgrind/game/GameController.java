@@ -174,6 +174,15 @@ public final class GameController {
     }
 
     private void handleKeyPressed(KeyCode keyCode) {
+        if (keyCode == KeyCode.F3) {
+            boolean debugEnabled = renderer.toggleDebugCollisions();
+            statusMessage = debugEnabled
+                    ? "Режим отладки коллизий включён."
+                    : "Режим отладки коллизий выключен.";
+            refreshUi();
+            return;
+        }
+
         if (gameState == GameState.RESULT) {
             handleResultKeyPressed(keyCode);
             return;

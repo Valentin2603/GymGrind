@@ -33,13 +33,23 @@ final class LocationManagerTest {
     }
 
     @Test
-    void mapsContainExpectedInteractiveZones() {
+    void homeLayoutContainsBedroomBackgroundAndZones() {
+        LocationManager manager = new LocationManager();
+        GameMap homeMap = manager.mapFor(LocationId.HOME);
+
+        List<ZoneType> homeZones = extractZoneTypes(homeMap);
+
+        assertTrue(homeMap.hasBackgroundImage());
+        assertTrue(homeMap.hasCollisionAreas());
+        assertTrue(homeZones.containsAll(List.of(ZoneType.BED, ZoneType.COMPUTER, ZoneType.DOOR)));
+    }
+
+    @Test
+    void gymLayoutNoLongerContainsShopWorkStageOrRestZones() {
         LocationManager manager = new LocationManager();
 
-        List<ZoneType> homeZones = extractZoneTypes(manager.mapFor(LocationId.HOME));
         List<ZoneType> gymZones = extractZoneTypes(manager.mapFor(LocationId.GYM));
 
-        assertTrue(homeZones.containsAll(List.of(ZoneType.BED, ZoneType.COMPUTER, ZoneType.DOOR)));
         assertTrue(gymZones.contains(ZoneType.DOOR));
         assertFalse(gymZones.contains(ZoneType.SHOP));
         assertFalse(gymZones.contains(ZoneType.WORK));

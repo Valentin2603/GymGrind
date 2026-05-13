@@ -15,12 +15,25 @@ public final class GameMap {
     private static final double DEFAULT_WIDTH = 1200;
     private static final double DEFAULT_HEIGHT = 590;
 
+    private static final double BEDROOM_SOURCE_SIZE = 1254;
+    private static final Position HOME_ORIGIN = new Position(345, 90);
+    private static final double HOME_WIDTH = 590;
+    private static final double HOME_HEIGHT = 590;
+    private static final double HOME_SCALE = HOME_WIDTH / BEDROOM_SOURCE_SIZE;
+    private static final String BEDROOM_BACKGROUND_PATH = "/assets/rooms/bedroom.png";
+
     private final String name;
     private final String description;
     private final Position origin;
     private final double width;
     private final double height;
     private final Position spawnPoint;
+    private final String backgroundImagePath;
+    private final boolean hideEmbeddedObjectMarkers;
+    private final Position walkAreaOrigin;
+    private final double walkAreaWidth;
+    private final double walkAreaHeight;
+    private final List<CollisionRect> collisionAreas;
     private final List<GymObject> objects;
 
     public GameMap(String name,
@@ -30,48 +43,119 @@ public final class GameMap {
                    double height,
                    Position spawnPoint,
                    List<GymObject> objects) {
+        this(
+                name,
+                description,
+                origin,
+                width,
+                height,
+                spawnPoint,
+                null,
+                false,
+                origin,
+                width,
+                height,
+                List.of(),
+                objects
+        );
+    }
+
+    public GameMap(String name,
+                   String description,
+                   Position origin,
+                   double width,
+                   double height,
+                   Position spawnPoint,
+                   String backgroundImagePath,
+                   boolean hideEmbeddedObjectMarkers,
+                   Position walkAreaOrigin,
+                   double walkAreaWidth,
+                   double walkAreaHeight,
+                   List<GymObject> objects) {
+        this(
+                name,
+                description,
+                origin,
+                width,
+                height,
+                spawnPoint,
+                backgroundImagePath,
+                hideEmbeddedObjectMarkers,
+                walkAreaOrigin,
+                walkAreaWidth,
+                walkAreaHeight,
+                List.of(),
+                objects
+        );
+    }
+
+    public GameMap(String name,
+                   String description,
+                   Position origin,
+                   double width,
+                   double height,
+                   Position spawnPoint,
+                   String backgroundImagePath,
+                   boolean hideEmbeddedObjectMarkers,
+                   Position walkAreaOrigin,
+                   double walkAreaWidth,
+                   double walkAreaHeight,
+                   List<CollisionRect> collisionAreas,
+                   List<GymObject> objects) {
         this.name = name;
         this.description = description;
         this.origin = origin;
         this.width = width;
         this.height = height;
         this.spawnPoint = spawnPoint;
+        this.backgroundImagePath = backgroundImagePath;
+        this.hideEmbeddedObjectMarkers = hideEmbeddedObjectMarkers;
+        this.walkAreaOrigin = walkAreaOrigin;
+        this.walkAreaWidth = walkAreaWidth;
+        this.walkAreaHeight = walkAreaHeight;
+        this.collisionAreas = List.copyOf(collisionAreas);
         this.objects = List.copyOf(objects);
     }
 
     public static GameMap createHomeLayout() {
         return new GameMap(
-                "Комната игрока",
-                "Домашняя база: здесь можно поспать, открыть магазин на компьютере и выйти в другие локации.",
-                DEFAULT_ORIGIN,
-                DEFAULT_WIDTH,
-                DEFAULT_HEIGHT,
-                new Position(140, 560),
+                "Спальная комната",
+                "Домашняя спальня с кроватью, компьютером и выходом из комнаты.",
+                HOME_ORIGIN,
+                HOME_WIDTH,
+                HOME_HEIGHT,
+                homeSpawn(600, 1080),
+                BEDROOM_BACKGROUND_PATH,
+                true,
+                HOME_ORIGIN,
+                HOME_WIDTH,
+                HOME_HEIGHT,
+                homeCollisionAreas(),
                 List.of(
                         new InteractiveZone(
                                 "Кровать",
                                 ZoneType.BED,
-                                new Position(120, 180),
-                                260,
-                                130,
+                                homePosition(160, 640),
+                                homeScale(300),
+                                homeScale(110),
                                 Color.web("#C084FC"),
                                 "Кровать: восстановит силы и переведёт игру на следующий день."
                         ),
                         new InteractiveZone(
                                 "Компьютер",
                                 ZoneType.COMPUTER,
-                                new Position(790, 170),
-                                220,
-                                140,
+                                homePosition(520, 395),
+                                homeScale(300),
+                                homeScale(165),
                                 Color.web("#38BDF8"),
                                 "Компьютер: здесь можно открыть магазин добавок."
                         ),
                         new InteractiveZone(
                                 "Дверь",
                                 ZoneType.DOOR,
-                                new Position(1035, 255),
-                                120,
-                                180,
+                                homePosition(150, 1080),
+                                homeScale(250),
+                                homeScale(130),
                                 Color.web("#F59E0B"),
                                 "Дверь: отсюда можно перейти в другие локации."
                         )
@@ -218,6 +302,18 @@ public final class GameMap {
         return spawnPoint;
     }
 
+    public String backgroundImagePath() {
+        return backgroundImagePath;
+    }
+
+    public boolean hasBackgroundImage() {
+        return backgroundImagePath != null && !backgroundImagePath.isBlank();
+    }
+
+    public boolean hideEmbeddedObjectMarkers() {
+        return hideEmbeddedObjectMarkers;
+    }
+
     public double left() {
         return origin.x();
     }
@@ -234,7 +330,81 @@ public final class GameMap {
         return origin.y() + height;
     }
 
+    public double walkLeft() {
+        return walkAreaOrigin.x();
+    }
+
+    public double walkTop() {
+        return walkAreaOrigin.y();
+    }
+
+    public double walkRight() {
+        return walkAreaOrigin.x() + walkAreaWidth;
+    }
+
+    public double walkBottom() {
+        return walkAreaOrigin.y() + walkAreaHeight;
+    }
+
+    public CollisionRect walkBounds() {
+        return new CollisionRect(walkLeft(), walkTop(), walkAreaWidth, walkAreaHeight);
+    }
+
+    public List<CollisionRect> collisionAreas() {
+        return collisionAreas;
+    }
+
+    public boolean hasCollisionAreas() {
+        return !collisionAreas.isEmpty();
+    }
+
+    public boolean allowsMovement(CollisionRect hitbox) {
+        return walkBounds().contains(hitbox)
+                && collisionAreas.stream().noneMatch(area -> area.intersects(hitbox));
+    }
+
     public List<GymObject> objects() {
         return objects;
+    }
+
+    private static List<CollisionRect> homeCollisionAreas() {
+        return List.of(
+                homeCollision(0, 0, 1254, 70),
+                homeCollision(0, 0, 60, 1254),
+                homeCollision(1190, 0, 64, 1254),
+                homeCollision(0, 1190, 140, 64),
+                homeCollision(420, 1190, 834, 64),
+                homeCollision(145, 270, 350, 430),
+                homeCollision(525, 250, 300, 170),
+                homeCollision(850, 275, 300, 180),
+                homeCollision(1080, 360, 110, 255),
+                homeCollision(960, 650, 170, 330),
+                homeCollision(660, 690, 240, 260),
+                homeCollision(70, 350, 90, 130)
+        );
+    }
+
+    private static Position homePosition(double sourceX, double sourceY) {
+        return HOME_ORIGIN.translate(homeScale(sourceX), homeScale(sourceY));
+    }
+
+    private static Position homeSpawn(double sourceCenterX, double sourceFeetY) {
+        return new Position(
+                HOME_ORIGIN.x() + homeScale(sourceCenterX) - 17,
+                HOME_ORIGIN.y() + homeScale(sourceFeetY) - 32
+        );
+    }
+
+    private static CollisionRect homeCollision(double sourceX, double sourceY, double sourceWidth, double sourceHeight) {
+        return new CollisionRect(
+                HOME_ORIGIN.x() + homeScale(sourceX),
+                HOME_ORIGIN.y() + homeScale(sourceY),
+                homeScale(sourceWidth),
+                homeScale(sourceHeight)
+        );
+    }
+
+    private static double homeScale(double sourceValue) {
+        return sourceValue * HOME_SCALE;
     }
 }

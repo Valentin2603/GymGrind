@@ -1,5 +1,6 @@
 package gymgrind.player;
 
+import gymgrind.gym.CollisionRect;
 import gymgrind.gym.GameMap;
 import gymgrind.gym.Position;
 
@@ -8,6 +9,10 @@ public final class Player {
     private static final double DEFAULT_WIDTH = 34;
     private static final double DEFAULT_HEIGHT = 34;
     private static final double DEFAULT_SPEED = 250;
+    private static final double FOOT_HITBOX_OFFSET_X = 8;
+    private static final double FOOT_HITBOX_OFFSET_Y = 22;
+    private static final double FOOT_HITBOX_WIDTH = 18;
+    private static final double FOOT_HITBOX_HEIGHT = 10;
 
     private Position position;
     private PlayerDirection direction;
@@ -131,5 +136,18 @@ public final class Player {
 
     public double centerY() {
         return position.y() + height / 2.0;
+    }
+
+    public CollisionRect footHitbox() {
+        return footHitboxAt(position);
+    }
+
+    public CollisionRect footHitboxAt(Position position) {
+        return new CollisionRect(
+                position.x() + FOOT_HITBOX_OFFSET_X,
+                position.y() + FOOT_HITBOX_OFFSET_Y,
+                FOOT_HITBOX_WIDTH,
+                FOOT_HITBOX_HEIGHT
+        );
     }
 }

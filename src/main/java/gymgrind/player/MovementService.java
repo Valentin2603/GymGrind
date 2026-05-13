@@ -6,6 +6,8 @@ import gymgrind.gym.Position;
 
 public final class MovementService {
 
+    private static final double COLLISION_STEP = 4.0;
+
     public void movePlayer(Player player, InputState inputState, GameMap gameMap, double deltaSeconds) {
         double dx = 0;
         double dy = 0;
@@ -35,22 +37,37 @@ public final class MovementService {
         double stepX = dx / length * player.speed() * deltaSeconds;
         double stepY = dy / length * player.speed() * deltaSeconds;
 
-        double nextX = clamp(
-                player.position().x() + stepX,
-                gameMap.left() + 12,
-                gameMap.right() - player.width() - 12
-        );
-        double nextY = clamp(
-                player.position().y() + stepY,
-                gameMap.top() + 12,
-                gameMap.bottom() - player.height() - 12
-        );
-
-        player.setPosition(new Position(nextX, nextY));
+        Position afterHorizontalMove = moveAlongAxis(player, gameMap, player.position(), stepX, true);
+        Position finalPosition = moveAlongAxis(player, gameMap, afterHorizontalMove, stepY, false);
+        player.setPosition(finalPosition);
     }
 
-    private double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(value, max));
+    private Position moveAlongAxis(Player player,
+                                   GameMap gameMap,
+                                   Position start,
+                                   double delta,
+                                   boolean horizontal) {
+        if (delta == 0) {
+            return start;
+        }
+
+        int steps = Math.max(1, (int) Math.ceil(Math.abs(delta) / COLLISION_STEP));
+        double partialDelta = delta / steps;
+        Position current = start;
+
+        for (int index = 0; index < steps; index++) {
+            Position candidate = horizontal
+                    ? current.translate(partialDelta, 0)
+                    : current.translate(0, partialDelta);
+
+            if (!gameMap.allowsMovement(player.footHitboxAt(candidate))) {
+                break;
+            }
+
+            current = candidate;
+        }
+
+        return current;
     }
 
     private PlayerDirection directionFor(double dx, double dy) {

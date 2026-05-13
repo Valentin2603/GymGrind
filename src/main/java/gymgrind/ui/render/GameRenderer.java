@@ -1,6 +1,7 @@
 package gymgrind.ui.render;
 
 import gymgrind.game.GameState;
+import gymgrind.gym.CollisionRect;
 import gymgrind.gym.GameMap;
 import gymgrind.gym.objects.GymObject;
 import gymgrind.gym.objects.InteractiveZone;
@@ -47,7 +48,9 @@ public final class GameRenderer {
     private final Image wallTile = loadImage("/assets/tiles/wall_tile.png");
     private final Map<MachineType, Image> machineImages;
     private final Map<ZoneType, Image> zoneImages;
+    private final Map<String, Image> mapBackgrounds;
     private final Map<String, PlayerSpriteSet> playerSpriteSets;
+    private boolean debugCollisions;
 
     public GameRenderer() {
         machineImages = new EnumMap<>(MachineType.class);
@@ -63,6 +66,7 @@ public final class GameRenderer {
         zoneImages.put(ZoneType.STAGE, loadImage("/assets/tiles/stage_tile.png"));
         zoneImages.put(ZoneType.COACH, loadImage("/assets/npcs/trainer_npc.png"));
 
+        mapBackgrounds = new HashMap<>();
         playerSpriteSets = new HashMap<>();
     }
 
@@ -82,6 +86,7 @@ public final class GameRenderer {
         drawMap(graphicsContext, gameMap);
         drawObjects(graphicsContext, gameMap, nearbyObject);
         drawPlayer(graphicsContext, player);
+        drawDebugCollisions(graphicsContext, gameMap, player);
         drawLegend(graphicsContext, gameState, gameMap);
 
         if (activeSkillCheck.isPresent()) {
@@ -92,6 +97,12 @@ public final class GameRenderer {
     }
 
     private void drawMap(GraphicsContext graphicsContext, GameMap gameMap) {
+        Image mapBackground = backgroundImageFor(gameMap);
+        if (mapBackground != null) {
+            graphicsContext.drawImage(mapBackground, gameMap.left(), gameMap.top(), gameMap.width(), gameMap.height());
+            return;
+        }
+
         graphicsContext.setFill(FLOOR);
         graphicsContext.fillRoundRect(gameMap.left(), gameMap.top(), gameMap.width(), gameMap.height(), 28, 28);
 
@@ -137,8 +148,25 @@ public final class GameRenderer {
         graphicsContext.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
 
         for (GymObject gymObject : gameMap.objects()) {
+            boolean hideMarker = gameMap.hideEmbeddedObjectMarkers() && gymObject instanceof InteractiveZone;
+            boolean nearby = nearbyObject.filter(object -> object == gymObject).isPresent();
+            if (hideMarker && !nearby) {
+                continue;
+            }
+
             Image image = imageFor(gymObject);
-            if (image == null) {
+            if (hideMarker) {
+                graphicsContext.setStroke(HIGHLIGHT);
+                graphicsContext.setLineWidth(3);
+                graphicsContext.strokeRoundRect(
+                        gymObject.left(),
+                        gymObject.top(),
+                        gymObject.width(),
+                        gymObject.height(),
+                        18,
+                        18
+                );
+            } else if (image == null) {
                 graphicsContext.setFill(gymObject.color());
                 graphicsContext.fillRoundRect(
                         gymObject.left(),
@@ -152,7 +180,7 @@ public final class GameRenderer {
                 graphicsContext.drawImage(image, gymObject.left(), gymObject.top(), gymObject.width(), gymObject.height());
             }
 
-            if (nearbyObject.filter(object -> object == gymObject).isPresent()) {
+            if (nearby) {
                 graphicsContext.setStroke(HIGHLIGHT);
                 graphicsContext.setLineWidth(3);
                 graphicsContext.strokeRoundRect(
@@ -165,13 +193,15 @@ public final class GameRenderer {
                 );
             }
 
-            graphicsContext.setFill(LABEL_COLOR);
-            graphicsContext.fillText(gymObject.name(), gymObject.centerX(), gymObject.centerY() - 6);
+            if (!hideMarker || nearby) {
+                graphicsContext.setFill(LABEL_COLOR);
+                graphicsContext.fillText(gymObject.name(), gymObject.centerX(), gymObject.centerY() - 6);
 
-            graphicsContext.setFill(SUBTITLE_COLOR);
-            graphicsContext.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
-            graphicsContext.fillText(gymObject.shortTypeLabel(), gymObject.centerX(), gymObject.centerY() + 16);
-            graphicsContext.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+                graphicsContext.setFill(SUBTITLE_COLOR);
+                graphicsContext.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+                graphicsContext.fillText(gymObject.shortTypeLabel(), gymObject.centerX(), gymObject.centerY() + 16);
+                graphicsContext.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+            }
         }
     }
 
@@ -244,12 +274,56 @@ public final class GameRenderer {
         return null;
     }
 
+    private Image backgroundImageFor(GameMap gameMap) {
+        if (!gameMap.hasBackgroundImage()) {
+            return null;
+        }
+        return mapBackgrounds.computeIfAbsent(gameMap.backgroundImagePath(), this::loadImage);
+    }
+
     private Image loadImage(String resourcePath) {
         InputStream inputStream = GameRenderer.class.getResourceAsStream(resourcePath);
         if (inputStream == null) {
             return null;
         }
         return new Image(inputStream);
+    }
+
+    public boolean toggleDebugCollisions() {
+        debugCollisions = !debugCollisions;
+        return debugCollisions;
+    }
+
+    private void drawDebugCollisions(GraphicsContext graphicsContext, GameMap gameMap, Player player) {
+        if (!debugCollisions) {
+            return;
+        }
+
+        graphicsContext.save();
+
+        graphicsContext.setStroke(Color.color(0.25, 0.75, 1.0, 0.95));
+        graphicsContext.setLineWidth(2);
+        graphicsContext.strokeRect(
+                gameMap.walkLeft(),
+                gameMap.walkTop(),
+                gameMap.walkRight() - gameMap.walkLeft(),
+                gameMap.walkBottom() - gameMap.walkTop()
+        );
+
+        graphicsContext.setFill(Color.color(1.0, 0.2, 0.2, 0.28));
+        graphicsContext.setStroke(Color.color(1.0, 0.25, 0.25, 0.9));
+        for (CollisionRect collisionRect : gameMap.collisionAreas()) {
+            graphicsContext.fillRect(collisionRect.x(), collisionRect.y(), collisionRect.width(), collisionRect.height());
+            graphicsContext.strokeRect(collisionRect.x(), collisionRect.y(), collisionRect.width(), collisionRect.height());
+        }
+
+        CollisionRect playerHitbox = player.footHitbox();
+        graphicsContext.setFill(Color.color(0.15, 0.85, 0.35, 0.35));
+        graphicsContext.setStroke(Color.color(0.25, 1.0, 0.45, 0.95));
+        graphicsContext.fillRect(playerHitbox.x(), playerHitbox.y(), playerHitbox.width(), playerHitbox.height());
+        graphicsContext.strokeRect(playerHitbox.x(), playerHitbox.y(), playerHitbox.width(), playerHitbox.height());
+
+        graphicsContext.restore();
     }
 
     private void drawLegend(GraphicsContext graphicsContext,
