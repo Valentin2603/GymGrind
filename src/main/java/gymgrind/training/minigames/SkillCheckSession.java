@@ -1,12 +1,14 @@
 package gymgrind.training.minigames;
 
 import gymgrind.training.TrainingMachine;
+import javafx.scene.input.KeyCode;
 
 public final class SkillCheckSession {
 
     private final TrainingMachine machine;
     private final SkillCheckMode mode;
     private final int requiredHits;
+    private final int maxAttempts;
     private double successZoneStart;
     private double successZoneWidth;
     private double markerProgress;
@@ -15,6 +17,8 @@ public final class SkillCheckSession {
     private double successZoneShrink;
     private double minSuccessZoneWidth;
     private int completedHits;
+    private int timingAttempts;
+    private KeyCode expectedTimingKey;
     private String sequencePrompt;
     private double barProgress;
     private double drainPerSecond;
@@ -24,6 +28,7 @@ public final class SkillCheckSession {
     private SkillCheckSession(TrainingMachine machine,
                               SkillCheckMode mode,
                               int requiredHits,
+                              int maxAttempts,
                               double successZoneStart,
                               double successZoneWidth,
                               double markerProgress,
@@ -32,6 +37,8 @@ public final class SkillCheckSession {
                               double successZoneShrink,
                               double minSuccessZoneWidth,
                               int completedHits,
+                              int timingAttempts,
+                              KeyCode expectedTimingKey,
                               String sequencePrompt,
                               double barProgress,
                               double drainPerSecond,
@@ -40,6 +47,7 @@ public final class SkillCheckSession {
         this.machine = machine;
         this.mode = mode;
         this.requiredHits = requiredHits;
+        this.maxAttempts = maxAttempts;
         this.successZoneStart = successZoneStart;
         this.successZoneWidth = successZoneWidth;
         this.markerProgress = markerProgress;
@@ -48,6 +56,8 @@ public final class SkillCheckSession {
         this.successZoneShrink = successZoneShrink;
         this.minSuccessZoneWidth = minSuccessZoneWidth;
         this.completedHits = completedHits;
+        this.timingAttempts = timingAttempts;
+        this.expectedTimingKey = expectedTimingKey;
         this.sequencePrompt = sequencePrompt;
         this.barProgress = barProgress;
         this.drainPerSecond = drainPerSecond;
@@ -64,11 +74,15 @@ public final class SkillCheckSession {
                                                double successZoneShrink,
                                                double minSuccessZoneWidth,
                                                int requiredHits,
-                                               int completedHits) {
+                                               int maxAttempts,
+                                               int completedHits,
+                                               int timingAttempts,
+                                               KeyCode expectedTimingKey) {
         return new SkillCheckSession(
                 machine,
                 SkillCheckMode.TIMING_ZONE,
                 requiredHits,
+                maxAttempts,
                 successZoneStart,
                 successZoneWidth,
                 markerProgress,
@@ -77,6 +91,8 @@ public final class SkillCheckSession {
                 successZoneShrink,
                 minSuccessZoneWidth,
                 completedHits,
+                timingAttempts,
+                expectedTimingKey,
                 "",
                 0.0,
                 0.0,
@@ -95,6 +111,7 @@ public final class SkillCheckSession {
                 machine,
                 SkillCheckMode.SEQUENCE_BAR,
                 0,
+                0,
                 0.0,
                 0.0,
                 0.0,
@@ -103,6 +120,8 @@ public final class SkillCheckSession {
                 0.0,
                 0.0,
                 0,
+                0,
+                KeyCode.SPACE,
                 sequencePrompt,
                 barProgress,
                 drainPerSecond,
@@ -179,12 +198,28 @@ public final class SkillCheckSession {
         return requiredHits;
     }
 
+    public int maxAttempts() {
+        return maxAttempts;
+    }
+
     public int completedHits() {
         return completedHits;
     }
 
+    public int timingAttempts() {
+        return timingAttempts;
+    }
+
+    public int missedAttempts() {
+        return Math.max(0, timingAttempts - completedHits);
+    }
+
     public int remainingHits() {
         return Math.max(0, requiredHits - completedHits);
+    }
+
+    public int remainingAttempts() {
+        return Math.max(0, maxAttempts - timingAttempts);
     }
 
     public boolean requiresMultipleHits() {
@@ -195,12 +230,31 @@ public final class SkillCheckSession {
         completedHits++;
     }
 
+    public void registerTimingAttempt(boolean hit) {
+        timingAttempts++;
+        if (hit) {
+            completedHits++;
+        }
+    }
+
     public boolean isCompleted() {
         return completedHits >= requiredHits;
     }
 
+    public boolean isTimingCompleted() {
+        return timingAttempts >= maxAttempts;
+    }
+
     public boolean isMarkerInsideSuccessZone() {
         return markerProgress >= successZoneStart && markerProgress <= successZoneEnd();
+    }
+
+    public KeyCode expectedTimingKey() {
+        return expectedTimingKey;
+    }
+
+    public void setExpectedTimingKey(KeyCode expectedTimingKey) {
+        this.expectedTimingKey = expectedTimingKey;
     }
 
     public String sequencePrompt() {
