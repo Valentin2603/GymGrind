@@ -26,6 +26,15 @@ public final class ActiveSupplements {
         active.clear();
     }
 
+    public Set<SupplementType> activeTypes() {
+        return EnumSet.copyOf(active);
+    }
+
+    public void restore(Set<SupplementType> supplementTypes) {
+        active.clear();
+        active.addAll(supplementTypes);
+    }
+
     public String labels() {
         if (active.isEmpty()) {
             return "нет";

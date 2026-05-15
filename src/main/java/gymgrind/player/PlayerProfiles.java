@@ -70,6 +70,13 @@ public final class PlayerProfiles {
         return STREET_ROOKIE;
     }
 
+    public static PlayerProfile findById(String id) {
+        return ALL.stream()
+                .filter(profile -> profile.id().equals(id))
+                .findFirst()
+                .orElse(defaultProfile());
+    }
+
     private static Map<PlayerDirection, String> idleSprites(String prefix) {
         Map<PlayerDirection, String> sprites = new EnumMap<>(PlayerDirection.class);
         sprites.put(PlayerDirection.FRONT, spritePath(prefix, "idle_front"));

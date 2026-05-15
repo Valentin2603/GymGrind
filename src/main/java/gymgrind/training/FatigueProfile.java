@@ -19,7 +19,7 @@ public enum FatigueProfile {
     }
 
     public static FatigueProfile fromFatigue(int fatigue) {
-        if (fatigue <= 30) {
+        if (fatigue <= 35) {
             return NORMAL;
         }
         if (fatigue <= 60) {

@@ -23,6 +23,7 @@ import javafx.scene.text.Font;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public final class GameView extends StackPane {
 
@@ -89,6 +90,14 @@ public final class GameView extends StackPane {
         mainMenu.setOnStart(action);
     }
 
+    public void setOnContinue(Runnable action) {
+        mainMenu.setOnContinue(action);
+    }
+
+    public void setContinueAvailable(boolean available) {
+        mainMenu.setContinueAvailable(available);
+    }
+
     public void setOnExit(Runnable action) {
         mainMenu.setOnExit(action);
     }
@@ -134,6 +143,41 @@ public final class GameView extends StackPane {
         cancel.setOnAction(event -> onCancel.run());
 
         panel.getChildren().addAll(title, subtitle, light, medium, heavy, cancel);
+        showOverlay(panel);
+    }
+
+    public void showPauseMenu(Supplier<String> onSave,
+                              Runnable onExit,
+                              Runnable onResume) {
+        VBox panel = new VBox(14);
+        panel.setAlignment(Pos.CENTER);
+        panel.setMaxWidth(420);
+        panel.setPadding(new Insets(24));
+        panel.setStyle("-fx-background-color: rgba(8, 15, 23, 0.96);"
+                + "-fx-background-radius: 18;"
+                + "-fx-border-color: #7DD3FC;"
+                + "-fx-border-radius: 18;"
+                + "-fx-border-width: 2;");
+
+        Label title = new Label("Пауза");
+        title.setFont(Font.font("Segoe UI", 26));
+        title.setStyle("-fx-text-fill: #F8FAFC; -fx-font-weight: bold;");
+
+        Label feedback = new Label("Игра остановлена. Можно сохраниться или вернуться назад.");
+        feedback.setFont(Font.font("Segoe UI", 14));
+        feedback.setWrapText(true);
+        feedback.setAlignment(Pos.CENTER);
+        feedback.setStyle("-fx-text-fill: #CBD5E1;");
+
+        Button save = createOverlayButton("Сохранить игру", "#22C55E");
+        Button exit = createOverlayButton("Выйти из игры", "#EF4444");
+        Button resume = createOverlayButton("Назад", "#475569");
+
+        save.setOnAction(event -> feedback.setText(onSave.get()));
+        exit.setOnAction(event -> onExit.run());
+        resume.setOnAction(event -> onResume.run());
+
+        panel.getChildren().addAll(title, feedback, save, exit, resume);
         showOverlay(panel);
     }
 

@@ -112,6 +112,15 @@ public final class Stats {
         baseBodyFat = clamp(bodyFat, MIN_BODY_FAT, MAX_BODY_FAT);
     }
 
+    public void restoreValues(int strength, int muscle, int stamina, int fatigue, int money, double bodyFat) {
+        this.strength = Math.max(0, strength);
+        this.muscle = Math.max(0, muscle);
+        this.stamina = Math.max(0, stamina);
+        this.fatigue = clamp(fatigue, 0, MAX_FATIGUE);
+        this.money = Math.max(0, money);
+        this.bodyFat = clamp(bodyFat, MIN_BODY_FAT, MAX_BODY_FAT);
+    }
+
     public void reset() {
         strength = baseStrength;
         muscle = baseMuscle;

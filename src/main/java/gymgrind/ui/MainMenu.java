@@ -45,6 +45,7 @@ public final class MainMenu extends StackPane {
     };
 
     private final Button startButton;
+    private final Button continueButton;
     private final Button exitButton;
     private final Map<PlayerProfile, Button> profileButtons;
     private PlayerProfile selectedProfile;
@@ -117,12 +118,17 @@ public final class MainMenu extends StackPane {
         startButton.setPrefHeight(52);
         startButton.setStyle(actionButtonStyle("#22C55E", "#14532D"));
 
+        continueButton = new Button("Продолжить");
+        continueButton.setMaxWidth(Double.MAX_VALUE);
+        continueButton.setPrefHeight(52);
+        continueButton.setStyle(actionButtonStyle("#0EA5E9", "#075985"));
+
         exitButton = new Button("Выход");
         exitButton.setMaxWidth(Double.MAX_VALUE);
         exitButton.setPrefHeight(52);
         exitButton.setStyle(actionButtonStyle("#EF4444", "#7F1D1D"));
 
-        VBox buttons = new VBox(12, startButton, exitButton);
+        VBox buttons = new VBox(12, startButton, continueButton, exitButton);
         buttons.setAlignment(Pos.CENTER_LEFT);
         buttons.setFillWidth(true);
 
@@ -137,6 +143,15 @@ public final class MainMenu extends StackPane {
 
     public void setOnStart(Runnable action) {
         startButton.setOnAction(event -> action.run());
+    }
+
+    public void setOnContinue(Runnable action) {
+        continueButton.setOnAction(event -> action.run());
+    }
+
+    public void setContinueAvailable(boolean available) {
+        continueButton.setDisable(!available);
+        continueButton.setText(available ? "Продолжить" : "Продолжить (нет сохранения)");
     }
 
     public void setOnExit(Runnable action) {

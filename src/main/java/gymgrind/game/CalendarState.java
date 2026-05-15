@@ -36,6 +36,10 @@ public final class CalendarState {
         }
     }
 
+    public void setCurrentDay(int currentDay) {
+        this.currentDay = Math.max(1, Math.min(currentDay, maxDays));
+    }
+
     public void reset() {
         currentDay = 1;
     }

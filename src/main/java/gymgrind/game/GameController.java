@@ -2,11 +2,17 @@ package gymgrind.game;
 
 import gymgrind.gym.GameMap;
 import gymgrind.gym.InteractionService;
+import gymgrind.gym.Position;
 import gymgrind.gym.objects.GymObject;
 import gymgrind.gym.objects.InteractiveZone;
 import gymgrind.gym.objects.ZoneType;
 import gymgrind.player.MovementService;
 import gymgrind.player.Player;
+import gymgrind.player.PlayerProfile;
+import gymgrind.player.PlayerProfiles;
+import gymgrind.player.Stats;
+import gymgrind.save.SaveData;
+import gymgrind.save.SaveService;
 import gymgrind.shop.ShopPurchaseResult;
 import gymgrind.shop.ShopService;
 import gymgrind.shop.SupplementService;
@@ -52,6 +58,7 @@ public final class GameController {
     private final SkillCheckService skillCheckService;
     private final GameRenderer renderer;
     private final CalendarState calendarState;
+    private final SaveService saveService;
 
     private GameState gameState;
     private Optional<GymObject> nearbyObject;
@@ -74,6 +81,7 @@ public final class GameController {
         this.skillCheckService = new SkillCheckService();
         this.renderer = new GameRenderer();
         this.calendarState = CalendarState.createDefault();
+        this.saveService = new SaveService();
         this.gameState = GameState.MENU;
         this.nearbyObject = Optional.empty();
         this.activeSkillCheck = Optional.empty();
@@ -89,7 +97,10 @@ public final class GameController {
         scene.setOnKeyReleased(event -> handleKeyReleased(event.getCode()));
 
         view.setOnStart(this::startNewRun);
+        view.setOnContinue(this::loadSavedRun);
         view.setOnExit(stage::close);
+        view.setContinueAvailable(saveService.hasSave());
+        stage.setOnCloseRequest(event -> saveCurrentRunSilently());
         refreshUi();
 
         return scene;
@@ -129,6 +140,95 @@ public final class GameController {
         statusMessage = "Вы дома. Подойдите к кровати, компьютеру или двери и нажмите E.";
         refreshUi();
         view.requestGameFocus();
+    }
+
+    private void loadSavedRun() {
+        Optional<SaveData> saveData = saveService.load();
+        if (saveData.isEmpty()) {
+            statusMessage = "Сохранение не найдено или повреждено.";
+            view.setContinueAvailable(false);
+            refreshUi();
+            return;
+        }
+
+        applySaveData(saveData.get());
+        gameState = GameState.PLAYING;
+        inputState.clear();
+        nearbyObject = Optional.empty();
+        activeSkillCheck = Optional.empty();
+        activeTrainingSession = Optional.empty();
+        pendingSuccessResult = Optional.empty();
+        view.hideOverlay();
+        statusMessage = "Сохранение загружено. День " + calendarState.currentDay()
+                + "/" + calendarState.maxDays() + ".";
+        refreshUi();
+        view.requestGameFocus();
+    }
+
+    private void applySaveData(SaveData saveData) {
+        LocationId locationId = saveData.locationId();
+        locationManager.travelTo(locationId);
+
+        PlayerProfile profile = PlayerProfiles.findById(saveData.profileId());
+        player.applyProfile(profile, currentMap());
+        player.setPosition(new Position(saveData.playerX(), saveData.playerY()));
+        player.stats().restoreValues(
+                saveData.strength(),
+                saveData.muscle(),
+                saveData.stamina(),
+                saveData.fatigue(),
+                saveData.money(),
+                saveData.bodyFat()
+        );
+        player.activeSupplements().restore(saveData.activeSupplements());
+        calendarState.setCurrentDay(saveData.currentDay());
+    }
+
+    private String saveCurrentRunFromPause() {
+        boolean saved = saveCurrentRun();
+        statusMessage = saved
+                ? "Игра сохранена: " + saveService.savePath()
+                : "Не удалось сохранить игру.";
+        refreshUi();
+        return statusMessage;
+    }
+
+    private void saveCurrentRunSilently() {
+        saveCurrentRun();
+    }
+
+    private boolean saveCurrentRun() {
+        if (!canSaveCurrentRun()) {
+            return false;
+        }
+
+        boolean saved = saveService.save(createSaveData());
+        view.setContinueAvailable(saveService.hasSave());
+        return saved;
+    }
+
+    private boolean canSaveCurrentRun() {
+        return gameState != GameState.MENU
+                && gameState != GameState.WIN
+                && gameState != GameState.LOSE;
+    }
+
+    private SaveData createSaveData() {
+        Stats stats = player.stats();
+        return new SaveData(
+                player.profile().id(),
+                locationManager.currentLocation(),
+                player.position().x(),
+                player.position().y(),
+                calendarState.currentDay(),
+                stats.strength(),
+                stats.muscle(),
+                stats.stamina(),
+                stats.fatigue(),
+                stats.money(),
+                stats.bodyFat(),
+                player.activeSupplements().activeTypes()
+        );
     }
 
     private void update(double deltaSeconds) {
@@ -184,6 +284,13 @@ public final class GameController {
             return;
         }
 
+        if (gameState == GameState.PAUSE) {
+            if (keyCode == KeyCode.ESCAPE) {
+                closePauseMenu();
+            }
+            return;
+        }
+
         if (gameState == GameState.RESULT) {
             handleResultKeyPressed(keyCode);
             return;
@@ -216,8 +323,8 @@ public final class GameController {
                 }
             }
             case ESCAPE -> {
-                if (gameState != GameState.MENU) {
-                    returnToMenu();
+                if (gameState == GameState.PLAYING) {
+                    openPauseMenu();
                 }
             }
             default -> {
@@ -775,15 +882,29 @@ public final class GameController {
         refreshUi();
     }
 
-    private void returnToMenu() {
+    private void openPauseMenu() {
         inputState.clear();
-        activeSkillCheck = Optional.empty();
-        activeTrainingSession = Optional.empty();
-        pendingSuccessResult = Optional.empty();
-        gameState = GameState.MENU;
-        statusMessage = "Пауза. Нажмите «Начать», чтобы вернуться в игру.";
+        gameState = GameState.PAUSE;
+        statusMessage = "Пауза. Можно сохраниться, выйти или вернуться назад.";
+        view.showPauseMenu(
+                this::saveCurrentRunFromPause,
+                () -> {
+                    saveCurrentRunSilently();
+                    stage.close();
+                },
+                this::closePauseMenu
+        );
+        refreshUi();
+    }
+
+    private void closePauseMenu() {
+        inputState.clear();
+        gameState = GameState.PLAYING;
+        nearbyObject = interactionService.findNearbyObject(player, currentMap());
+        statusMessage = "Игра продолжена.";
         view.hideOverlay();
         refreshUi();
+        view.requestGameFocus();
     }
 
     private boolean usesSkillCheck(MachineType machineType) {

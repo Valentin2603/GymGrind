@@ -1,8 +1,8 @@
 package gymgrind.training;
 
 public enum MachineType {
-    BENCH_PRESS("Силовой тренажёр"),
-    SQUAT_RACK("База на ноги"),
+    BENCH_PRESS("Жим лёжа"),
+    SQUAT_RACK("Присед"),
     TREADMILL("Кардио зона"),
     DEADLIFT_PLATFORM("Платформа для тяги");
 
