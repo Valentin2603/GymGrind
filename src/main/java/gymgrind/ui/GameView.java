@@ -98,6 +98,8 @@ public final class GameView extends StackPane {
     }
 
     public void showTrainingSetup(TrainingMachine machine,
+                                  String workingLoadLabel,
+                                  Function<TrainingWeight, String> weightLabelFactory,
                                   Consumer<TrainingWeight> onWeightSelected,
                                   Runnable onCancel) {
         VBox panel = new VBox(14);
@@ -114,15 +116,16 @@ public final class GameView extends StackPane {
         title.setFont(Font.font("Segoe UI", 24));
         title.setStyle("-fx-text-fill: #F8FAFC; -fx-font-weight: bold;");
 
-        Label subtitle = new Label("Выберите вес. Чем тяжелее вес, тем выше награда и сложность.");
+        Label subtitle = new Label("Рабочая нагрузка: " + workingLoadLabel
+                + ". Лёгкий вес ниже рабочего, тяжёлый выше. Чем больше рабочий вес, тем медленнее растёт прогресс.");
         subtitle.setFont(Font.font("Segoe UI", 15));
         subtitle.setWrapText(true);
         subtitle.setAlignment(Pos.CENTER);
         subtitle.setStyle("-fx-text-fill: #CBD5E1;");
 
-        Button light = createOverlayButton("Лёгкий вес", "#22C55E");
-        Button medium = createOverlayButton("Средний вес", "#F59E0B");
-        Button heavy = createOverlayButton("Тяжёлый вес", "#EF4444");
+        Button light = createOverlayButton(weightLabelFactory.apply(TrainingWeight.LIGHT), "#22C55E");
+        Button medium = createOverlayButton(weightLabelFactory.apply(TrainingWeight.MEDIUM), "#F59E0B");
+        Button heavy = createOverlayButton(weightLabelFactory.apply(TrainingWeight.HEAVY), "#EF4444");
         Button cancel = createOverlayButton("Отмена", "#475569");
 
         light.setOnAction(event -> onWeightSelected.accept(TrainingWeight.LIGHT));

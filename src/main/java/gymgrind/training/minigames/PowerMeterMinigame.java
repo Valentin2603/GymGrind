@@ -44,8 +44,14 @@ public final class PowerMeterMinigame extends VBox {
         this.onFinish = onFinish;
         this.canvas = new Canvas(WIDTH, HEIGHT);
         this.zoneWidth = clamp(0.22 * session.tuning().zoneMultiplier(), 0.08, 0.28);
-        this.drainSpeed = 0.34 * session.tuning().speedMultiplier();
-        this.pushPower = 0.085 / Math.sqrt(session.weight().speedMultiplier());
+        this.drainSpeed = 0.34
+                * session.tuning().speedMultiplier()
+                * (1.0 - session.tuning().strengthBonus() * 0.16)
+                * (1.0 + session.tuning().bodyFatLoad() * 0.05);
+        this.pushPower = 0.085
+                / Math.sqrt(session.weight().speedMultiplier())
+                * (1.0 + session.tuning().muscleBonus() * 0.10)
+                * (1.0 - session.tuning().bodyFatLoad() * 0.04);
         this.marker = 0.42;
         this.zoneCenter = 0.64;
         this.score = 45;
@@ -154,7 +160,7 @@ public final class PowerMeterMinigame extends VBox {
         graphics.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
         graphics.fillText(
                 "Время: " + Math.max(0, Math.ceil(GAME_SECONDS - elapsedSeconds))
-                        + " | Вес: " + session.weight().label()
+                        + " | Нагрузка: " + session.weightLabel()
                         + " | Усталость: " + session.tuning().fatigueProfile().label()
                         + preWorkoutText(),
                 WIDTH / 2,

@@ -52,9 +52,19 @@ public final class BalanceBarMinigame extends VBox {
         this.session = session;
         this.onFinish = onFinish;
         this.canvas = new Canvas(WIDTH, HEIGHT);
-        this.driftPower = 0.82 * session.tuning().speedMultiplier();
-        this.controlPower = 0.78 / Math.sqrt(session.weight().speedMultiplier());
-        this.safeZone = clamp(0.24 * session.tuning().zoneMultiplier(), 0.07, 0.28);
+        this.driftPower = 0.82
+                * session.tuning().speedMultiplier()
+                * (1.0 - session.tuning().muscleBonus() * 0.10)
+                * (1.0 + session.tuning().bodyFatLoad() * 0.07);
+        this.controlPower = 0.78
+                / Math.sqrt(session.weight().speedMultiplier())
+                * (1.0 + session.tuning().strengthBonus() * 0.22 + session.tuning().muscleBonus() * 0.08)
+                * (1.0 - session.tuning().bodyFatLoad() * 0.05);
+        this.safeZone = clamp(
+                0.24 * session.tuning().zoneMultiplier() * (1.0 + session.tuning().strengthBonus() * 0.08 - session.tuning().bodyFatLoad() * 0.03),
+                0.07,
+                0.30
+        );
         this.barPosition = ThreadLocalRandom.current().nextDouble(-0.18, 0.18);
         this.score = 48;
         this.driftDirection = randomDrift();
@@ -195,7 +205,7 @@ public final class BalanceBarMinigame extends VBox {
         graphics.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
         graphics.fillText(
                 "Время: " + Math.max(0, Math.ceil(GAME_SECONDS - elapsedSeconds))
-                        + " | Вес: " + session.weight().label()
+                        + " | Нагрузка: " + session.weightLabel()
                         + " | Усталость: " + session.tuning().fatigueProfile().label()
                         + preWorkoutText(),
                 WIDTH / 2,

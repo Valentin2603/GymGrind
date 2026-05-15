@@ -617,7 +617,6 @@ public final class GameRenderer {
         appendDelta(builder, "выносливость", result.staminaDelta());
         appendDelta(builder, "усталость", result.fatigueDelta());
         appendDelta(builder, "деньги", result.moneyDelta());
-        appendDelta(builder, "% жира", result.bodyFatDelta());
 
         if (builder.isEmpty()) {
             return "без изменений";
@@ -632,8 +631,7 @@ public final class GameRenderer {
                 formatDelta("Масса", result.muscleDelta()),
                 formatDelta("Выносл.", result.staminaDelta()),
                 formatDelta("Устал.", result.fatigueDelta()),
-                formatDelta("Деньги", result.moneyDelta()),
-                formatDelta("% жира", result.bodyFatDelta())
+                formatDelta("Деньги", result.moneyDelta())
         };
     }
 

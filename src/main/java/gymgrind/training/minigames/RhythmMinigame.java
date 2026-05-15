@@ -157,7 +157,7 @@ public final class RhythmMinigame extends VBox {
                         + " | Попадания: " + hits
                         + " | Ошибки: " + mistakes
                         + " | Время: " + Math.max(0, Math.ceil(GAME_SECONDS - elapsedSeconds))
-                        + " | Вес: " + session.weight().label()
+                        + " | Нагрузка: " + session.weightLabel()
                         + " | Усталость: " + session.tuning().fatigueProfile().label()
                         + preWorkoutText()
         );

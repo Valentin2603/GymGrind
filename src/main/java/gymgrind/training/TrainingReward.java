@@ -1,14 +1,14 @@
 package gymgrind.training;
 
-public record TrainingReward(int strength, int muscle, int stamina, int fatigue, int bodyFat) {
+public record TrainingReward(int strength, int muscle, int stamina, int fatigue, double bodyFat) {
 
     public TrainingReward multiply(double rewardMultiplier, double fatigueMultiplier) {
         return new TrainingReward(
                 round(strength * rewardMultiplier),
                 round(muscle * rewardMultiplier),
                 round(stamina * rewardMultiplier),
-                Math.max(1, round(fatigue * fatigueMultiplier)),
-                round(bodyFat * rewardMultiplier)
+                Math.max(1, (int) Math.ceil(fatigue * fatigueMultiplier)),
+                bodyFat * rewardMultiplier
         );
     }
 
@@ -26,7 +26,7 @@ public record TrainingReward(int strength, int muscle, int stamina, int fatigue,
                 Math.max(0, round(muscle * multiplier)),
                 Math.max(0, round(stamina * multiplier)),
                 fatigue,
-                round(bodyFat * multiplier)
+                bodyFat * multiplier
         );
     }
 

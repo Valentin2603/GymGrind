@@ -11,7 +11,7 @@ public record SkillCheckResult(
         int staminaDelta,
         int fatigueDelta,
         int moneyDelta,
-        int bodyFatDelta
+        double bodyFatDelta
 ) {
     public SkillCheckResult(boolean success,
                             String message,
@@ -19,7 +19,7 @@ public record SkillCheckResult(
                             int muscleDelta,
                             int staminaDelta,
                             int fatigueDelta,
-                            int bodyFatDelta) {
+                            double bodyFatDelta) {
         this(
                 success,
                 success ? TrainingGrade.NORMAL : TrainingGrade.FAIL,
@@ -40,7 +40,7 @@ public record SkillCheckResult(
                             int muscleDelta,
                             int staminaDelta,
                             int fatigueDelta,
-                            int bodyFatDelta) {
+                            double bodyFatDelta) {
         this(success, grade, message, strengthDelta, muscleDelta, staminaDelta, fatigueDelta, 0, bodyFatDelta);
     }
 }

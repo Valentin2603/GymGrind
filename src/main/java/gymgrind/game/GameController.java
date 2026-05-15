@@ -38,6 +38,7 @@ public final class GameController {
 
     private static final double WINDOW_WIDTH = 1280;
     private static final double WINDOW_HEIGHT = 720;
+    private static final double ACTIVITY_STAMINA_COST_MULTIPLIER = 1.3;
 
     private final Stage stage;
     private final GameView view;
@@ -412,19 +413,19 @@ public final class GameController {
         switch (result.grade()) {
             case EXCELLENT -> {
                 moneyDelta = 180;
-                fatigueDelta = 10;
+                fatigueDelta = scaledActivityFatigue(10);
             }
             case NORMAL -> {
                 moneyDelta = 100;
-                fatigueDelta = 10;
+                fatigueDelta = scaledActivityFatigue(10);
             }
             case FAIL -> {
                 moneyDelta = 40;
-                fatigueDelta = 15;
+                fatigueDelta = scaledActivityFatigue(15);
             }
             default -> {
                 moneyDelta = 40;
-                fatigueDelta = 15;
+                fatigueDelta = scaledActivityFatigue(15);
             }
         }
 
@@ -463,6 +464,8 @@ public final class GameController {
         statusMessage = "Выберите вес для тренировки.";
         view.showTrainingSetup(
                 machine,
+                trainingService.workingLoadLabel(player, machine),
+                weight -> trainingService.weightChoiceLabel(player, machine, weight),
                 weight -> startTraining(machine, weight),
                 () -> {
                     gameState = GameState.PLAYING;
@@ -475,6 +478,10 @@ public final class GameController {
         refreshUi();
     }
 
+    private int scaledActivityFatigue(int baseFatigue) {
+        return Math.max(1, (int) Math.ceil(baseFatigue * ACTIVITY_STAMINA_COST_MULTIPLIER));
+    }
+
     private void startTraining(TrainingMachine machine, TrainingWeight weight) {
         view.hideOverlay();
         TrainingSession session = trainingService.createSession(player, machine, weight);
@@ -484,7 +491,7 @@ public final class GameController {
         }
 
         Node minigame = createMinigame(session);
-        statusMessage = "Тренировка началась: " + machine.name() + ", вес: " + weight.label() + ".";
+        statusMessage = "Тренировка началась: " + machine.name() + ", нагрузка: " + session.weightLabel() + ".";
         view.showOverlay(minigame);
         refreshUi();
         minigame.requestFocus();
@@ -604,7 +611,7 @@ public final class GameController {
         SkillCheckSession session = skillCheckService.startSession(trainingSession, player.stats().strength());
         activeSkillCheck = Optional.of(session);
         gameState = GameState.MINIGAME;
-        statusMessage = buildSkillCheckStartMessage(session) + " Вес: " + trainingSession.weight().label() + ".";
+        statusMessage = buildSkillCheckStartMessage(session) + " Нагрузка: " + trainingSession.weightLabel() + ".";
         refreshUi();
     }
 

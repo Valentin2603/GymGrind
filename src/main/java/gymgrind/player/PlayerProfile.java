@@ -16,7 +16,7 @@ public final class PlayerProfile {
     private final int baseStamina;
     private final int baseFatigue;
     private final int baseMoney;
-    private final int baseBodyFat;
+    private final double baseBodyFat;
     private final double renderWidth;
     private final double renderHeight;
 
@@ -31,7 +31,7 @@ public final class PlayerProfile {
                          int baseStamina,
                          int baseFatigue,
                          int baseMoney,
-                         int baseBodyFat,
+                         double baseBodyFat,
                          double renderWidth,
                          double renderHeight) {
         this.id = id;
@@ -94,7 +94,7 @@ public final class PlayerProfile {
         return baseMoney;
     }
 
-    public int baseBodyFat() {
+    public double baseBodyFat() {
         return baseBodyFat;
     }
 

@@ -181,7 +181,6 @@ public final class MainMenu extends StackPane {
                 "Сила: " + profile.baseStrength()
                         + " | Масса: " + profile.baseMuscle()
                         + " | Выносливость: " + profile.baseStamina()
-                        + " | % жира: " + profile.baseBodyFat() + "%"
         );
         stats.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
         stats.setStyle("-fx-text-fill: #F8FAFC;");

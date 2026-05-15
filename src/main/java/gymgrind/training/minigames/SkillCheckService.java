@@ -41,9 +41,9 @@ public final class SkillCheckService {
                     machine,
                     randomSequencePrompt(Math.max(SQUAT_PROMPT_LENGTH, tuning.rhythmLength())),
                     SQUAT_START_BAR_PROGRESS,
-                    SQUAT_DRAIN_PER_SECOND * tuning.speedMultiplier(),
-                    SQUAT_CORRECT_GAIN,
-                    SQUAT_WRONG_PENALTY * Math.sqrt(tuning.speedMultiplier())
+                    SQUAT_DRAIN_PER_SECOND * tuning.speedMultiplier() * (1.0 - tuning.muscleBonus() * 0.10 + tuning.bodyFatLoad() * 0.08),
+                    SQUAT_CORRECT_GAIN * (1.0 + tuning.strengthBonus() * 0.08 - tuning.bodyFatLoad() * 0.04),
+                    SQUAT_WRONG_PENALTY * Math.sqrt(tuning.speedMultiplier()) * (1.0 - tuning.strengthBonus() * 0.10 + tuning.bodyFatLoad() * 0.09)
             );
             default -> startTimingSession(trainingSession, strength);
         };
@@ -142,7 +142,7 @@ public final class SkillCheckService {
             );
             case TREADMILL -> new SkillCheckResult(
                     true,
-                    session.machine().name() + ": интервальный бег выдержан. Выносливость +4, усталость +7, % жира -2.",
+                    session.machine().name() + ": интервальный бег выдержан. Выносливость +4, усталость +7.",
                     0,
                     0,
                     4,
@@ -242,10 +242,10 @@ public final class SkillCheckService {
             case NORMAL -> 8;
             case FAIL -> 10;
         };
-        int bodyFat = switch (grade) {
-            case EXCELLENT -> -3;
-            case NORMAL -> -2;
-            case FAIL -> -1;
+        double bodyFat = switch (grade) {
+            case EXCELLENT -> -3.0;
+            case NORMAL -> -2.0;
+            case FAIL -> -1.0;
         };
 
         return new SkillCheckResult(
@@ -320,11 +320,11 @@ public final class SkillCheckService {
         TrainingMachine machine = trainingSession.machine();
         TrainingTuning tuning = trainingSession.tuning();
         double successZoneWidth = clamp(
-                successZoneWidthFor(machine.machineType()) * tuning.zoneMultiplier(),
+                successZoneWidthFor(machine.machineType()) * tuning.zoneMultiplier() * (1.0 + tuning.staminaBonus() * 0.10 - tuning.bodyFatLoad() * 0.04),
                 0.08,
                 0.24
         );
-        double markerSpeedMultiplier = tuning.speedMultiplier();
+        double markerSpeedMultiplier = tuning.speedMultiplier() * (1.0 - tuning.staminaBonus() * 0.16 + tuning.bodyFatLoad() * 0.05);
         return SkillCheckSession.timingZone(
                 machine,
                 randomMarkerProgress(),

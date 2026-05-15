@@ -4,8 +4,8 @@ import gymgrind.training.TrainingReward;
 
 public final class Stats {
 
-    private static final int MIN_BODY_FAT = 3;
-    private static final int MAX_BODY_FAT = 100;
+    private static final double MIN_BODY_FAT = 8.0;
+    private static final double MAX_BODY_FAT = 100.0;
     private static final int MAX_FATIGUE = 100;
 
     private int strength;
@@ -13,16 +13,16 @@ public final class Stats {
     private int stamina;
     private int fatigue;
     private int money;
-    private int bodyFat;
+    private double bodyFat;
 
     private int baseStrength;
     private int baseMuscle;
     private int baseStamina;
     private int baseFatigue;
     private int baseMoney;
-    private int baseBodyFat;
+    private double baseBodyFat;
 
-    public Stats(int strength, int muscle, int stamina, int fatigue, int money, int bodyFat) {
+    public Stats(int strength, int muscle, int stamina, int fatigue, int money, double bodyFat) {
         configureBaseValues(strength, muscle, stamina, fatigue, money, bodyFat);
         reset();
     }
@@ -55,12 +55,17 @@ public final class Stats {
         return money;
     }
 
-    public int bodyFat() {
+    public double bodyFat() {
         return bodyFat;
     }
 
     public int form() {
-        return strength + muscle + stamina - fatigue / 2 - bodyFat;
+        return (int) Math.round((strength + muscle + stamina) / 5.0 - fatigue / 2.0 - bodyFat);
+    }
+
+    public double staminaFatigueMultiplier() {
+        double staminaFactor = stamina / (stamina + 260.0);
+        return 1.0 - staminaFactor * 0.38;
     }
 
     public void addTrainingReward(TrainingReward reward) {
@@ -72,13 +77,13 @@ public final class Stats {
                             int staminaDelta,
                             int fatigueDelta,
                             int moneyDelta,
-                            int bodyFatDelta) {
+                            double bodyFatDelta) {
         strength = Math.max(0, strength + strengthDelta);
         muscle = Math.max(0, muscle + muscleDelta);
         stamina = Math.max(0, stamina + staminaDelta);
         fatigue = clamp(fatigue + fatigueDelta, 0, MAX_FATIGUE);
         money = Math.max(0, money + moneyDelta);
-        bodyFat = clamp(bodyFat + bodyFatDelta, MIN_BODY_FAT, MAX_BODY_FAT);
+        bodyFat = clamp(bodyFat + effectiveBodyFatDelta(bodyFatDelta), MIN_BODY_FAT, MAX_BODY_FAT);
     }
 
     public void reduceFatigue(int amount) {
@@ -98,7 +103,7 @@ public final class Stats {
         money = Math.max(0, money + amount);
     }
 
-    public void configureBaseValues(int strength, int muscle, int stamina, int fatigue, int money, int bodyFat) {
+    public void configureBaseValues(int strength, int muscle, int stamina, int fatigue, int money, double bodyFat) {
         baseStrength = Math.max(0, strength);
         baseMuscle = Math.max(0, muscle);
         baseStamina = Math.max(0, stamina);
@@ -118,5 +123,18 @@ public final class Stats {
 
     private int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(value, max));
+    }
+
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(value, max));
+    }
+
+    private double effectiveBodyFatDelta(double bodyFatDelta) {
+        if (bodyFatDelta >= 0) {
+            return bodyFatDelta;
+        }
+
+        double burnRate = clamp((bodyFat - MIN_BODY_FAT) * 0.075, 0.0, 0.80);
+        return bodyFatDelta * burnRate;
     }
 }
