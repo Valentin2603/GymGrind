@@ -119,19 +119,19 @@ public final class BalanceBarMinigame extends VBox {
             control += controlPower;
         }
 
-        double waveDrift = Math.sin(elapsedSeconds * 3.35 * session.tuning().speedMultiplier()) * driftPower * 0.62
-                + Math.sin(elapsedSeconds * 6.4) * driftPower * 0.22;
+        double waveDrift = Math.sin(elapsedSeconds * 3.0 * session.tuning().speedMultiplier()) * driftPower * 0.6
+                + Math.sin(elapsedSeconds * 5.0) * driftPower * 0.2;
         barVelocity += (driftDirection + waveDrift + control) * deltaSeconds;
-        barVelocity *= Math.pow(0.45, deltaSeconds);
+        barVelocity *= Math.pow(0.4, deltaSeconds);
         barPosition = clamp(barPosition + barVelocity * deltaSeconds, -1.05, 1.05);
 
         double distance = Math.abs(barPosition);
         instabilitySum += distance * deltaSeconds;
         if (distance <= safeZone) {
             stableSeconds += deltaSeconds;
-            score += 3.5 * deltaSeconds;
+            score += 5 * deltaSeconds;
         } else {
-            score -= 44 * deltaSeconds * session.tuning().speedMultiplier();
+            score -= 35 * deltaSeconds * session.tuning().speedMultiplier();
             flashSeconds = Math.max(flashSeconds, 0.08);
         }
 
