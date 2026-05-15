@@ -16,10 +16,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.CycleMethod;
-import javafx.scene.paint.LinearGradient;
-import javafx.scene.paint.Stop;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
@@ -27,29 +23,32 @@ import java.util.Objects;
 
 public final class Hud extends VBox {
 
-    private static final double HUD_WIDTH = 577;
-    private static final double HUD_HEIGHT = 97;
-    private static final double DAY_TEXT_X = 56;
-    private static final double DAY_TEXT_Y = 35;
-    private static final double DAY_TEXT_WIDTH = 38;
-    private static final double DAY_TEXT_HEIGHT = 28;
-    private static final double MONEY_TEXT_X = 196;
-    private static final double MONEY_TEXT_Y = 28;
-    private static final double MONEY_TEXT_WIDTH = 90;
-    private static final double MONEY_TEXT_HEIGHT = 28;
-    private static final double STAMINA_FILL_X = 373;
-    private static final double STAMINA_FILL_Y = 37;
-    private static final double STAMINA_FILL_WIDTH = 82;
-    private static final double STAMINA_FILL_HEIGHT = 18;
-    private static final double STAMINA_TEXT_X = 491;
-    private static final double STAMINA_TEXT_Y = 29;
-    private static final double STAMINA_TEXT_WIDTH = 95;
-    private static final double STAMINA_TEXT_HEIGHT = 28;
+    private static final double HUD_SCALE = 0.62;
+    private static final double HUD_WIDTH = 760 * HUD_SCALE;
+    private static final double HUD_HEIGHT = 410 * HUD_SCALE;
+
+    private static final double DAY_TEXT_X = 506 * HUD_SCALE;
+    private static final double DAY_TEXT_Y = 84 * HUD_SCALE;
+    private static final double DAY_TEXT_WIDTH = 118 * HUD_SCALE;
+    private static final double DAY_TEXT_HEIGHT = 64 * HUD_SCALE;
+
+    private static final double MONEY_TEXT_X = 506 * HUD_SCALE;
+    private static final double MONEY_TEXT_Y = 188 * HUD_SCALE;
+    private static final double MONEY_TEXT_WIDTH = 118 * HUD_SCALE;
+    private static final double MONEY_TEXT_HEIGHT = 64 * HUD_SCALE;
+
+    private static final double ENERGY_TEXT_X = 506 * HUD_SCALE;
+    private static final double ENERGY_TEXT_Y = 292 * HUD_SCALE;
+    private static final double ENERGY_TEXT_WIDTH = 118 * HUD_SCALE;
+    private static final double ENERGY_TEXT_HEIGHT = 64 * HUD_SCALE;
+
+    private static final double DAY_FONT_SIZE = 52 * HUD_SCALE;
+    private static final double MONEY_FONT_SIZE = 50 * HUD_SCALE;
+    private static final double ENERGY_FONT_SIZE = 48 * HUD_SCALE;
 
     private Label hudDayLabel;
     private Label hudMoneyLabel;
-    private Label hudStaminaLabel;
-    private Rectangle staminaFill;
+    private Label hudEnergyLabel;
     private final VBox statsPanel;
     private final Label dayLabel;
     private final Label strengthLabel;
@@ -122,12 +121,10 @@ public final class Hud extends VBox {
         Stats stats = player.stats();
         int availableStamina = stats.availableStamina();
         int maxAvailableStamina = stats.maxAvailableStamina();
-        double fillRatio = maxAvailableStamina == 0 ? 0.0 : (double) availableStamina / maxAvailableStamina;
 
-        hudDayLabel.setText(Integer.toString(calendarState.currentDay()));
-        hudMoneyLabel.setText(Integer.toString(stats.money()));
-        hudStaminaLabel.setText(availableStamina + "/" + maxAvailableStamina);
-        staminaFill.setWidth(STAMINA_FILL_WIDTH * Math.max(0.0, Math.min(1.0, fillRatio)));
+        applyValueText(hudDayLabel, String.format("%02d", calendarState.currentDay()), DAY_FONT_SIZE, 22);
+        applyValueText(hudMoneyLabel, Integer.toString(stats.money()), MONEY_FONT_SIZE, 18);
+        applyValueText(hudEnergyLabel, availableStamina + "/" + maxAvailableStamina, ENERGY_FONT_SIZE, 16);
 
         dayLabel.setText("День: " + calendarState.currentDay() + "/" + calendarState.maxDays());
         strengthLabel.setText("Сила: " + stats.strength());
@@ -152,69 +149,46 @@ public final class Hud extends VBox {
         imageView.setPreserveRatio(false);
         imageView.setSmooth(false);
 
-        Rectangle dayMask = createMask(DAY_TEXT_X, DAY_TEXT_Y, DAY_TEXT_WIDTH, DAY_TEXT_HEIGHT, "#F4ECD3");
-        Rectangle moneyMask = createMask(MONEY_TEXT_X, MONEY_TEXT_Y, MONEY_TEXT_WIDTH, MONEY_TEXT_HEIGHT, "#060606");
-        Rectangle staminaTextMask = createMask(STAMINA_TEXT_X, STAMINA_TEXT_Y, STAMINA_TEXT_WIDTH, STAMINA_TEXT_HEIGHT, "#060606");
-        Rectangle staminaEmptyMask = createMask(STAMINA_FILL_X, STAMINA_FILL_Y, STAMINA_FILL_WIDTH, STAMINA_FILL_HEIGHT, "#4F3D21");
-
-        staminaFill = new Rectangle(STAMINA_FILL_X, STAMINA_FILL_Y, 0, STAMINA_FILL_HEIGHT);
-        staminaFill.setArcWidth(3);
-        staminaFill.setArcHeight(3);
-        staminaFill.setFill(new LinearGradient(
-                0,
-                0,
-                1,
-                0,
-                true,
-                CycleMethod.NO_CYCLE,
-                new Stop(0.0, Color.web("#FFF39A")),
-                new Stop(0.52, Color.web("#F7D83E")),
-                new Stop(1.0, Color.web("#DFAF00"))
-        ));
-
         hudDayLabel = createHudLabel(
                 DAY_TEXT_X,
                 DAY_TEXT_Y,
                 DAY_TEXT_WIDTH,
-                DAY_TEXT_HEIGHT,
-                Pos.CENTER,
-                Font.font("Consolas", FontWeight.BLACK, 24),
-                "#161616",
-                false
+                DAY_TEXT_HEIGHT
         );
         hudMoneyLabel = createHudLabel(
                 MONEY_TEXT_X,
                 MONEY_TEXT_Y,
                 MONEY_TEXT_WIDTH,
-                MONEY_TEXT_HEIGHT,
-                Pos.CENTER_LEFT,
-                Font.font("Consolas", FontWeight.BOLD, 21),
-                "#F8FAFC",
-                true
+                MONEY_TEXT_HEIGHT
         );
-        hudStaminaLabel = createHudLabel(
-                STAMINA_TEXT_X,
-                STAMINA_TEXT_Y,
-                STAMINA_TEXT_WIDTH,
-                STAMINA_TEXT_HEIGHT,
-                Pos.CENTER_LEFT,
-                Font.font("Consolas", FontWeight.BOLD, 20),
-                "#F8FAFC",
-                true
+        hudEnergyLabel = createHudLabel(
+                ENERGY_TEXT_X,
+                ENERGY_TEXT_Y,
+                ENERGY_TEXT_WIDTH,
+                ENERGY_TEXT_HEIGHT
         );
 
-        pane.getChildren().addAll(
-                imageView,
-                dayMask,
-                moneyMask,
-                staminaTextMask,
-                staminaEmptyMask,
-                staminaFill,
-                hudDayLabel,
-                hudMoneyLabel,
-                hudStaminaLabel
-        );
+        pane.getChildren().addAll(imageView, hudDayLabel, hudMoneyLabel, hudEnergyLabel);
         return pane;
+    }
+
+    private void applyValueText(Label label, String text, double baseFontSize, double minimumFontSize) {
+        label.setText(text);
+        label.setFont(Font.font("Consolas", FontWeight.BLACK, fittedFontSize(text, baseFontSize, minimumFontSize)));
+    }
+
+    private double fittedFontSize(String text, double baseFontSize, double minimumFontSize) {
+        int length = text.length();
+        if (length <= 2) {
+            return baseFontSize;
+        }
+        if (length <= 4) {
+            return Math.max(minimumFontSize, baseFontSize - 4);
+        }
+        if (length <= 6) {
+            return Math.max(minimumFontSize, baseFontSize - 10);
+        }
+        return minimumFontSize;
     }
 
     private void setStatsVisible(boolean visible) {
@@ -225,42 +199,23 @@ public final class Hud extends VBox {
 
     private Image loadHudImage() {
         return new Image(Objects.requireNonNull(
-                Hud.class.getResource("/assets/ui/hud_variant_8.png"),
+                Hud.class.getResource("/assets/ui/hud_dynamic_fields/hud_template_empty_values.png"),
                 "HUD image is missing"
         ).toExternalForm());
     }
 
-    private Rectangle createMask(double x, double y, double width, double height, String fill) {
-        Rectangle rectangle = new Rectangle(x, y, width, height);
-        rectangle.setArcWidth(4);
-        rectangle.setArcHeight(4);
-        rectangle.setFill(Color.web(fill));
-        rectangle.setMouseTransparent(true);
-        return rectangle;
-    }
-
-    private Label createHudLabel(double x,
-                                 double y,
-                                 double width,
-                                 double height,
-                                 Pos alignment,
-                                 Font font,
-                                 String textColor,
-                                 boolean applyShadow) {
+    private Label createHudLabel(double x, double y, double width, double height) {
         Label label = new Label();
         label.setLayoutX(x);
         label.setLayoutY(y);
         label.setPrefSize(width, height);
         label.setMinSize(width, height);
         label.setMaxSize(width, height);
-        label.setAlignment(alignment);
-        label.setPadding(new Insets(0, 2, 0, 2));
-        label.setFont(font);
-        label.setStyle("-fx-text-fill: " + textColor + ";");
+        label.setAlignment(Pos.CENTER_LEFT);
+        label.setPadding(new Insets(0, 0, 0, 5 * HUD_SCALE));
+        label.setStyle("-fx-text-fill: #F8FAFC;");
         label.setMouseTransparent(true);
-        if (applyShadow) {
-            label.setEffect(new DropShadow(0.0, 1.0, 1.0, Color.rgb(0, 0, 0, 0.9)));
-        }
+        label.setEffect(new DropShadow(0.0, 1.0, 1.0, Color.rgb(0, 0, 0, 0.95)));
         return label;
     }
 
