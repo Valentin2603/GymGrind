@@ -32,8 +32,9 @@ public final class MovementService {
         player.setDirection(directionFor(dx, dy));
 
         double length = Math.hypot(dx, dy);
-        double stepX = dx / length * player.speed() * deltaSeconds;
-        double stepY = dy / length * player.speed() * deltaSeconds;
+        double speed = player.speed() * fatigueSpeedMultiplier(player.stats().fatigue());
+        double stepX = dx / length * speed * deltaSeconds;
+        double stepY = dy / length * speed * deltaSeconds;
 
         double nextX = clamp(
                 player.position().x() + stepX,
@@ -51,6 +52,19 @@ public final class MovementService {
 
     private double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(value, max));
+    }
+
+    private double fatigueSpeedMultiplier(int fatigue) {
+        if (fatigue >= 100) {
+            return 0.22;
+        }
+        if (fatigue >= 90) {
+            return 0.38;
+        }
+        if (fatigue >= 80) {
+            return 0.58;
+        }
+        return 1.0;
     }
 
     private PlayerDirection directionFor(double dx, double dy) {

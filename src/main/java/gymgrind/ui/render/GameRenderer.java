@@ -8,6 +8,7 @@ import gymgrind.player.Player;
 import gymgrind.player.PlayerDirection;
 import gymgrind.player.PlayerProfile;
 import gymgrind.training.MachineType;
+import gymgrind.training.TrainingGrade;
 import gymgrind.training.minigames.SkillCheckResult;
 import gymgrind.training.minigames.SkillCheckSession;
 import gymgrind.training.TrainingMachine;
@@ -283,11 +284,11 @@ public final class GameRenderer {
         double canvasWidth = graphicsContext.getCanvas().getWidth();
         double canvasHeight = graphicsContext.getCanvas().getHeight();
         double panelWidth = 620;
-        double panelHeight = 280;
+        double panelHeight = 330;
         double panelLeft = (canvasWidth - panelWidth) / 2.0;
         double panelTop = (canvasHeight - panelHeight) / 2.0;
         double barLeft = panelLeft + 44;
-        double barTop = panelTop + 175;
+        double barTop = panelTop + 205;
         double barWidth = panelWidth - 88;
         double barHeight = 28;
         double successZoneLeft = barLeft + session.successZoneStart() * barWidth;
@@ -312,7 +313,11 @@ public final class GameRenderer {
         graphicsContext.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 15));
         graphicsContext.fillText(session.machine().shortTypeLabel(), panelLeft + 36, panelTop + 80);
         graphicsContext.fillText(progressText(session), panelLeft + 36, panelTop + 104);
-        graphicsContext.fillText("Space/Enter/E фиксирует попытку. Esc отменяет подход.", panelLeft + 36, panelTop + 128);
+        graphicsContext.fillText("Нажмите показанную клавишу, когда маркер в зелёной зоне. Ошибки считаются, но не обрывают игру.", panelLeft + 36, panelTop + 128);
+
+        graphicsContext.setFill(HIGHLIGHT);
+        graphicsContext.setFont(Font.font("Consolas", FontWeight.BLACK, 44));
+        graphicsContext.fillText("Клавиша: " + session.expectedTimingKey().getName(), panelLeft + 36, panelTop + 174);
 
         graphicsContext.setFill(BAR_COLOR);
         graphicsContext.fillRoundRect(barLeft, barTop, barWidth, barHeight, 18, 18);
@@ -326,7 +331,7 @@ public final class GameRenderer {
 
         graphicsContext.setFill(SUBTITLE_COLOR);
         graphicsContext.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
-        graphicsContext.fillText(footerText(session), panelLeft + 36, panelTop + 238);
+        graphicsContext.fillText(footerText(session), panelLeft + 36, panelTop + 288);
         graphicsContext.restore();
     }
 
@@ -383,27 +388,29 @@ public final class GameRenderer {
         double canvasWidth = graphicsContext.getCanvas().getWidth();
         double canvasHeight = graphicsContext.getCanvas().getHeight();
         double panelWidth = 640;
-        double panelHeight = 320;
+        double panelHeight = 370;
         double panelLeft = (canvasWidth - panelWidth) / 2.0;
         double panelTop = (canvasHeight - panelHeight) / 2.0;
+        Color gradeColor = gradeColor(result.grade());
+        double pulse = 0.72 + Math.sin(System.nanoTime() / 180_000_000.0) * 0.18;
 
         graphicsContext.save();
         graphicsContext.setFill(OVERLAY_BACKDROP);
         graphicsContext.fillRect(0, 0, canvasWidth, canvasHeight);
         graphicsContext.setFill(OVERLAY_PANEL);
         graphicsContext.fillRoundRect(panelLeft, panelTop, panelWidth, panelHeight, 24, 24);
-        graphicsContext.setStroke(SUCCESS_ZONE);
+        graphicsContext.setStroke(gradeColor);
         graphicsContext.setLineWidth(3);
         graphicsContext.strokeRoundRect(panelLeft, panelTop, panelWidth, panelHeight, 24, 24);
 
         graphicsContext.setTextAlign(TextAlignment.LEFT);
-        graphicsContext.setFill(SUCCESS_ZONE);
+        graphicsContext.setFill(gradeColor);
         graphicsContext.setFont(Font.font("Segoe UI", FontWeight.BLACK, 30));
-        graphicsContext.fillText("Подход засчитан", panelLeft + 36, panelTop + 56);
+        graphicsContext.fillText("Результат: " + result.grade().label(), panelLeft + 36, panelTop + 56);
 
         graphicsContext.setFill(SUBTITLE_COLOR);
         graphicsContext.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 15));
-        graphicsContext.fillText("Результат уже применён к характеристикам персонажа.", panelLeft + 36, panelTop + 86);
+        graphicsContext.fillText("Статистика уже применена к персонажу.", panelLeft + 36, panelTop + 86);
 
         graphicsContext.setFill(LABEL_COLOR);
         graphicsContext.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 17));
@@ -413,14 +420,35 @@ public final class GameRenderer {
         graphicsContext.setLineWidth(2);
         graphicsContext.strokeLine(panelLeft + 36, panelTop + 172, panelLeft + panelWidth - 36, panelTop + 172);
 
-        graphicsContext.setFill(HIGHLIGHT);
-        graphicsContext.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        graphicsContext.fillText("Эффект: " + buildExtendedResultSummary(result), panelLeft + 36, panelTop + 208, panelWidth - 72);
+        drawResultStats(graphicsContext, result, panelLeft + 36, panelTop + 196, panelWidth - 72, pulse);
 
         graphicsContext.setFill(SUBTITLE_COLOR);
         graphicsContext.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 15));
-        graphicsContext.fillText("Space или Esc закрывает окно и возвращает в зал.", panelLeft + 36, panelTop + 270);
+        graphicsContext.fillText("Space или Esc закрывает окно и возвращает в зал.", panelLeft + 36, panelTop + 330);
         graphicsContext.restore();
+    }
+
+    private void drawResultStats(GraphicsContext graphicsContext,
+                                 SkillCheckResult result,
+                                 double left,
+                                 double top,
+                                 double width,
+                                 double pulse) {
+        String[] stats = buildResultStats(result);
+        double chipWidth = width / 3.0 - 10;
+        double chipHeight = 34;
+
+        for (int index = 0; index < stats.length; index++) {
+            double x = left + (index % 3) * (chipWidth + 15);
+            double y = top + (index / 3) * (chipHeight + 10);
+            graphicsContext.setGlobalAlpha(index == 0 ? 1.0 : pulse);
+            graphicsContext.setFill(Color.web("#1E293B"));
+            graphicsContext.fillRoundRect(x, y, chipWidth, chipHeight, 14, 14);
+            graphicsContext.setGlobalAlpha(1.0);
+            graphicsContext.setFill(HIGHLIGHT);
+            graphicsContext.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+            graphicsContext.fillText(stats[index], x + 12, y + 22, chipWidth - 24);
+        }
     }
 
     private void drawSequencePrompt(GraphicsContext graphicsContext, String prompt, double left, double baselineY) {
@@ -452,6 +480,14 @@ public final class GameRenderer {
 
     private String progressText(SkillCheckSession session) {
         if (session.requiresMultipleHits()) {
+            if (session.machine().machineType() == MachineType.TREADMILL) {
+                return "Попадания: " + session.completedHits()
+                        + "/" + session.requiredHits()
+                        + " | Попытки: " + session.timingAttempts()
+                        + "/" + session.maxAttempts()
+                        + " | Ошибки: " + session.missedAttempts();
+            }
+
             return "Повторы: " + session.completedHits() + "/" + session.requiredHits() + ". Зона сужается после каждого успеха.";
         }
 
@@ -461,7 +497,7 @@ public final class GameRenderer {
     private String footerText(SkillCheckSession session) {
         if (session.requiresMultipleHits()) {
             if (session.machine().machineType() == MachineType.TREADMILL) {
-                return "Для беговой нужно выдержать серию интервалов: каждое попадание сужает зелёную зону.";
+                return "Беговая оценивается по количеству попаданий. Промах не обрывает игру, но портит итоговую оценку.";
             }
 
             return "Нужно собрать все повторы подряд: каждое попадание делает зелёную зону уже.";
@@ -506,6 +542,7 @@ public final class GameRenderer {
         appendDelta(builder, "масса", result.muscleDelta());
         appendDelta(builder, "выносливость", result.staminaDelta());
         appendDelta(builder, "усталость", result.fatigueDelta());
+        appendDelta(builder, "деньги", result.moneyDelta());
         appendDelta(builder, "% жира", result.bodyFatDelta());
 
         if (builder.isEmpty()) {
@@ -513,6 +550,32 @@ public final class GameRenderer {
         }
 
         return builder.toString();
+    }
+
+    private String[] buildResultStats(SkillCheckResult result) {
+        return new String[]{
+                formatDelta("Сила", result.strengthDelta()),
+                formatDelta("Масса", result.muscleDelta()),
+                formatDelta("Выносл.", result.staminaDelta()),
+                formatDelta("Устал.", result.fatigueDelta()),
+                formatDelta("Деньги", result.moneyDelta()),
+                formatDelta("% жира", result.bodyFatDelta())
+        };
+    }
+
+    private String formatDelta(String label, int delta) {
+        if (delta == 0) {
+            return label + " 0";
+        }
+        return label + " " + (delta > 0 ? "+" : "") + delta;
+    }
+
+    private Color gradeColor(TrainingGrade grade) {
+        return switch (grade) {
+            case EXCELLENT -> SUCCESS_ZONE;
+            case NORMAL -> HIGHLIGHT;
+            case FAIL -> Color.web("#F87171");
+        };
     }
 
     private record PlayerSpriteSet(Map<PlayerDirection, Image> idleFrames,

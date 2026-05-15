@@ -21,7 +21,7 @@ public final class PowerMeterMinigame extends VBox {
 
     private static final double WIDTH = 680;
     private static final double HEIGHT = 170;
-    private static final double GAME_SECONDS = 15.0;
+    private static final double GAME_SECONDS = 10.0;
 
     private final TrainingSession session;
     private final Consumer<MinigameResult> onFinish;

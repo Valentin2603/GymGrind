@@ -1,6 +1,7 @@
 package gymgrind.training.minigames;
 
 import gymgrind.training.MachineType;
+import gymgrind.training.TrainingGrade;
 import gymgrind.training.TrainingMachine;
 import gymgrind.training.TrainingSession;
 import gymgrind.training.TrainingTuning;
@@ -13,16 +14,24 @@ public final class SkillCheckService {
     private static final double MIN_MARKER_PROGRESS = 0.0;
     private static final double MAX_MARKER_PROGRESS = 1.0;
 
-    private static final int TREADMILL_REQUIRED_HITS = 6;
-    private static final double TREADMILL_SUCCESS_ZONE_SHRINK = 0.018;
-    private static final double TREADMILL_MIN_SUCCESS_ZONE_WIDTH = 0.09;
+    private static final int TREADMILL_TARGET_HITS = 7;
+    private static final int TREADMILL_ATTEMPTS = 11;
+    private static final double TREADMILL_SUCCESS_ZONE_SHRINK = 0.012;
+    private static final double TREADMILL_MIN_SUCCESS_ZONE_WIDTH = 0.07;
 
-    private static final int SQUAT_PROMPT_LENGTH = 7;
-    private static final double SQUAT_START_BAR_PROGRESS = 0.45;
-    private static final double SQUAT_DRAIN_PER_SECOND = 0.14;
-    private static final double SQUAT_CORRECT_GAIN = 0.15;
-    private static final double SQUAT_WRONG_PENALTY = 0.22;
-    private static final char[] SQUAT_SYMBOLS = {'A', 'S', 'D', 'F', 'J', 'K', 'L'};
+    private static final int SQUAT_PROMPT_LENGTH = 14;
+    private static final double SQUAT_START_BAR_PROGRESS = 0.32;
+    private static final double SQUAT_DRAIN_PER_SECOND = 0.17;
+    private static final double SQUAT_CORRECT_GAIN = 0.11;
+    private static final double SQUAT_WRONG_PENALTY = 0.27;
+    private static final char[] SQUAT_SYMBOLS = "QWERTYUIOPASDFGHJKLZXCVBNM1234567890".toCharArray();
+    private static final KeyCode[] TREADMILL_KEYS = {
+            KeyCode.Q, KeyCode.W, KeyCode.E, KeyCode.R, KeyCode.T, KeyCode.Y, KeyCode.U, KeyCode.I, KeyCode.O, KeyCode.P,
+            KeyCode.A, KeyCode.S, KeyCode.D, KeyCode.F, KeyCode.G, KeyCode.H, KeyCode.J, KeyCode.K, KeyCode.L,
+            KeyCode.Z, KeyCode.X, KeyCode.C, KeyCode.V, KeyCode.B, KeyCode.N, KeyCode.M,
+            KeyCode.DIGIT1, KeyCode.DIGIT2, KeyCode.DIGIT3, KeyCode.DIGIT4, KeyCode.DIGIT5,
+            KeyCode.DIGIT6, KeyCode.DIGIT7, KeyCode.DIGIT8, KeyCode.DIGIT9
+    };
 
     public SkillCheckSession startSession(TrainingSession trainingSession, int strength) {
         TrainingMachine machine = trainingSession.machine();
@@ -60,17 +69,40 @@ public final class SkillCheckService {
         return false;
     }
 
+    public boolean registerTimingAttempt(SkillCheckSession session, boolean hit, int strength) {
+        session.registerTimingAttempt(hit);
+        if (session.isTimingCompleted()) {
+            return true;
+        }
+
+        prepareNextTimingAttempt(session, strength, hit);
+        return false;
+    }
+
+    public boolean isTimingInputKey(KeyCode keyCode) {
+        for (KeyCode allowedKey : TREADMILL_KEYS) {
+            if (allowedKey == keyCode) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean isExpectedTimingKey(SkillCheckSession session, KeyCode keyCode) {
+        return session.expectedTimingKey() == keyCode;
+    }
+
     public Character mapSequenceKey(KeyCode keyCode) {
-        return switch (keyCode) {
-            case A -> 'A';
-            case S -> 'S';
-            case D -> 'D';
-            case F -> 'F';
-            case J -> 'J';
-            case K -> 'K';
-            case L -> 'L';
-            default -> null;
-        };
+        if (!keyCode.isLetterKey() && !keyCode.isDigitKey()) {
+            return null;
+        }
+
+        String keyName = keyCode.getName();
+        if (keyName == null || keyName.isBlank()) {
+            return null;
+        }
+
+        return Character.toUpperCase(keyName.charAt(0));
     }
 
     public boolean registerSequenceInput(SkillCheckSession session, char inputSymbol) {
@@ -180,6 +212,61 @@ public final class SkillCheckService {
         };
     }
 
+    public SkillCheckResult resolveTimingResult(SkillCheckSession session) {
+        if (session.machine().machineType() != MachineType.TREADMILL) {
+            return session.completedHits() >= session.requiredHits()
+                    ? resolveSuccess(session)
+                    : resolveFailure(session);
+        }
+
+        int hits = session.completedHits();
+        int attempts = session.timingAttempts();
+        int misses = session.missedAttempts();
+        TrainingGrade grade;
+        if (hits >= session.requiredHits() + 2 && misses <= 2) {
+            grade = TrainingGrade.EXCELLENT;
+        } else if (hits >= Math.max(4, session.requiredHits() - 2)) {
+            grade = TrainingGrade.NORMAL;
+        } else {
+            grade = TrainingGrade.FAIL;
+        }
+
+        boolean success = grade != TrainingGrade.FAIL;
+        int stamina = switch (grade) {
+            case EXCELLENT -> 5;
+            case NORMAL -> 3;
+            case FAIL -> 1;
+        };
+        int fatigue = switch (grade) {
+            case EXCELLENT -> 7;
+            case NORMAL -> 8;
+            case FAIL -> 10;
+        };
+        int bodyFat = switch (grade) {
+            case EXCELLENT -> -3;
+            case NORMAL -> -2;
+            case FAIL -> -1;
+        };
+
+        return new SkillCheckResult(
+                success,
+                grade,
+                session.machine().name()
+                        + ": интервалов точно "
+                        + hits
+                        + "/"
+                        + attempts
+                        + ", ошибок "
+                        + misses
+                        + ".",
+                0,
+                0,
+                stamina,
+                fatigue,
+                bodyFat
+        );
+    }
+
     public String buildTimingProgressMessage(SkillCheckSession session) {
         if (!session.requiresMultipleHits()) {
             return session.machine().name() + ": попадание засчитано.";
@@ -187,13 +274,17 @@ public final class SkillCheckService {
 
         if (session.machine().machineType() == MachineType.TREADMILL) {
             return session.machine().name()
-                    + ": интервал "
+                    + ": попадания "
                     + session.completedHits()
                     + "/"
                     + session.requiredHits()
-                    + ". Ещё "
-                    + session.remainingHits()
-                    + " точных интервалов. Зона стала уже.";
+                    + ", попытки "
+                    + session.timingAttempts()
+                    + "/"
+                    + session.maxAttempts()
+                    + ". Следующая клавиша: "
+                    + session.expectedTimingKey().getName()
+                    + ".";
         }
 
         return session.machine().name()
@@ -244,7 +335,10 @@ public final class SkillCheckService {
                 TREADMILL_SUCCESS_ZONE_SHRINK,
                 TREADMILL_MIN_SUCCESS_ZONE_WIDTH * tuning.zoneMultiplier(),
                 requiredHitsFor(machine.machineType(), tuning),
-                0
+                maxAttemptsFor(machine.machineType(), tuning),
+                0,
+                0,
+                randomTimingKey()
         );
     }
 
@@ -267,7 +361,11 @@ public final class SkillCheckService {
     }
 
     private void prepareNextTimingHit(SkillCheckSession session, int strength) {
-        if (session.machine().machineType() == MachineType.TREADMILL) {
+        prepareNextTimingAttempt(session, strength, true);
+    }
+
+    private void prepareNextTimingAttempt(SkillCheckSession session, int strength, boolean hit) {
+        if (hit && session.machine().machineType() == MachineType.TREADMILL) {
             double nextWidth = Math.max(
                     session.minSuccessZoneWidth(),
                     session.successZoneWidth() - session.successZoneShrink()
@@ -282,11 +380,19 @@ public final class SkillCheckService {
                 strength,
                 session.markerSpeedMultiplier()
         ));
+        session.setExpectedTimingKey(randomTimingKey());
     }
 
     private int requiredHitsFor(MachineType machineType, TrainingTuning tuning) {
         return switch (machineType) {
-            case TREADMILL -> Math.max(TREADMILL_REQUIRED_HITS, tuning.rhythmLength());
+            case TREADMILL -> Math.max(TREADMILL_TARGET_HITS, tuning.rhythmLength());
+            default -> 1;
+        };
+    }
+
+    private int maxAttemptsFor(MachineType machineType, TrainingTuning tuning) {
+        return switch (machineType) {
+            case TREADMILL -> Math.max(TREADMILL_ATTEMPTS, tuning.rhythmLength() + 4);
             default -> 1;
         };
     }
@@ -340,5 +446,10 @@ public final class SkillCheckService {
     private char randomSequenceSymbol() {
         int index = ThreadLocalRandom.current().nextInt(SQUAT_SYMBOLS.length);
         return SQUAT_SYMBOLS[index];
+    }
+
+    private KeyCode randomTimingKey() {
+        int index = ThreadLocalRandom.current().nextInt(TREADMILL_KEYS.length);
+        return TREADMILL_KEYS[index];
     }
 }

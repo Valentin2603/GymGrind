@@ -237,6 +237,12 @@ public final class GameController {
 
         GymObject gymObject = nearbyObject.get();
         if (gymObject instanceof TrainingMachine trainingMachine) {
+            if (isTooTiredForMinigame()) {
+                statusMessage = "Усталость 100. Вы можете только медленно ходить, отдыхать или спать. Тренировки недоступны.";
+                refreshUi();
+                return;
+            }
+
             openWeightSelection(trainingMachine);
             return;
         }
@@ -374,6 +380,12 @@ public final class GameController {
     }
 
     private void startWork() {
+        if (isTooTiredForMinigame()) {
+            statusMessage = "Усталость 100. Подработка недоступна: сначала отдохните или поспите дома.";
+            refreshUi();
+            return;
+        }
+
         inputState.clear();
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
@@ -414,11 +426,20 @@ public final class GameController {
 
         view.hideOverlay();
         if (player.stats().fatigue() >= 100) {
-            gameState = GameState.LOSE;
-            statusMessage += " Усталость дошла до 100. Вы выгорели.";
-        } else {
-            gameState = GameState.PLAYING;
+            statusMessage += " Усталость достигла 100: теперь можно только медленно ходить и восстанавливаться.";
         }
+
+        openSuccessResult(new SkillCheckResult(
+                result.grade() != TrainingGrade.FAIL,
+                result.grade(),
+                statusMessage,
+                0,
+                0,
+                0,
+                fatigueDelta,
+                moneyDelta,
+                0
+        ));
 
         refreshUi();
         view.requestGameFocus();
@@ -477,11 +498,10 @@ public final class GameController {
         view.hideOverlay();
 
         if (player.stats().fatigue() >= 100) {
-            gameState = GameState.LOSE;
-            statusMessage += " Усталость дошла до 100. Вы перетренировались.";
-        } else {
-            gameState = GameState.PLAYING;
+            statusMessage += " Усталость достигла 100: дальше тренироваться нельзя, нужно восстановиться.";
         }
+
+        openTrainingResult(result.grade() != TrainingGrade.FAIL, result.grade(), outcome);
 
         refreshUi();
         view.requestGameFocus();
@@ -497,7 +517,7 @@ public final class GameController {
             if (session.isSequenceMode()) {
                 return "Нажимайте буквы из очереди. Esc - отмена подхода.";
             }
-            return "Space/Enter/E - зафиксировать попытку, Esc - отмена подхода.";
+            return "Нажмите показанную клавишу в зелёной зоне. Esc - отмена подхода.";
         }
 
         if (gameState == GameState.DIALOGUE) {
@@ -538,8 +558,8 @@ public final class GameController {
 
         SkillCheckSession session = activeSkillCheck.get();
         if (session.isTimingMode()) {
-            if (keyCode == KeyCode.SPACE || keyCode == KeyCode.ENTER || keyCode == KeyCode.E) {
-                resolveTimingSkillCheck();
+            if (skillCheckService.isTimingInputKey(keyCode)) {
+                resolveTimingSkillCheck(keyCode);
             }
             return;
         }
@@ -579,25 +599,23 @@ public final class GameController {
         refreshUi();
     }
 
-    private void resolveTimingSkillCheck() {
+    private void resolveTimingSkillCheck(KeyCode keyCode) {
         if (activeSkillCheck.isEmpty()) {
             return;
         }
 
         SkillCheckSession session = activeSkillCheck.get();
-        if (!session.isMarkerInsideSuccessZone()) {
-            finishSkillCheck(skillCheckService.resolveFailure(session));
-            return;
-        }
+        boolean hit = skillCheckService.isExpectedTimingKey(session, keyCode)
+                && session.isMarkerInsideSuccessZone();
 
-        boolean completed = skillCheckService.registerSuccessfulHit(session, player.stats().strength());
+        boolean completed = skillCheckService.registerTimingAttempt(session, hit, player.stats().strength());
         if (!completed) {
             statusMessage = skillCheckService.buildTimingProgressMessage(session);
             refreshUi();
             return;
         }
 
-        finishSkillCheck(skillCheckService.resolveSuccess(session));
+        finishSkillCheck(skillCheckService.resolveTimingResult(session));
     }
 
     private void finishSkillCheck(SkillCheckResult result) {
@@ -608,7 +626,7 @@ public final class GameController {
                     result.muscleDelta(),
                     result.staminaDelta(),
                     result.fatigueDelta(),
-                    0,
+                    result.moneyDelta(),
                     result.bodyFatDelta()
             );
             activeSkillCheck = Optional.empty();
@@ -620,7 +638,7 @@ public final class GameController {
 
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
-        TrainingGrade grade = result.success() ? TrainingGrade.NORMAL : TrainingGrade.FAIL;
+        TrainingGrade grade = result.grade();
         String details = result.message();
         String machinePrefix = trainingSession.machine().name() + ": ";
         if (details.startsWith(machinePrefix)) {
@@ -632,7 +650,8 @@ public final class GameController {
                 new MinigameResult(grade, details)
         );
         SkillCheckResult displayResult = new SkillCheckResult(
-                result.success(),
+                grade != TrainingGrade.FAIL,
+                grade,
                 outcome.message(),
                 outcome.finalReward().strength(),
                 outcome.finalReward().muscle(),
@@ -642,29 +661,42 @@ public final class GameController {
         );
 
         if (player.stats().fatigue() >= 100) {
-            pendingSuccessResult = Optional.empty();
-            gameState = GameState.LOSE;
-            statusMessage = outcome.message() + " Усталость дошла до 100. Вы перетренировались.";
-            refreshUi();
-            return;
+            statusMessage = outcome.message() + " Усталость достигла 100: тренировки заблокированы до восстановления.";
+            displayResult = new SkillCheckResult(
+                    grade != TrainingGrade.FAIL,
+                    grade,
+                    statusMessage,
+                    outcome.finalReward().strength(),
+                    outcome.finalReward().muscle(),
+                    outcome.finalReward().stamina(),
+                    outcome.finalReward().fatigue(),
+                    outcome.finalReward().bodyFat()
+            );
         }
 
-        if (result.success()) {
-            openSuccessResult(displayResult);
-            return;
-        }
-
-        pendingSuccessResult = Optional.empty();
-        gameState = GameState.PLAYING;
-        nearbyObject = interactionService.findNearbyObject(player, currentMap());
-        statusMessage = outcome.message();
-        refreshUi();
+        openSuccessResult(displayResult);
     }
 
     private void handleResultKeyPressed(KeyCode keyCode) {
         if (keyCode == KeyCode.SPACE || keyCode == KeyCode.ESCAPE) {
             closeSuccessResult();
         }
+    }
+
+    private void openTrainingResult(boolean success, TrainingGrade grade, TrainingOutcome outcome) {
+        String message = statusMessage == null || statusMessage.isBlank()
+                ? outcome.message()
+                : statusMessage;
+        openSuccessResult(new SkillCheckResult(
+                success,
+                grade,
+                message,
+                outcome.finalReward().strength(),
+                outcome.finalReward().muscle(),
+                outcome.finalReward().stamina(),
+                outcome.finalReward().fatigue(),
+                outcome.finalReward().bodyFat()
+        ));
     }
 
     private void openSuccessResult(SkillCheckResult result) {
@@ -698,9 +730,11 @@ public final class GameController {
         if (session.requiresMultipleHits()) {
             if (session.machine().machineType() == MachineType.TREADMILL) {
                 return session.machine().name()
-                        + ": выдержите "
+                        + ": нажимайте показанные клавиши в зелёной зоне. Цель: "
                         + session.requiredHits()
-                        + " беговых интервалов подряд.";
+                        + " попаданий из "
+                        + session.maxAttempts()
+                        + " попыток.";
             }
 
             return session.machine().name()
@@ -738,6 +772,10 @@ public final class GameController {
 
     private boolean usesSkillCheck(MachineType machineType) {
         return !trainingService.isSupportedMinigame(machineType);
+    }
+
+    private boolean isTooTiredForMinigame() {
+        return player.stats().fatigue() >= 100;
     }
 
     private GameMap currentMap() {

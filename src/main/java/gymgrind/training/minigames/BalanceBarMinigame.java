@@ -22,8 +22,8 @@ public final class BalanceBarMinigame extends VBox {
 
     private static final double WIDTH = 720;
     private static final double HEIGHT = 210;
-    private static final double GAME_SECONDS = 15.0;
-    private static final double DANGER_LIMIT = 0.92;
+    private static final double GAME_SECONDS = 13.0;
+    private static final double DANGER_LIMIT = 0.74;
 
     private final TrainingSession session;
     private final Consumer<MinigameResult> onFinish;
@@ -52,10 +52,11 @@ public final class BalanceBarMinigame extends VBox {
         this.session = session;
         this.onFinish = onFinish;
         this.canvas = new Canvas(WIDTH, HEIGHT);
-        this.driftPower = 0.42 * session.tuning().speedMultiplier();
-        this.controlPower = 1.15 / session.weight().speedMultiplier();
-        this.safeZone = clamp(0.42 * session.tuning().zoneMultiplier(), 0.18, 0.48);
-        this.score = 68;
+        this.driftPower = 0.82 * session.tuning().speedMultiplier();
+        this.controlPower = 0.78 / Math.sqrt(session.weight().speedMultiplier());
+        this.safeZone = clamp(0.24 * session.tuning().zoneMultiplier(), 0.07, 0.28);
+        this.barPosition = ThreadLocalRandom.current().nextDouble(-0.18, 0.18);
+        this.score = 48;
         this.driftDirection = randomDrift();
 
         setAlignment(Pos.CENTER);
@@ -107,7 +108,7 @@ public final class BalanceBarMinigame extends VBox {
 
         if (driftChangeSeconds <= 0) {
             driftDirection = randomDrift();
-            driftChangeSeconds = ThreadLocalRandom.current().nextDouble(0.45, 0.85);
+            driftChangeSeconds = ThreadLocalRandom.current().nextDouble(0.20, 0.45);
         }
 
         double control = 0.0;
@@ -118,18 +119,19 @@ public final class BalanceBarMinigame extends VBox {
             control += controlPower;
         }
 
-        double waveDrift = Math.sin(elapsedSeconds * 2.2 * session.tuning().speedMultiplier()) * driftPower * 0.45;
+        double waveDrift = Math.sin(elapsedSeconds * 3.35 * session.tuning().speedMultiplier()) * driftPower * 0.62
+                + Math.sin(elapsedSeconds * 6.4) * driftPower * 0.22;
         barVelocity += (driftDirection + waveDrift + control) * deltaSeconds;
-        barVelocity *= Math.pow(0.18, deltaSeconds);
+        barVelocity *= Math.pow(0.45, deltaSeconds);
         barPosition = clamp(barPosition + barVelocity * deltaSeconds, -1.05, 1.05);
 
         double distance = Math.abs(barPosition);
         instabilitySum += distance * deltaSeconds;
         if (distance <= safeZone) {
             stableSeconds += deltaSeconds;
-            score += 9 * deltaSeconds;
+            score += 3.5 * deltaSeconds;
         } else {
-            score -= 24 * deltaSeconds * session.tuning().speedMultiplier();
+            score -= 44 * deltaSeconds * session.tuning().speedMultiplier();
             flashSeconds = Math.max(flashSeconds, 0.08);
         }
 
@@ -211,9 +213,9 @@ public final class BalanceBarMinigame extends VBox {
 
         double averageInstability = elapsedSeconds <= 0 ? 1.0 : instabilitySum / elapsedSeconds;
         TrainingGrade grade;
-        if (forcedFail || score < 54) {
+        if (forcedFail || score < 62) {
             grade = TrainingGrade.FAIL;
-        } else if (score >= 84 && averageInstability <= safeZone * 0.58 && stableSeconds >= GAME_SECONDS * 0.68) {
+        } else if (score >= 88 && averageInstability <= safeZone * 0.42 && stableSeconds >= GAME_SECONDS * 0.78) {
             grade = TrainingGrade.EXCELLENT;
         } else {
             grade = TrainingGrade.NORMAL;
