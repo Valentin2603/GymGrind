@@ -74,7 +74,11 @@ public final class TrainingService {
     }
 
     public String workingLoadLabel(Player player, TrainingMachine machine) {
-        return workingLoad(player, machine) + " " + loadUnit(machine.machineType());
+        return workingLoadValue(player, machine) + " " + loadUnit(machine.machineType());
+    }
+
+    public int workingLoadValue(Player player, TrainingMachine machine) {
+        return workingLoad(player, machine);
     }
 
     public String weightChoiceLabel(Player player, TrainingMachine machine, TrainingWeight weight) {
