@@ -43,6 +43,7 @@ public final class TrainingService {
         double zoneMultiplier = fatigueProfile.zoneMultiplier()
                 * weight.zoneMultiplier()
                 * clamp(1.0 - bodyFatLoad * 0.14 - cardioLoad * 0.10 - squatLoad * 0.04 + staminaBonus * 0.10, 0.72, 1.14);
+        zoneMultiplier = supplementService.applyZoneBonuses(player.activeSupplements(), zoneMultiplier);
         int bodyLoadRhythmPenalty = Math.max(0, (int) Math.round(bodyFatLoad * 1.6 + cardioLoad * 1.2 + squatLoad * 0.6 - staminaBonus * 1.4));
         int rhythmLength = Math.max(4, 6 + fatigueProfile.rhythmLengthBonus() + weight.rhythmLengthBonus() + bodyLoadRhythmPenalty);
         double rhythmTime = 15.0;

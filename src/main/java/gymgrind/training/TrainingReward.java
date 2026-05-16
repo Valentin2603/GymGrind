@@ -20,6 +20,13 @@ public record TrainingReward(int strength, int muscle, int stamina, int fatigue,
         return new TrainingReward(strength, round(muscle * multiplier), stamina, fatigue, bodyFat);
     }
 
+    public TrainingReward withFatigueMultiplier(double multiplier) {
+        if (fatigue <= 0) {
+            return this;
+        }
+        return new TrainingReward(strength, muscle, stamina, Math.max(1, (int) Math.ceil(fatigue * multiplier)), bodyFat);
+    }
+
     public TrainingReward scaleProgress(double multiplier) {
         return new TrainingReward(
                 Math.max(0, round(strength * multiplier)),

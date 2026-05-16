@@ -394,7 +394,7 @@ public final class GameController {
                     ShopPurchaseResult result = shopService.buy(player, supplementType);
                     statusMessage = result.message();
                     refreshUi();
-                    return result.message();
+                    return result;
                 },
                 this::closeShop
         );
