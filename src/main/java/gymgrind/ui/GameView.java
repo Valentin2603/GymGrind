@@ -3,6 +3,8 @@ package gymgrind.ui;
 import gymgrind.game.CalendarState;
 import gymgrind.game.GameState;
 import gymgrind.game.LocationId;
+import gymgrind.daily.DailyQuestNotification;
+import gymgrind.daily.DailyQuestView;
 import gymgrind.player.Player;
 import gymgrind.player.PlayerProfile;
 import gymgrind.shop.ShopPurchaseResult;
@@ -72,6 +74,7 @@ public final class GameView extends StackPane {
 
     private final Canvas canvas;
     private final Hud hud;
+    private final DailyQuestPanel dailyQuestPanel;
     private final MainMenu mainMenu;
     private final Label interactionPrompt;
     private final Label statusMessage;
@@ -83,6 +86,7 @@ public final class GameView extends StackPane {
 
         canvas = new Canvas(width, height);
         hud = new Hud();
+        dailyQuestPanel = new DailyQuestPanel();
         mainMenu = new MainMenu();
         mainMenu.prefWidthProperty().bind(widthProperty());
         mainMenu.prefHeightProperty().bind(heightProperty());
@@ -98,8 +102,10 @@ public final class GameView extends StackPane {
         bottomMessages.setAlignment(Pos.BOTTOM_CENTER);
         bottomMessages.setMouseTransparent(true);
 
-        getChildren().addAll(canvas, hud, bottomMessages, overlayLayer, mainMenu);
+        getChildren().addAll(canvas, dailyQuestPanel, hud, bottomMessages, overlayLayer, mainMenu);
 
+        StackPane.setAlignment(dailyQuestPanel, Pos.TOP_LEFT);
+        StackPane.setMargin(dailyQuestPanel, new Insets(16, 0, 0, 16));
         StackPane.setAlignment(hud, Pos.TOP_RIGHT);
         StackPane.setMargin(hud, new Insets(16, 16, 0, 0));
         StackPane.setAlignment(bottomMessages, Pos.BOTTOM_CENTER);
@@ -113,6 +119,19 @@ public final class GameView extends StackPane {
 
     public void updateHud(Player player, GameState gameState, CalendarState calendarState) {
         hud.update(player, gameState, calendarState);
+    }
+
+    public void updateDailyQuests(List<DailyQuestView> quests, GameState gameState) {
+        boolean visible = gameState != GameState.MENU;
+        dailyQuestPanel.setVisible(visible);
+        dailyQuestPanel.setManaged(visible);
+        if (visible) {
+            dailyQuestPanel.update(quests);
+        }
+    }
+
+    public void showDailyQuestCompletion(DailyQuestNotification notification) {
+        dailyQuestPanel.showCompletion(notification);
     }
 
     public void setInteractionPrompt(String text) {
