@@ -68,7 +68,36 @@ public final class PlayerProfiles {
             300,
             35,
             96,
-            96
+            96,
+            List.of(
+                    new PlayerFormDefinition(
+                            PlayerForm.SECOND,
+                            "dark_drun_second",
+                            230,
+                            270,
+                            145,
+                            24.0,
+                            null
+                    ),
+                    new PlayerFormDefinition(
+                            PlayerForm.THIRD,
+                            "dark_drun_third",
+                            250,
+                            295,
+                            170,
+                            18.0,
+                            null
+                    ),
+                    new PlayerFormDefinition(
+                            PlayerForm.FOURTH_STEROIDS,
+                            "dark_drun_fourth_steroids",
+                            275,
+                            330,
+                            190,
+                            14.5,
+                            SupplementType.RECOVERY_SHOT
+                    )
+            )
     );
 
     private static final PlayerProfile FATTY_POPKA = new PlayerProfile(

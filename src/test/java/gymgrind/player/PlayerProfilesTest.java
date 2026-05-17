@@ -21,6 +21,7 @@ final class PlayerProfilesTest {
         assertEquals(245, darkDrun.get().baseMuscle());
         assertEquals(115, darkDrun.get().baseStamina());
         assertEquals(35.0, darkDrun.get().baseBodyFat());
+        assertEquals(3, darkDrun.get().formProgression().size());
     }
 
     @Test
