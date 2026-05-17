@@ -62,11 +62,11 @@ public final class GameController {
     private final GameRenderer renderer;
     private final CalendarState calendarState;
     private final SaveService saveService;
-<<<<<<< HEAD
+
     private final WorkShiftState workShiftState;
-=======
+
     private final DailyQuestManager dailyQuestManager;
->>>>>>> 8d90a75ca6f0882cc26d7ad536e27e86ef7c28b8
+
 
     private GameState gameState;
     private Optional<GymObject> nearbyObject;
@@ -91,11 +91,11 @@ public final class GameController {
         this.renderer = new GameRenderer();
         this.calendarState = CalendarState.createDefault();
         this.saveService = new SaveService();
-<<<<<<< HEAD
+
         this.workShiftState = new WorkShiftState();
-=======
+
         this.dailyQuestManager = new DailyQuestManager();
->>>>>>> 8d90a75ca6f0882cc26d7ad536e27e86ef7c28b8
+
         this.gameState = GameState.MENU;
         this.nearbyObject = Optional.empty();
         this.activeSkillCheck = Optional.empty();
@@ -152,11 +152,11 @@ public final class GameController {
         activeTrainingSession = Optional.empty();
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
-<<<<<<< HEAD
+
         workShiftState.reset();
-=======
+
         dailyQuestManager.startNewDay(player, calendarState.currentDay());
->>>>>>> 8d90a75ca6f0882cc26d7ad536e27e86ef7c28b8
+
         view.hideOverlay();
         statusMessage = "Вы дома. Подойдите к кровати, компьютеру или двери и нажмите E.";
         refreshUi();
@@ -180,13 +180,13 @@ public final class GameController {
         activeTrainingSession = Optional.empty();
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
-<<<<<<< HEAD
+
         workShiftState.reset();
-=======
+
         if (!dailyQuestManager.restore(player, saveData.get().dailyQuests())) {
             dailyQuestManager.startNewDay(player, calendarState.currentDay());
         }
->>>>>>> 8d90a75ca6f0882cc26d7ad536e27e86ef7c28b8
+
         view.hideOverlay();
         statusMessage = "Сохранение загружено. День " + calendarState.currentDay()
                 + "/" + calendarState.maxDays() + ".";
@@ -300,11 +300,11 @@ public final class GameController {
 
     private void refreshUi() {
         view.updateHud(player, gameState, calendarState);
-<<<<<<< HEAD
+
         view.setHudCompactMode(false);
-=======
+
         view.updateDailyQuests(dailyQuestManager.views(), gameState);
->>>>>>> 8d90a75ca6f0882cc26d7ad536e27e86ef7c28b8
+
         view.setMainMenuVisible(gameState == GameState.MENU);
         view.setInteractionPrompt(buildPrompt());
         view.setStatusMessage(statusMessage);
@@ -574,22 +574,10 @@ public final class GameController {
             return false;
         }
 
-<<<<<<< HEAD
         if (workShiftState.takeBox(player)) {
             statusMessage = "Коробка взята. Несите ее в зеленую зону отгрузки, обходя полки.";
             refreshUi();
             return true;
-=======
-        player.stats().applyDeltas(0, 0, 0, fatigueDelta, moneyDelta, 0);
-        showQuestNotifications(dailyQuestManager.onWork(player, result.grade(), moneyDelta));
-        statusMessage = "Работа завершена. " + result.details()
-                + " Деньги +" + moneyDelta
-                + ", усталость +" + fatigueDelta + ".";
-
-        view.hideOverlay();
-        if (player.stats().fatigue() >= 100) {
-            statusMessage += " Усталость достигла 100: теперь можно только медленно ходить и восстанавливаться.";
->>>>>>> 8d90a75ca6f0882cc26d7ad536e27e86ef7c28b8
         }
 
         if (!workShiftState.deliverBox(player)) {
@@ -598,6 +586,11 @@ public final class GameController {
 
         if (workShiftState.completed()) {
             player.stats().addMoney(WorkShiftState.REWARD_MONEY);
+            showQuestNotifications(dailyQuestManager.onWork(
+                    player,
+                    TrainingGrade.EXCELLENT,
+                    WorkShiftState.REWARD_MONEY
+            ));
             statusMessage = "Складская смена завершена: 10/10 коробок. Деньги +"
                     + WorkShiftState.REWARD_MONEY + ".";
         } else {
