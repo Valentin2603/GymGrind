@@ -9,6 +9,7 @@ import gymgrind.gym.objects.InteractiveZone;
 import gymgrind.gym.objects.ZoneType;
 import gymgrind.player.MovementService;
 import gymgrind.player.Player;
+import gymgrind.player.PlayerForm;
 import gymgrind.player.PlayerProfile;
 import gymgrind.player.PlayerProfiles;
 import gymgrind.player.Stats;
@@ -192,6 +193,7 @@ public final class GameController {
                 saveData.bodyFat()
         );
         player.activeSupplements().restore(saveData.activeSupplements());
+        player.restoreProgress(saveData.currentForm(), saveData.purchasedSupplements());
         calendarState.setCurrentDay(saveData.currentDay());
     }
 
@@ -238,7 +240,9 @@ public final class GameController {
                 stats.fatigue(),
                 stats.money(),
                 stats.bodyFat(),
-                player.activeSupplements().activeTypes()
+                player.activeSupplements().activeTypes(),
+                player.currentForm(),
+                player.purchasedSupplements()
         );
     }
 
@@ -475,7 +479,15 @@ public final class GameController {
     }
 
     private void sleepAtHome() {
+        // Form unlocks are checked only after a real sleep at home.
         advanceDayWithFatigueRecovery(player.stats().fatigue(), "Вы выспались дома.");
+        if (gameState == GameState.LOSE) {
+            return;
+        }
+
+        Optional<PlayerForm> unlockedForm = player.unlockFormAfterSleep();
+        unlockedForm.ifPresent(form -> statusMessage += " Открыта новая форма: " + form.displayName() + ".");
+        refreshUi();
     }
 
     private void rest() {

@@ -1,6 +1,7 @@
 package gymgrind.player;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 public final class PlayerProfile {
@@ -19,6 +20,7 @@ public final class PlayerProfile {
     private final double baseBodyFat;
     private final double renderWidth;
     private final double renderHeight;
+    private final List<PlayerFormDefinition> formProgression;
 
     public PlayerProfile(String id,
                          String displayName,
@@ -34,6 +36,40 @@ public final class PlayerProfile {
                          double baseBodyFat,
                          double renderWidth,
                          double renderHeight) {
+        this(
+                id,
+                displayName,
+                description,
+                previewSpritePath,
+                idleSpritePaths,
+                walkSpritePaths,
+                baseStrength,
+                baseMuscle,
+                baseStamina,
+                baseFatigue,
+                baseMoney,
+                baseBodyFat,
+                renderWidth,
+                renderHeight,
+                List.of()
+        );
+    }
+
+    public PlayerProfile(String id,
+                         String displayName,
+                         String description,
+                         String previewSpritePath,
+                         Map<PlayerDirection, String> idleSpritePaths,
+                         Map<PlayerDirection, String> walkSpritePaths,
+                         int baseStrength,
+                         int baseMuscle,
+                         int baseStamina,
+                         int baseFatigue,
+                         int baseMoney,
+                         double baseBodyFat,
+                         double renderWidth,
+                         double renderHeight,
+                         List<PlayerFormDefinition> formProgression) {
         this.id = id;
         this.displayName = displayName;
         this.description = description;
@@ -48,6 +84,7 @@ public final class PlayerProfile {
         this.baseBodyFat = baseBodyFat;
         this.renderWidth = renderWidth;
         this.renderHeight = renderHeight;
+        this.formProgression = List.copyOf(formProgression);
     }
 
     public String id() {
@@ -70,8 +107,34 @@ public final class PlayerProfile {
         return idleSpritePaths.get(direction);
     }
 
+    public String idleSpritePath(PlayerDirection direction, PlayerForm form) {
+        if (form == PlayerForm.BASE) {
+            return idleSpritePath(direction);
+        }
+
+        PlayerFormDefinition definition = formDefinition(form);
+        if (definition == null) {
+            return idleSpritePath(direction);
+        }
+
+        return spritePath(definition.spritePrefix(), "idle_" + directionSuffix(direction));
+    }
+
     public String walkSpritePath(PlayerDirection direction) {
         return walkSpritePaths.get(direction);
+    }
+
+    public String walkSpritePath(PlayerDirection direction, PlayerForm form) {
+        if (form == PlayerForm.BASE) {
+            return walkSpritePath(direction);
+        }
+
+        PlayerFormDefinition definition = formDefinition(form);
+        if (definition == null) {
+            return walkSpritePath(direction);
+        }
+
+        return spritePath(definition.spritePrefix(), "walk_" + directionSuffix(direction));
     }
 
     public int baseStrength() {
@@ -104,5 +167,29 @@ public final class PlayerProfile {
 
     public double renderHeight() {
         return renderHeight;
+    }
+
+    public List<PlayerFormDefinition> formProgression() {
+        return formProgression;
+    }
+
+    private PlayerFormDefinition formDefinition(PlayerForm form) {
+        return formProgression.stream()
+                .filter(definition -> definition.form() == form)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String directionSuffix(PlayerDirection direction) {
+        return switch (direction) {
+            case FRONT -> "front";
+            case BACK -> "back";
+            case LEFT -> "left";
+            case RIGHT -> "right";
+        };
+    }
+
+    private String spritePath(String prefix, String pose) {
+        return "/assets/characters/" + prefix + "_" + pose + ".png";
     }
 }

@@ -13,6 +13,8 @@ public final class ShopService {
             return new ShopPurchaseResult(false, "Не хватает денег на " + supplementType.label() + ".");
         }
 
+        player.recordPurchase(supplementType);
+
         return switch (supplementType) {
             case ENERGY_DRINK -> {
                 player.stats().reduceFatigue(30);

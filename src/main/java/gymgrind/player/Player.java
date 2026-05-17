@@ -3,6 +3,11 @@ package gymgrind.player;
 import gymgrind.gym.CollisionRect;
 import gymgrind.gym.GameMap;
 import gymgrind.gym.Position;
+import gymgrind.shop.SupplementType;
+
+import java.util.EnumSet;
+import java.util.Optional;
+import java.util.Set;
 
 public final class Player {
 
@@ -22,7 +27,9 @@ public final class Player {
     private final double speed;
     private final Stats stats;
     private final ActiveSupplements activeSupplements;
+    private final Set<SupplementType> purchasedSupplements;
     private PlayerProfile profile;
+    private PlayerForm currentForm;
 
     private Player(Position position, double width, double height, double speed, Stats stats, PlayerProfile profile) {
         this.position = position;
@@ -33,7 +40,9 @@ public final class Player {
         this.speed = speed;
         this.stats = stats;
         this.activeSupplements = new ActiveSupplements();
+        this.purchasedSupplements = EnumSet.noneOf(SupplementType.class);
         this.profile = profile;
+        this.currentForm = PlayerForm.BASE;
     }
 
     public static Player createDefault(GameMap gameMap) {
@@ -61,6 +70,8 @@ public final class Player {
         moving = false;
         stats.reset();
         activeSupplements.clear();
+        purchasedSupplements.clear();
+        currentForm = PlayerForm.BASE;
     }
 
     public void moveToSpawn(GameMap gameMap) {
@@ -128,6 +139,44 @@ public final class Player {
 
     public PlayerProfile profile() {
         return profile;
+    }
+
+    public PlayerForm currentForm() {
+        return currentForm;
+    }
+
+    public Set<SupplementType> purchasedSupplements() {
+        return EnumSet.copyOf(purchasedSupplements);
+    }
+
+    public boolean hasPurchasedSupplement(SupplementType supplementType) {
+        return purchasedSupplements.contains(supplementType);
+    }
+
+    public void recordPurchase(SupplementType supplementType) {
+        purchasedSupplements.add(supplementType);
+    }
+
+    public void restoreProgress(PlayerForm currentForm, Set<SupplementType> purchasedSupplements) {
+        this.currentForm = currentForm == null ? PlayerForm.BASE : currentForm;
+        this.purchasedSupplements.clear();
+        this.purchasedSupplements.addAll(purchasedSupplements);
+    }
+
+    public Optional<PlayerForm> unlockFormAfterSleep() {
+        PlayerForm unlockedForm = currentForm;
+        for (PlayerFormDefinition definition : profile.formProgression()) {
+            if (definition.isUnlockedFor(this)) {
+                unlockedForm = definition.form();
+            }
+        }
+
+        if (unlockedForm != currentForm) {
+            currentForm = unlockedForm;
+            return Optional.of(unlockedForm);
+        }
+
+        return Optional.empty();
     }
 
     public double centerX() {

@@ -1,5 +1,7 @@
 package gymgrind.player;
 
+import gymgrind.shop.SupplementType;
+
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +22,36 @@ public final class PlayerProfiles {
             300,
             11,
             96,
-            96
+            96,
+            List.of(
+                    new PlayerFormDefinition(
+                            PlayerForm.SECOND,
+                            "tamik_second",
+                            150,
+                            175,
+                            235,
+                            10.7,
+                            null
+                    ),
+                    new PlayerFormDefinition(
+                            PlayerForm.THIRD,
+                            "tamik_third",
+                            200,
+                            225,
+                            245,
+                            9.6,
+                            null
+                    ),
+                    new PlayerFormDefinition(
+                            PlayerForm.FOURTH_STEROIDS,
+                            "tamik_fourth_steroids",
+                            245,
+                            285,
+                            255,
+                            9.2,
+                            SupplementType.RECOVERY_SHOT
+                    )
+            )
     );
 
     private static final PlayerProfile DARK_DRUN = new PlayerProfile(

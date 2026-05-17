@@ -1,6 +1,7 @@
 package gymgrind.save;
 
 import gymgrind.game.LocationId;
+import gymgrind.player.PlayerForm;
 import gymgrind.shop.SupplementType;
 
 import java.io.IOException;
@@ -53,6 +54,8 @@ public final class SaveService {
         properties.setProperty("money", Integer.toString(data.money()));
         properties.setProperty("bodyFat", Double.toString(data.bodyFat()));
         properties.setProperty("activeSupplements", encodeSupplements(data.activeSupplements()));
+        properties.setProperty("currentForm", data.currentForm().name());
+        properties.setProperty("purchasedSupplements", encodeSupplements(data.purchasedSupplements()));
 
         try {
             Files.createDirectories(savePath.getParent());
@@ -85,7 +88,9 @@ public final class SaveService {
                     readInt(properties, "fatigue", 0),
                     readInt(properties, "money", 0),
                     readDouble(properties, "bodyFat", 12.0),
-                    decodeSupplements(properties.getProperty("activeSupplements", ""))
+                    decodeSupplements(properties.getProperty("activeSupplements", "")),
+                    PlayerForm.valueOf(properties.getProperty("currentForm", PlayerForm.BASE.name())),
+                    decodeSupplements(properties.getProperty("purchasedSupplements", ""))
             ));
         } catch (IOException | IllegalArgumentException exception) {
             return Optional.empty();

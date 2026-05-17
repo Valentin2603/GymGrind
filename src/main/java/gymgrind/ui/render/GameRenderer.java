@@ -296,7 +296,7 @@ public final class GameRenderer {
     }
 
     private Image playerImageFor(Player player) {
-        PlayerSpriteSet spriteSet = spriteSetFor(player.profile());
+        PlayerSpriteSet spriteSet = spriteSetFor(player);
         if (player.isMoving() && shouldShowWalkFrame()) {
             Image walkImage = directionalImage(spriteSet.walkFrames(), player.direction());
             if (walkImage != null) {
@@ -310,17 +310,18 @@ public final class GameRenderer {
         return (System.nanoTime() / WALK_FRAME_NANOS) % 2 == 0;
     }
 
-    private PlayerSpriteSet spriteSetFor(PlayerProfile profile) {
-        return playerSpriteSets.computeIfAbsent(profile.id(), ignored -> loadPlayerSpriteSet(profile));
+    private PlayerSpriteSet spriteSetFor(Player player) {
+        String cacheKey = player.profile().id() + ":" + player.currentForm().name();
+        return playerSpriteSets.computeIfAbsent(cacheKey, ignored -> loadPlayerSpriteSet(player.profile(), player.currentForm()));
     }
 
-    private PlayerSpriteSet loadPlayerSpriteSet(PlayerProfile profile) {
+    private PlayerSpriteSet loadPlayerSpriteSet(PlayerProfile profile, gymgrind.player.PlayerForm form) {
         Map<PlayerDirection, Image> idleFrames = new EnumMap<>(PlayerDirection.class);
         Map<PlayerDirection, Image> walkFrames = new EnumMap<>(PlayerDirection.class);
 
         for (PlayerDirection direction : PlayerDirection.values()) {
-            idleFrames.put(direction, loadImage(profile.idleSpritePath(direction)));
-            walkFrames.put(direction, loadImage(profile.walkSpritePath(direction)));
+            idleFrames.put(direction, loadImage(profile.idleSpritePath(direction, form)));
+            walkFrames.put(direction, loadImage(profile.walkSpritePath(direction, form)));
         }
 
         return new PlayerSpriteSet(idleFrames, walkFrames);
