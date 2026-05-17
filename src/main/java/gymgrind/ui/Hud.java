@@ -56,6 +56,7 @@ public final class Hud extends VBox {
     private final Label staminaLabel;
     private final Label availableStaminaLabel;
     private final Label fatigueLabel;
+    private final Label bodyFatLabel;
     private final Label formLabel;
     private boolean statsVisible;
 
@@ -81,6 +82,7 @@ public final class Hud extends VBox {
         staminaLabel = createStatLabel();
         availableStaminaLabel = createStatLabel();
         fatigueLabel = createStatLabel();
+        bodyFatLabel = createStatLabel();
         formLabel = createStatLabel();
 
         statsPanel = new VBox(
@@ -92,6 +94,7 @@ public final class Hud extends VBox {
                 staminaLabel,
                 availableStaminaLabel,
                 fatigueLabel,
+                bodyFatLabel,
                 formLabel
         );
         statsPanel.setAlignment(Pos.TOP_LEFT);
@@ -129,6 +132,7 @@ public final class Hud extends VBox {
         staminaLabel.setText("Стат выносливости: " + stats.stamina());
         availableStaminaLabel.setText("Текущая стамина: " + availableStamina + "/" + maxAvailableStamina);
         fatigueLabel.setText("Усталость: " + stats.fatigue());
+        bodyFatLabel.setText("Жир: " + stats.bodyFatPercent() + "%");
         formLabel.setText("Форма: " + stats.form());
     }
 

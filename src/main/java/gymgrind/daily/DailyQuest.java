@@ -10,6 +10,12 @@ public final class DailyQuest {
         this.type = type;
     }
 
+    public DailyQuest(DailyQuestType type, int progress, boolean completed) {
+        this.type = type;
+        this.completed = completed;
+        setProgress(completed ? type.target() : progress);
+    }
+
     public DailyQuestType type() {
         return type;
     }

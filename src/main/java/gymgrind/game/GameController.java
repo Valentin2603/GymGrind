@@ -169,7 +169,9 @@ public final class GameController {
         activeTrainingSession = Optional.empty();
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
-        dailyQuestManager.startNewDay(player, calendarState.currentDay());
+        if (!dailyQuestManager.restore(player, saveData.get().dailyQuests())) {
+            dailyQuestManager.startNewDay(player, calendarState.currentDay());
+        }
         view.hideOverlay();
         statusMessage = "Сохранение загружено. День " + calendarState.currentDay()
                 + "/" + calendarState.maxDays() + ".";
@@ -239,7 +241,8 @@ public final class GameController {
                 stats.fatigue(),
                 stats.money(),
                 stats.bodyFat(),
-                player.activeSupplements().activeTypes()
+                player.activeSupplements().activeTypes(),
+                dailyQuestManager.saveData()
         );
     }
 

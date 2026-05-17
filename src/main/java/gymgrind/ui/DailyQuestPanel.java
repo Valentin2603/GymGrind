@@ -23,7 +23,9 @@ public final class DailyQuestPanel extends VBox {
     public DailyQuestPanel() {
         setSpacing(8);
         setPadding(new Insets(12));
-        setMaxWidth(330);
+        setMaxWidth(370);
+        setPrefHeight(315);
+        setMaxHeight(330);
         setStyle("-fx-background-color: rgba(8, 15, 23, 0.92);"
                 + "-fx-background-radius: 16;"
                 + "-fx-border-color: #7FDBA4;"
@@ -31,10 +33,11 @@ public final class DailyQuestPanel extends VBox {
                 + "-fx-border-width: 1.5;");
 
         Label title = new Label("Ежедневные цели");
-        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
         title.setStyle("-fx-text-fill: #F8FAFC;");
 
         questList = new VBox(6);
+        questList.setMaxHeight(245);
 
         notificationLabel = new Label();
         notificationLabel.setWrapText(true);
@@ -44,7 +47,7 @@ public final class DailyQuestPanel extends VBox {
         notificationLabel.setStyle("-fx-text-fill: #0F172A;"
                 + "-fx-background-color: #7FDBA4;"
                 + "-fx-background-radius: 12;"
-                + "-fx-padding: 8 10 8 10;");
+                + "-fx-padding: 7 9 7 9;");
 
         getChildren().addAll(title, questList, notificationLabel);
     }
@@ -52,16 +55,29 @@ public final class DailyQuestPanel extends VBox {
     public void update(List<DailyQuestView> quests) {
         questList.getChildren().clear();
         for (DailyQuestView quest : quests) {
-            Label label = new Label((quest.completed() ? "✓ " : "• ")
+            VBox row = new VBox(1);
+            row.setPadding(new Insets(6, 8, 6, 8));
+            row.setStyle(quest.completed()
+                    ? "-fx-background-color: rgba(34, 197, 94, 0.12); -fx-background-radius: 10;"
+                    : "-fx-background-color: rgba(148, 163, 184, 0.08); -fx-background-radius: 10;");
+
+            Label title = new Label((quest.completed() ? "[OK] " : "- ")
                     + quest.title()
                     + " — "
                     + quest.progressText());
-            label.setWrapText(true);
-            label.setFont(Font.font("Segoe UI", 12));
-            label.setStyle(quest.completed()
+            title.setWrapText(true);
+            title.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 12));
+            title.setStyle(quest.completed()
                     ? "-fx-text-fill: #86EFAC;"
                     : "-fx-text-fill: #E2E8F0;");
-            questList.getChildren().add(label);
+
+            Label bonus = new Label(quest.bonusText());
+            bonus.setWrapText(true);
+            bonus.setFont(Font.font("Segoe UI", 11));
+            bonus.setStyle("-fx-text-fill: #F8D66D;");
+
+            row.getChildren().addAll(title, bonus);
+            questList.getChildren().add(row);
         }
     }
 

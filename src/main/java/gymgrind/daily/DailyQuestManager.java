@@ -11,13 +11,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
 public final class DailyQuestManager {
 
-    private static final int QUESTS_PER_DAY = 4;
+    private static final int REGULAR_QUESTS_PER_DAY = 3;
 
     private final List<DailyQuest> activeQuests = new ArrayList<>();
     private DailyProgress progress;
@@ -26,14 +28,57 @@ public final class DailyQuestManager {
         progress = DailyProgress.start(player);
         activeQuests.clear();
 
-        List<DailyQuestType> pool = Arrays.stream(DailyQuestType.values())
+        Random random = new Random(day * 97L + player.profile().id().hashCode());
+        Map<DailyQuestType.DailyQuestGroup, List<DailyQuestType>> groupedPool = new LinkedHashMap<>();
+        Arrays.stream(DailyQuestType.values())
                 .filter(type -> type.isEligible(player, day))
-                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
-        Collections.shuffle(pool, new Random(day * 97L + player.profile().id().hashCode()));
+                .forEach(type -> groupedPool.computeIfAbsent(type.group(), ignored -> new ArrayList<>()).add(type));
 
-        for (DailyQuestType type : pool.stream().limit(QUESTS_PER_DAY).toList()) {
-            activeQuests.add(new DailyQuest(type));
+        List<DailyQuestType.DailyQuestGroup> groups = new ArrayList<>(groupedPool.keySet());
+        Collections.shuffle(groups, random);
+
+        for (DailyQuestType.DailyQuestGroup group : groups) {
+            if (activeQuests.size() >= REGULAR_QUESTS_PER_DAY) {
+                break;
+            }
+
+            List<DailyQuestType> groupQuests = groupedPool.get(group);
+            Collections.shuffle(groupQuests, random);
+            activeQuests.add(new DailyQuest(groupQuests.get(0)));
         }
+
+        activeQuests.add(new DailyQuest(DailyQuestType.COMPLETE_DAILY_GOALS));
+    }
+
+    public DailyQuestSaveData saveData() {
+        if (progress == null || activeQuests.isEmpty()) {
+            return DailyQuestSaveData.empty();
+        }
+
+        List<DailyQuestSaveData.QuestEntry> quests = activeQuests.stream()
+                .map(quest -> new DailyQuestSaveData.QuestEntry(
+                        quest.type(),
+                        quest.progress(),
+                        quest.completed()
+                ))
+                .toList();
+        return new DailyQuestSaveData(quests, progress.toSaveData());
+    }
+
+    public boolean restore(Player player, DailyQuestSaveData saveData) {
+        if (saveData == null || !saveData.hasData()) {
+            return false;
+        }
+        if (!saveData.progress().profileId().equals(player.profile().id())) {
+            return false;
+        }
+
+        progress = DailyProgress.restore(saveData.progress());
+        activeQuests.clear();
+        for (DailyQuestSaveData.QuestEntry entry : saveData.quests()) {
+            activeQuests.add(new DailyQuest(entry.type(), entry.progress(), entry.completed()));
+        }
+        return !activeQuests.isEmpty();
     }
 
     public List<DailyQuestView> views() {
@@ -41,6 +86,7 @@ public final class DailyQuestManager {
                 .map(quest -> new DailyQuestView(
                         quest.type().title(),
                         progressText(quest),
+                        "Бонус: " + quest.type().bonus().description(),
                         quest.completed()
                 ))
                 .toList();
@@ -149,9 +195,13 @@ public final class DailyQuestManager {
     }
 
     public List<DailyQuestNotification> onRest(Player player, int restoredFatigue) {
+        int fatigueBefore = player.stats().fatigue() + restoredFatigue;
         progress.restCount++;
         progress.restoredFatigue += restoredFatigue;
         progress.minFatigue = Math.min(progress.minFatigue, player.stats().fatigue());
+        progress.drunFatigueReducedUnder40 |= progress.profileId.equals("dark_drun")
+                && fatigueBefore >= 40
+                && player.stats().fatigue() < 40;
         return checkActiveQuests(player, false);
     }
 
@@ -235,8 +285,10 @@ public final class DailyQuestManager {
             case DRUN_TREADMILL_NO_FAIL -> bool(progress.profileId.equals("dark_drun")
                     && progress.drunTreadmillNoFail);
             case DRUN_FATIGUE_UNDER_40 -> bool(progress.profileId.equals("dark_drun")
-                    && player.stats().fatigue() < 40);
+                    && progress.drunFatigueReducedUnder40);
+            case DRUN_FAT_REDUCED -> bool(progress.profileId.equals("dark_drun") && progress.fatReduced);
             case FATTY_CARDIO -> bool(progress.profileId.equals("fatty_popka") && progress.cardioCount > 0);
+            case FATTY_FAT_REDUCED -> bool(progress.profileId.equals("fatty_popka") && progress.fatReduced);
             case FATTY_TWO_NO_FAIL -> progress.profileId.equals("fatty_popka") ? progress.noFailTrainingCount : 0;
             case FORM_300 -> bool(player.stats().form() >= 300);
             case FORM_400 -> bool(player.stats().form() >= 400);
@@ -244,6 +296,7 @@ public final class DailyQuestManager {
             case STAGE_AFTER_PURCHASE -> bool(progress.stageAttempted && progress.boughtSupplement);
             case STAGE_AFTER_NO_FAIL_DAY -> bool(progress.stageAttempted && !progress.failedTrainingToday);
             case STAGE_READY -> bool(player.stats().form() >= 320 && player.stats().fatigue() < 50);
+            case COMPLETE_DAILY_GOALS -> completedRegularQuestCount();
         };
     }
 
@@ -255,6 +308,13 @@ public final class DailyQuestManager {
             return "проверка в конце дня";
         }
         return quest.progress() + "/" + quest.type().target();
+    }
+
+    private int completedRegularQuestCount() {
+        return (int) activeQuests.stream()
+                .filter(quest -> !quest.type().finalGoal())
+                .filter(DailyQuest::completed)
+                .count();
     }
 
     private int bool(boolean value) {
@@ -310,6 +370,7 @@ public final class DailyQuestManager {
         private boolean lastTrainingWasStrength;
         private boolean lastTamikTreadmillExcellent;
         private boolean drunTreadmillNoFail;
+        private boolean drunFatigueReducedUnder40;
         private boolean stageAttempted;
         private final Set<MachineType> trainedMachines = EnumSet.noneOf(MachineType.class);
 
@@ -324,9 +385,122 @@ public final class DailyQuestManager {
             minFatigue = player.stats().fatigue();
         }
 
+        private DailyProgress(DailyQuestSaveData.ProgressData data) {
+            profileId = data.profileId();
+            startStrength = data.startStrength();
+            startMuscle = data.startMuscle();
+            startStamina = data.startStamina();
+            startForm = data.startForm();
+            nextFormDecade = data.nextFormDecade();
+            trainingCount = data.trainingCount();
+            lightTrainingCount = data.lightTrainingCount();
+            mediumTrainingCount = data.mediumTrainingCount();
+            heavyTrainingCount = data.heavyTrainingCount();
+            heavyNoFailCount = data.heavyNoFailCount();
+            excellentCount = data.excellentCount();
+            noFailTrainingCount = data.noFailTrainingCount();
+            workCount = data.workCount();
+            moneyEarned = data.moneyEarned();
+            restCount = data.restCount();
+            restoredFatigue = data.restoredFatigue();
+            maxFatigue = data.maxFatigue();
+            minFatigue = data.minFatigue();
+            strengthGained = data.strengthGained();
+            muscleGained = data.muscleGained();
+            staminaGained = data.staminaGained();
+            formGained = data.formGained();
+            anyStatGained = data.anyStatGained();
+            cardioCount = data.cardioCount();
+            strengthTrainingCount = data.strengthTrainingCount();
+            heavyStrengthTrainingCount = data.heavyStrengthTrainingCount();
+            failedTrainingToday = data.failedTrainingToday();
+            overtrainedToday = data.overtrainedToday();
+            spentMoney = data.spentMoney();
+            boughtSupplement = data.boughtSupplement();
+            boughtProtein = data.boughtProtein();
+            boughtCreatine = data.boughtCreatine();
+            boughtPreWorkout = data.boughtPreWorkout();
+            boughtEnergy = data.boughtEnergy();
+            boughtAndTrained = data.boughtAndTrained();
+            usedSupplement = data.usedSupplement();
+            workNormalOrBetter = data.workNormalOrBetter();
+            workingLoadUp = data.workingLoadUp();
+            fatReduced = data.fatReduced();
+            formNextTen = data.formNextTen();
+            highFatigueNoFail = data.highFatigueNoFail();
+            cardioAfterStrength = data.cardioAfterStrength();
+            strengthAfterCardio = data.strengthAfterCardio();
+            lastTrainingWasCardio = data.lastTrainingWasCardio();
+            lastTrainingWasStrength = data.lastTrainingWasStrength();
+            lastTamikTreadmillExcellent = data.lastTamikTreadmillExcellent();
+            drunTreadmillNoFail = data.drunTreadmillNoFail();
+            drunFatigueReducedUnder40 = data.drunFatigueReducedUnder40();
+            stageAttempted = data.stageAttempted();
+            trainedMachines.addAll(data.trainedMachines());
+        }
+
         private static DailyProgress start(Player player) {
             return new DailyProgress(player);
         }
 
+        private static DailyProgress restore(DailyQuestSaveData.ProgressData data) {
+            return new DailyProgress(data);
+        }
+
+        private DailyQuestSaveData.ProgressData toSaveData() {
+            return new DailyQuestSaveData.ProgressData(
+                    profileId,
+                    startStrength,
+                    startMuscle,
+                    startStamina,
+                    startForm,
+                    nextFormDecade,
+                    trainingCount,
+                    lightTrainingCount,
+                    mediumTrainingCount,
+                    heavyTrainingCount,
+                    heavyNoFailCount,
+                    excellentCount,
+                    noFailTrainingCount,
+                    workCount,
+                    moneyEarned,
+                    restCount,
+                    restoredFatigue,
+                    maxFatigue,
+                    minFatigue,
+                    strengthGained,
+                    muscleGained,
+                    staminaGained,
+                    formGained,
+                    anyStatGained,
+                    cardioCount,
+                    strengthTrainingCount,
+                    heavyStrengthTrainingCount,
+                    failedTrainingToday,
+                    overtrainedToday,
+                    spentMoney,
+                    boughtSupplement,
+                    boughtProtein,
+                    boughtCreatine,
+                    boughtPreWorkout,
+                    boughtEnergy,
+                    boughtAndTrained,
+                    usedSupplement,
+                    workNormalOrBetter,
+                    workingLoadUp,
+                    fatReduced,
+                    formNextTen,
+                    highFatigueNoFail,
+                    cardioAfterStrength,
+                    strengthAfterCardio,
+                    lastTrainingWasCardio,
+                    lastTrainingWasStrength,
+                    lastTamikTreadmillExcellent,
+                    drunTreadmillNoFail,
+                    drunFatigueReducedUnder40,
+                    stageAttempted,
+                    trainedMachines
+            );
+        }
     }
 }

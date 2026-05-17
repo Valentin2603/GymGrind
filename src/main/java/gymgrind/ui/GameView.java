@@ -75,6 +75,8 @@ public final class GameView extends StackPane {
     private final Canvas canvas;
     private final Hud hud;
     private final DailyQuestPanel dailyQuestPanel;
+    private final ActiveSupplementsPanel activeSupplementsPanel;
+    private final VBox leftHudColumn;
     private final MainMenu mainMenu;
     private final Label interactionPrompt;
     private final Label statusMessage;
@@ -87,6 +89,9 @@ public final class GameView extends StackPane {
         canvas = new Canvas(width, height);
         hud = new Hud();
         dailyQuestPanel = new DailyQuestPanel();
+        activeSupplementsPanel = new ActiveSupplementsPanel();
+        leftHudColumn = new VBox(10, dailyQuestPanel, activeSupplementsPanel);
+        leftHudColumn.setMaxWidth(370);
         mainMenu = new MainMenu();
         mainMenu.prefWidthProperty().bind(widthProperty());
         mainMenu.prefHeightProperty().bind(heightProperty());
@@ -102,10 +107,10 @@ public final class GameView extends StackPane {
         bottomMessages.setAlignment(Pos.BOTTOM_CENTER);
         bottomMessages.setMouseTransparent(true);
 
-        getChildren().addAll(canvas, dailyQuestPanel, hud, bottomMessages, overlayLayer, mainMenu);
+        getChildren().addAll(canvas, leftHudColumn, hud, bottomMessages, overlayLayer, mainMenu);
 
-        StackPane.setAlignment(dailyQuestPanel, Pos.TOP_LEFT);
-        StackPane.setMargin(dailyQuestPanel, new Insets(16, 0, 0, 16));
+        StackPane.setAlignment(leftHudColumn, Pos.TOP_LEFT);
+        StackPane.setMargin(leftHudColumn, new Insets(16, 0, 0, 16));
         StackPane.setAlignment(hud, Pos.TOP_RIGHT);
         StackPane.setMargin(hud, new Insets(16, 16, 0, 0));
         StackPane.setAlignment(bottomMessages, Pos.BOTTOM_CENTER);
@@ -119,12 +124,13 @@ public final class GameView extends StackPane {
 
     public void updateHud(Player player, GameState gameState, CalendarState calendarState) {
         hud.update(player, gameState, calendarState);
+        activeSupplementsPanel.update(player);
     }
 
     public void updateDailyQuests(List<DailyQuestView> quests, GameState gameState) {
         boolean visible = gameState != GameState.MENU;
-        dailyQuestPanel.setVisible(visible);
-        dailyQuestPanel.setManaged(visible);
+        leftHudColumn.setVisible(visible);
+        leftHudColumn.setManaged(visible);
         if (visible) {
             dailyQuestPanel.update(quests);
         }

@@ -56,7 +56,9 @@ public enum DailyQuestType {
     TAMIK_HEAVY_STRENGTH("Тамик: тяжёлая силовая тренировка", 1, new DailyQuestBonus(120, 3, 0, 0, 0), false, "street_rookie", false),
     DRUN_TREADMILL_NO_FAIL("Друн: беговая без провала", 1, new DailyQuestBonus(140, 0, 0, 3, 0), false, "dark_drun", false),
     DRUN_FATIGUE_UNDER_40("Друн: снизить усталость ниже 40", 1, DailyQuestBonus.money(100), false, "dark_drun", false),
+    DRUN_FAT_REDUCED("Друн: снизить процент жира", 1, new DailyQuestBonus(130, 0, 0, 3, 0), false, "dark_drun", false),
     FATTY_CARDIO("Жирная Попка: сделать кардио", 1, new DailyQuestBonus(120, 0, 0, 2, 0), false, "fatty_popka", false),
+    FATTY_FAT_REDUCED("Жирная Попка: снизить процент жира", 1, new DailyQuestBonus(150, 0, 0, 4, 0), false, "fatty_popka", false),
     FATTY_TWO_NO_FAIL("Жирная Попка: 2 тренировки без FAIL", 2, DailyQuestBonus.money(160), false, "fatty_popka", false),
 
     FORM_300("Достичь формы 300+", 1, DailyQuestBonus.money(150), false, null, true),
@@ -64,7 +66,8 @@ public enum DailyQuestType {
     STAGE_FATIGUE_UNDER_60("Выйти на сцену с усталостью ниже 60", 1, DailyQuestBonus.money(200), false, null, true),
     STAGE_AFTER_PURCHASE("Выйти на сцену после покупки добавки", 1, DailyQuestBonus.money(160), false, null, true),
     STAGE_AFTER_NO_FAIL_DAY("Выйти на сцену после дня без провалов", 1, DailyQuestBonus.money(180), false, null, true),
-    STAGE_READY("Подготовиться к сцене: форма 320+ и усталость ниже 50", 1, DailyQuestBonus.money(250), false, null, true);
+    STAGE_READY("Подготовиться к сцене: форма 320+ и усталость ниже 50", 1, DailyQuestBonus.money(250), false, null, true),
+    COMPLETE_DAILY_GOALS("Закрыть все ежедневные задания", 3, DailyQuestBonus.money(300));
 
     private final String title;
     private final int target;
@@ -108,9 +111,64 @@ public enum DailyQuestType {
     }
 
     public boolean isEligible(Player player, int day) {
+        if (this == COMPLETE_DAILY_GOALS || this == REST_ONCE || this == RESTORE_30_FATIGUE || isSimpleNoFailGoal()) {
+            return false;
+        }
         if (profileId != null && !profileId.equals(player.profile().id())) {
             return false;
         }
         return !stageGoal || day >= 7 || player.stats().form() >= 280;
+    }
+
+    private boolean isSimpleNoFailGoal() {
+        return switch (this) {
+            case NORMAL_OR_BETTER,
+                 NO_FAIL_TRAINING,
+                 HEAVY_NO_FAIL,
+                 HIGH_FATIGUE_NO_FAIL,
+                 WORK_NORMAL_OR_BETTER,
+                 DRUN_TREADMILL_NO_FAIL,
+                 FATTY_TWO_NO_FAIL,
+                 STAGE_AFTER_NO_FAIL_DAY -> true;
+            default -> false;
+        };
+    }
+
+    public boolean finalGoal() {
+        return this == COMPLETE_DAILY_GOALS;
+    }
+
+    public DailyQuestGroup group() {
+        return switch (this) {
+            case TWO_TRAININGS, THREE_TRAININGS, LIGHT_TRAINING, MEDIUM_TRAINING, HEAVY_TRAINING,
+                 THREE_DIFFERENT_TRAININGS, ALL_FOUR_TRAININGS, NORMAL_OR_BETTER, EXCELLENT_ANY,
+                 EXCELLENT_TWO, NO_FAIL_TRAINING, HEAVY_NO_FAIL -> DailyQuestGroup.TRAINING;
+            case FORM_PLUS_10, FORM_PLUS_20, STRENGTH_PLUS_15, MUSCLE_PLUS_15, STAMINA_PLUS_15,
+                 ANY_STAT_PLUS_20, WORKING_LOAD_UP, FAT_REDUCED, FORM_NEXT_TEN -> DailyQuestGroup.PROGRESS;
+            case END_FATIGUE_UNDER_40, END_FATIGUE_UNDER_25, REST_ONCE, RESTORE_30_FATIGUE,
+                 MAX_FATIGUE_UNDER_70, NO_OVERTRAINING_DAY, HIGH_FATIGUE_NO_FAIL -> DailyQuestGroup.RECOVERY;
+            case EARN_100, EARN_200, WORK_ONCE, WORK_NORMAL_OR_BETTER, BUY_ANY_SUPPLEMENT,
+                 BUY_PROTEIN, BUY_CREATINE, BUY_PRE_WORKOUT, BUY_ENERGY, USE_SUPPLEMENT,
+                 BUY_AND_TRAIN -> DailyQuestGroup.ECONOMY;
+            case TRAIN_AND_WORK, CARDIO_AFTER_STRENGTH, STRENGTH_AFTER_CARDIO, NO_SPEND_DAY,
+                 MONEY_300 -> DailyQuestGroup.BALANCE;
+            case TAMIK_TREADMILL_EXCELLENT, TAMIK_HEAVY_STRENGTH, DRUN_TREADMILL_NO_FAIL,
+                 DRUN_FATIGUE_UNDER_40, DRUN_FAT_REDUCED, FATTY_CARDIO, FATTY_FAT_REDUCED,
+                 FATTY_TWO_NO_FAIL -> DailyQuestGroup.CHARACTER;
+            case FORM_300, FORM_400, STAGE_FATIGUE_UNDER_60, STAGE_AFTER_PURCHASE,
+                 STAGE_AFTER_NO_FAIL_DAY, STAGE_READY -> DailyQuestGroup.STAGE;
+            case COMPLETE_DAILY_GOALS -> DailyQuestGroup.FINAL;
+        };
+    }
+
+    public enum DailyQuestGroup {
+        TRAINING,
+        PROGRESS,
+        RECOVERY,
+        ECONOMY,
+        BALANCE,
+        CHARACTER,
+        STAGE,
+        FINAL
     }
 }
