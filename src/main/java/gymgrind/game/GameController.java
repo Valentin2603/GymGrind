@@ -4,6 +4,9 @@ import gymgrind.gym.CoachDialoguePool;
 import gymgrind.gym.GameMap;
 import gymgrind.gym.InteractionService;
 import gymgrind.gym.Position;
+import gymgrind.daily.DailyQuestManager;
+import gymgrind.daily.DailyQuestNotification;
+import gymgrind.daily.DailyQuestSnapshot;
 import gymgrind.gym.objects.GymObject;
 import gymgrind.gym.objects.InteractiveZone;
 import gymgrind.gym.objects.ZoneType;
@@ -31,7 +34,6 @@ import gymgrind.training.minigames.PowerMeterMinigame;
 import gymgrind.training.minigames.SkillCheckResult;
 import gymgrind.training.minigames.SkillCheckService;
 import gymgrind.training.minigames.SkillCheckSession;
-import gymgrind.training.minigames.WorkRushMinigame;
 import gymgrind.ui.GameView;
 import gymgrind.ui.render.GameRenderer;
 import javafx.animation.AnimationTimer;
@@ -41,6 +43,7 @@ import javafx.scene.input.KeyCode;
 import javafx.stage.Stage;
 
 import java.util.Optional;
+import java.util.List;
 
 public final class GameController {
 
@@ -65,10 +68,16 @@ public final class GameController {
     private final SaveService saveService;
     private final CoachDialoguePool coachDialoguePool;
 
+    private final WorkShiftState workShiftState;
+
+    private final DailyQuestManager dailyQuestManager;
+
+
     private GameState gameState;
     private Optional<GymObject> nearbyObject;
     private Optional<SkillCheckSession> activeSkillCheck;
     private Optional<TrainingSession> activeTrainingSession;
+    private Optional<DailyQuestSnapshot> activeTrainingStartSnapshot;
     private Optional<SkillCheckResult> pendingSuccessResult;
     private String statusMessage;
     private String coachSpeechText;
@@ -90,10 +99,16 @@ public final class GameController {
         this.calendarState = CalendarState.createDefault();
         this.saveService = new SaveService();
         this.coachDialoguePool = new CoachDialoguePool();
+
+        this.workShiftState = new WorkShiftState();
+
+        this.dailyQuestManager = new DailyQuestManager();
+
         this.gameState = GameState.MENU;
         this.nearbyObject = Optional.empty();
         this.activeSkillCheck = Optional.empty();
         this.activeTrainingSession = Optional.empty();
+        this.activeTrainingStartSnapshot = Optional.empty();
         this.pendingSuccessResult = Optional.empty();
         this.coachSpeechText = "";
         this.coachSpeechTimeLeft = 0.0;
@@ -145,8 +160,14 @@ public final class GameController {
         nearbyObject = Optional.empty();
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
+        activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
         clearCoachSpeech();
+
+        workShiftState.reset();
+
+        dailyQuestManager.startNewDay(player, calendarState.currentDay());
+
         view.hideOverlay();
         statusMessage = "Вы дома. Подойдите к кровати, компьютеру или двери и нажмите E.";
         refreshUi();
@@ -168,8 +189,16 @@ public final class GameController {
         nearbyObject = Optional.empty();
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
+        activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
         clearCoachSpeech();
+
+        workShiftState.reset();
+
+        if (!dailyQuestManager.restore(player, saveData.get().dailyQuests())) {
+            dailyQuestManager.startNewDay(player, calendarState.currentDay());
+        }
+
         view.hideOverlay();
         statusMessage = "Сохранение загружено. День " + calendarState.currentDay()
                 + "/" + calendarState.maxDays() + ".";
@@ -242,7 +271,8 @@ public final class GameController {
                 stats.bodyFat(),
                 player.activeSupplements().activeTypes(),
                 player.currentForm(),
-                player.purchasedSupplements()
+                player.purchasedSupplements(),
+                dailyQuestManager.saveData()
         );
     }
 
@@ -281,15 +311,27 @@ public final class GameController {
                 gameState,
                 activeSkillCheck,
                 pendingSuccessResult,
+                workShiftForRender(),
                 coachSpeech()
         );
     }
 
     private void refreshUi() {
         view.updateHud(player, gameState, calendarState);
+
+        view.setHudCompactMode(false);
+
+        view.updateDailyQuests(dailyQuestManager.views(), gameState);
+
         view.setMainMenuVisible(gameState == GameState.MENU);
         view.setInteractionPrompt(buildPrompt());
         view.setStatusMessage(statusMessage);
+    }
+
+    private void showQuestNotifications(List<DailyQuestNotification> notifications) {
+        for (DailyQuestNotification notification : notifications) {
+            view.showDailyQuestCompletion(notification);
+        }
     }
 
     private void handleKeyPressed(KeyCode keyCode) {
@@ -367,6 +409,13 @@ public final class GameController {
 
     private void tryInteract() {
         if (gameState != GameState.PLAYING || nearbyObject.isEmpty()) {
+            if (gameState == GameState.PLAYING && tryWorkInteraction()) {
+                return;
+            }
+            return;
+        }
+
+        if (tryWorkInteraction()) {
             return;
         }
 
@@ -412,6 +461,9 @@ public final class GameController {
                 supplementType -> {
                     ShopPurchaseResult result = shopService.buy(player, supplementType);
                     statusMessage = result.message();
+                    if (result.success()) {
+                        showQuestNotifications(dailyQuestManager.onPurchase(player, supplementType));
+                    }
                     refreshUi();
                     return result;
                 },
@@ -458,12 +510,16 @@ public final class GameController {
         inputState.clear();
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
+        activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
         clearCoachSpeech();
         view.hideOverlay();
 
         GameMap destinationMap = locationManager.travelTo(locationId);
         player.moveToSpawn(destinationMap);
+        if (locationId != LocationId.WORK) {
+            workShiftState.reset();
+        }
         gameState = GameState.PLAYING;
         nearbyObject = Optional.empty();
         statusMessage = "Вы перешли в локацию: " + locationId.displayName() + ".";
@@ -504,9 +560,12 @@ public final class GameController {
 
         int fatigueBefore = player.stats().fatigue();
         player.stats().reduceFatigue(fatigueRecovery);
-        calendarState.nextDay();
-
         int restored = fatigueBefore - player.stats().fatigue();
+        showQuestNotifications(dailyQuestManager.onRest(player, restored));
+        showQuestNotifications(dailyQuestManager.onDayEnd(player));
+        calendarState.nextDay();
+        dailyQuestManager.startNewDay(player, calendarState.currentDay());
+
         statusMessage = actionText + " Усталость -" + restored
                 + ". Наступил день " + calendarState.currentDay()
                 + "/" + calendarState.maxDays() + ".";
@@ -516,6 +575,7 @@ public final class GameController {
     private void tryStage() {
         int form = player.stats().form();
         int fatigue = player.stats().fatigue();
+        showQuestNotifications(dailyQuestManager.onStage(player));
 
         if (form >= 100 && fatigue < 80) {
             gameState = GameState.WIN;
@@ -532,69 +592,49 @@ public final class GameController {
     }
 
     private void startWork() {
-        if (isTooTiredForMinigame()) {
-            statusMessage = "Усталость 100. Подработка недоступна: сначала отдохните или поспите дома.";
+        if (workShiftState.completed()) {
+            statusMessage = "Складская смена уже выполнена: 10/10 коробок, награда получена.";
             refreshUi();
             return;
         }
 
-        inputState.clear();
-        activeSkillCheck = Optional.empty();
-        activeTrainingSession = Optional.empty();
-        pendingSuccessResult = Optional.empty();
-        gameState = GameState.MINIGAME;
-        statusMessage = "Подработка началась: обслуживайте клиентов.";
-        view.showOverlay(new WorkRushMinigame(this::finishWork));
+        workShiftState.start();
+        statusMessage = "Складская смена началась: возьмите коробку в приемке и отнесите 10 коробок в отгрузку.";
+        tryWorkInteraction();
         refreshUi();
     }
 
-    private void finishWork(MinigameResult result) {
-        int moneyDelta;
-        int fatigueDelta;
-
-        switch (result.grade()) {
-            case EXCELLENT -> {
-                moneyDelta = 180;
-                fatigueDelta = scaledActivityFatigue(10);
-            }
-            case NORMAL -> {
-                moneyDelta = 100;
-                fatigueDelta = scaledActivityFatigue(10);
-            }
-            case FAIL -> {
-                moneyDelta = 40;
-                fatigueDelta = scaledActivityFatigue(15);
-            }
-            default -> {
-                moneyDelta = 40;
-                fatigueDelta = scaledActivityFatigue(15);
-            }
+    private boolean tryWorkInteraction() {
+        if (locationManager.currentLocation() != LocationId.WORK || !workShiftState.active()) {
+            return false;
         }
 
-        player.stats().applyDeltas(0, 0, 0, fatigueDelta, moneyDelta, 0);
-        statusMessage = "Работа завершена. " + result.details()
-                + " Деньги +" + moneyDelta
-                + ", усталость +" + fatigueDelta + ".";
-
-        view.hideOverlay();
-        if (player.stats().fatigue() >= 100) {
-            statusMessage += " Усталость достигла 100: теперь можно только медленно ходить и восстанавливаться.";
+        if (workShiftState.takeBox(player)) {
+            statusMessage = "Коробка взята. Несите ее в зеленую зону отгрузки, обходя полки.";
+            refreshUi();
+            return true;
         }
 
-        openSuccessResult(new SkillCheckResult(
-                result.grade() != TrainingGrade.FAIL,
-                result.grade(),
-                statusMessage,
-                0,
-                0,
-                0,
-                fatigueDelta,
-                moneyDelta,
-                0
-        ));
+        if (!workShiftState.deliverBox(player)) {
+            return false;
+        }
+
+        if (workShiftState.completed()) {
+            player.stats().addMoney(WorkShiftState.REWARD_MONEY);
+            showQuestNotifications(dailyQuestManager.onWork(
+                    player,
+                    TrainingGrade.EXCELLENT,
+                    WorkShiftState.REWARD_MONEY
+            ));
+            statusMessage = "Складская смена завершена: 10/10 коробок. Деньги +"
+                    + WorkShiftState.REWARD_MONEY + ".";
+        } else {
+            statusMessage = "Коробка доставлена: " + workShiftState.deliveredBoxes()
+                    + "/" + WorkShiftState.TARGET_BOXES + ". Возвращайтесь к приемке.";
+        }
 
         refreshUi();
-        view.requestGameFocus();
+        return true;
     }
 
     private void openWeightSelection(TrainingMachine machine) {
@@ -602,6 +642,7 @@ public final class GameController {
         gameState = GameState.MINIGAME;
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
+        activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
         statusMessage = "Выберите вес для тренировки.";
         view.showTrainingSetup(
@@ -612,6 +653,7 @@ public final class GameController {
                 () -> {
                     gameState = GameState.PLAYING;
                     statusMessage = "Тренировка отменена.";
+                    activeTrainingStartSnapshot = Optional.empty();
                     view.hideOverlay();
                     refreshUi();
                     view.requestGameFocus();
@@ -626,6 +668,7 @@ public final class GameController {
 
     private void startTraining(TrainingMachine machine, TrainingWeight weight) {
         view.hideOverlay();
+        activeTrainingStartSnapshot = Optional.of(DailyQuestSnapshot.from(player));
         TrainingSession session = trainingService.createSession(player, machine, weight);
         if (usesSkillCheck(machine.machineType())) {
             startSkillCheck(session);
@@ -651,7 +694,16 @@ public final class GameController {
     }
 
     private void finishTraining(TrainingSession session, MinigameResult result) {
+        DailyQuestSnapshot startSnapshot = activeTrainingStartSnapshot.orElse(DailyQuestSnapshot.from(player));
+        activeTrainingStartSnapshot = Optional.empty();
         TrainingOutcome outcome = trainingService.finishTraining(player, session, result);
+        showQuestNotifications(dailyQuestManager.onTraining(
+                player,
+                session,
+                result.grade(),
+                startSnapshot,
+                trainingService.workingLoadValue(player, session.machine())
+        ));
         statusMessage = outcome.message();
         view.hideOverlay();
 
@@ -682,7 +734,18 @@ public final class GameController {
             return "Выберите локацию мышью или нажмите Esc для отмены.";
         }
 
+        if (gameState == GameState.PLAYING && locationManager.currentLocation() == LocationId.WORK) {
+            return workShiftState.prompt(player);
+        }
+
         return interactionService.buildPrompt(nearbyObject, gameState);
+    }
+
+    private Optional<WorkShiftState> workShiftForRender() {
+        if (locationManager.currentLocation() == LocationId.WORK) {
+            return Optional.of(workShiftState);
+        }
+        return Optional.empty();
     }
 
     private void handleDialogueKeyPressed(KeyCode keyCode) {
@@ -702,6 +765,7 @@ public final class GameController {
             if (keyCode == KeyCode.ESCAPE) {
                 gameState = GameState.PLAYING;
                 statusMessage = "Действие отменено.";
+                activeTrainingStartSnapshot = Optional.empty();
                 view.hideOverlay();
                 refreshUi();
                 view.requestGameFocus();
@@ -796,6 +860,8 @@ public final class GameController {
 
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
+        DailyQuestSnapshot startSnapshot = activeTrainingStartSnapshot.orElse(DailyQuestSnapshot.from(player));
+        activeTrainingStartSnapshot = Optional.empty();
         TrainingGrade grade = result.grade();
         String details = result.message();
         String machinePrefix = trainingSession.machine().name() + ": ";
@@ -807,6 +873,13 @@ public final class GameController {
                 trainingSession,
                 new MinigameResult(grade, details)
         );
+        showQuestNotifications(dailyQuestManager.onTraining(
+                player,
+                trainingSession,
+                grade,
+                startSnapshot,
+                trainingService.workingLoadValue(player, trainingSession.machine())
+        ));
         SkillCheckResult displayResult = new SkillCheckResult(
                 grade != TrainingGrade.FAIL,
                 grade,
@@ -911,6 +984,7 @@ public final class GameController {
 
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
+        activeTrainingStartSnapshot = Optional.empty();
         gameState = GameState.PLAYING;
         nearbyObject = interactionService.findNearbyObject(player, currentMap());
         statusMessage = "Подход отменён. Можно попробовать ещё раз.";

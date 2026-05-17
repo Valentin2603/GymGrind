@@ -2,6 +2,7 @@ package gymgrind.gym;
 
 import gymgrind.gym.objects.GymObject;
 import gymgrind.gym.objects.InteractiveZone;
+import gymgrind.gym.objects.WarehouseProp;
 import gymgrind.gym.objects.ZoneType;
 import gymgrind.training.MachineType;
 import gymgrind.training.TrainingMachine;
@@ -170,59 +171,68 @@ public final class GameMap {
                 DEFAULT_ORIGIN,
                 DEFAULT_WIDTH,
                 DEFAULT_HEIGHT,
-                new Position(110, 560),
+                new Position(640, 600),
+                null,
+                false,
+                new Position(DEFAULT_ORIGIN.x() + 44, DEFAULT_ORIGIN.y() + 116),
+                DEFAULT_WIDTH - 88,
+                DEFAULT_HEIGHT - 146,
+                List.of(
+                        new CollisionRect(76, 156, 80, 150),
+                        new CollisionRect(916, 152, 260, 112),
+                        new CollisionRect(116, 246, 104, 106),
+                        new CollisionRect(260, 246, 116, 104),
+                        new CollisionRect(894, 330, 92, 146),
+                        new CollisionRect(194, 508, 144, 56),
+                        new CollisionRect(674, 276, 176, 96),
+                        new CollisionRect(525, 334, 44, 112),
+                        new CollisionRect(615, 334, 44, 112),
+                        new CollisionRect(934, 516, 136, 76),
+                        new CollisionRect(1128, 460, 50, 102)
+                ),
                 List.of(
                         new TrainingMachine(
                                 "Жим лёжа",
                                 MachineType.BENCH_PRESS,
-                                new Position(110, 145),
-                                170,
-                                80,
+                                new Position(108, 232),
+                                120,
+                                122,
                                 Color.web("#2D6A4F"),
                                 "Жим лёжа: здесь будет мини-игра на быстрые нажатия пробела."
                         ),
                         new TrainingMachine(
                                 "Присед",
                                 MachineType.SQUAT_RACK,
-                                new Position(330, 145),
-                                170,
-                                80,
+                                new Position(250, 232),
+                                136,
+                                130,
                                 Color.web("#1D7874"),
                                 "Присед: сюда позже подключим мини-игру со skill checks."
                         ),
                         new TrainingMachine(
                                 "Беговая дорожка",
                                 MachineType.TREADMILL,
-                                new Position(560, 145),
-                                190,
-                                80,
+                                new Position(892, 318),
+                                104,
+                                168,
                                 Color.web("#3A86FF"),
                                 "Беговая дорожка: зона под кардио-тренировку и развитие выносливости."
                         ),
                         new TrainingMachine(
                                 "Становая",
                                 MachineType.DEADLIFT_PLATFORM,
-                                new Position(800, 145),
-                                170,
-                                80,
+                                new Position(184, 500),
+                                164,
+                                82,
                                 Color.web("#6D597A"),
                                 "Становая тяга: пока заглушка, позже добавим полноценную мини-игру."
                         ),
                         new InteractiveZone(
-                                "Тренер",
-                                ZoneType.COACH,
-                                new Position(390, 350),
-                                96,
-                                96,
-                                Color.web("#DB2777"),
-                                "Тренер: 'Следи за усталостью и грамотно распределяй тренировки по дням.'"
-                        ),
-                        new InteractiveZone(
                                 "Дверь",
                                 ZoneType.DOOR,
-                                new Position(1035, 300),
-                                120,
-                                180,
+                                new Position(552, 622),
+                                176,
+                                58,
                                 Color.web("#F59E0B"),
                                 "Дверь: отсюда можно перейти в другие локации."
                         )
@@ -233,18 +243,63 @@ public final class GameMap {
     public static GameMap createWorkLayout() {
         return new GameMap(
                 "Работа",
-                "Отдельная локация под будущую систему заработка. Пока здесь только точка перехода.",
+                "Складская подработка: берите коробки и относите их в зону доставки.",
                 DEFAULT_ORIGIN,
                 DEFAULT_WIDTH,
                 DEFAULT_HEIGHT,
-                new Position(140, 560),
+                new Position(592, 622),
+                null,
+                false,
+                DEFAULT_ORIGIN,
+                DEFAULT_WIDTH,
+                DEFAULT_HEIGHT,
                 List.of(
+                        new CollisionRect(92, 366, 54, 156),
+                        new CollisionRect(265, 155, 130, 330),
+                        new CollisionRect(510, 90, 120, 285),
+                        new CollisionRect(745, 255, 130, 300),
+                        new CollisionRect(1194, 228, 44, 142)
+                ),
+                List.of(
+                        new InteractiveZone(
+                                "Приемка",
+                                ZoneType.WORK,
+                                new Position(150, 408),
+                                74,
+                                72,
+                                Color.web("#B7791F"),
+                                "Приемка: начните смену и берите коробки отсюда."
+                        ),
+                        new WarehouseProp(
+                                "Полки",
+                                "Товары",
+                                new Position(265, 155),
+                                130,
+                                330,
+                                Color.web("#8B5A2B")
+                        ),
+                        new WarehouseProp(
+                                "Полки",
+                                "Товары",
+                                new Position(510, 90),
+                                120,
+                                285,
+                                Color.web("#9A6737")
+                        ),
+                        new WarehouseProp(
+                                "Полки",
+                                "Товары",
+                                new Position(745, 255),
+                                130,
+                                300,
+                                Color.web("#8B5A2B")
+                        ),
                         new InteractiveZone(
                                 "Дверь",
                                 ZoneType.DOOR,
-                                new Position(1035, 255),
+                                new Position(552, 612),
                                 120,
-                                180,
+                                64,
                                 Color.web("#F59E0B"),
                                 "Дверь: отсюда можно перейти в другие локации."
                         )

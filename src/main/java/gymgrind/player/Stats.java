@@ -59,8 +59,12 @@ public final class Stats {
         return bodyFat;
     }
 
+    public int bodyFatPercent() {
+        return (int) Math.round(bodyFat);
+    }
+
     public int form() {
-        return (int) Math.round((strength + muscle + stamina) / 5.0 - fatigue / 2.0 - bodyFat);
+        return (int) Math.round((strength + muscle + stamina) / 5.0 - bodyFat);
     }
 
     public double staminaFatigueMultiplier() {

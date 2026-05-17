@@ -1,10 +1,12 @@
 package gymgrind.ui.render;
 
 import gymgrind.game.GameState;
+import gymgrind.game.WorkShiftState;
 import gymgrind.gym.CollisionRect;
 import gymgrind.gym.GameMap;
 import gymgrind.gym.objects.GymObject;
 import gymgrind.gym.objects.InteractiveZone;
+import gymgrind.gym.objects.WarehouseProp;
 import gymgrind.player.Player;
 import gymgrind.player.PlayerDirection;
 import gymgrind.player.PlayerProfile;
@@ -51,10 +53,24 @@ public final class GameRenderer {
 
     private final Image floorTile = loadImage("/assets/tiles/floor_tile.png");
     private final Image wallTile = loadImage("/assets/tiles/wall_tile.png");
+    private final Image workBoxImage = loadImage("/assets/work/box.png");
+    private final Image pickupRackImage = loadImage("/assets/work/pickup_rack.png");
+    private final Image warehouseWorkbenchImage = loadImage("/assets/work/source/5.png");
+    private final Image warehouseBinsImage = loadImage("/assets/work/source/4.png");
+    private final Image warehousePalletJackImage = loadImage("/assets/work/source/3.png");
+    private final Image warehousePalletImage = loadImage("/assets/work/source/2.png");
+    private final Image gymRoomImage = loadImage("/assets/rooms/gym_room.png");
+    private final Image gymBenchImage = loadImage("/assets/gym/bench.png");
+    private final Image gymDumbbellRackImage = loadImage("/assets/gym/dumbbell_rack.png");
+    private final Image gymKettlebellRackImage = loadImage("/assets/gym/kettlebell_rack.png");
+    private final Image gymLockerImage = loadImage("/assets/gym/locker.png");
+    private final Image gymMatsImage = loadImage("/assets/gym/mats.png");
+    private final Image gymWaterCoolerImage = loadImage("/assets/gym/water_cooler.png");
     private final Map<MachineType, Image> machineImages;
     private final Map<ZoneType, Image> zoneImages;
     private final Map<String, Image> mapBackgrounds;
     private final Map<String, PlayerSpriteSet> playerSpriteSets;
+    private final Map<String, DirectionalSpriteSet> playerCarrySpriteSets;
     private boolean debugCollisions;
 
     public GameRenderer() {
@@ -73,6 +89,7 @@ public final class GameRenderer {
 
         mapBackgrounds = new HashMap<>();
         playerSpriteSets = new HashMap<>();
+        playerCarrySpriteSets = new HashMap<>();
     }
 
     public void render(GraphicsContext graphicsContext,
@@ -82,6 +99,7 @@ public final class GameRenderer {
                        GameState gameState,
                        Optional<SkillCheckSession> activeSkillCheck,
                        Optional<SkillCheckResult> pendingSuccessResult,
+                       Optional<WorkShiftState> workShiftState,
                        Optional<String> coachSpeechText) {
         double canvasWidth = graphicsContext.getCanvas().getWidth();
         double canvasHeight = graphicsContext.getCanvas().getHeight();
@@ -90,11 +108,23 @@ public final class GameRenderer {
         graphicsContext.fillRect(0, 0, canvasWidth, canvasHeight);
 
         drawMap(graphicsContext, gameMap);
-        drawObjects(graphicsContext, gameMap, nearbyObject);
-        drawPlayer(graphicsContext, player);
+        workShiftState.ifPresent(state -> drawWorkShiftFloor(graphicsContext, state));
+        if (isGymMap(gameMap)) {
+            drawGymObjects(graphicsContext, gameMap, nearbyObject, player, false);
+        } else {
+            drawObjects(graphicsContext, gameMap, nearbyObject);
+        }
+        workShiftState.ifPresent(state -> drawWorkRacks(graphicsContext));
+        boolean carryingWorkBox = workShiftState.map(WorkShiftState::carryingBox).orElse(false);
+        boolean renderedCarrySprite = drawPlayer(graphicsContext, player, carryingWorkBox);
+        if (isGymMap(gameMap)) {
+            drawGymObjects(graphicsContext, gameMap, nearbyObject, player, true);
+        }
+        workShiftState.ifPresent(state -> drawCarriedWorkBox(graphicsContext, player, state, renderedCarrySprite));
         drawCoachSpeechBubble(graphicsContext, gameMap, coachSpeechText);
         drawDebugCollisions(graphicsContext, gameMap, player);
         drawLegend(graphicsContext, gameState, gameMap);
+        workShiftState.ifPresent(state -> drawWorkShiftHud(graphicsContext, gameMap, state));
 
         if (activeSkillCheck.isPresent()) {
             drawSkillCheckOverlay(graphicsContext, activeSkillCheck.get());
@@ -107,6 +137,16 @@ public final class GameRenderer {
         Image mapBackground = backgroundImageFor(gameMap);
         if (mapBackground != null) {
             graphicsContext.drawImage(mapBackground, gameMap.left(), gameMap.top(), gameMap.width(), gameMap.height());
+            return;
+        }
+
+        if (isWarehouseMap(gameMap)) {
+            drawWarehouseMap(graphicsContext, gameMap);
+            return;
+        }
+
+        if (isGymMap(gameMap)) {
+            drawGymMap(graphicsContext, gameMap);
             return;
         }
 
@@ -160,6 +200,26 @@ public final class GameRenderer {
             if (hideMarker && !nearby) {
                 continue;
             }
+            if (isWarehouseMap(gameMap)
+                    && gymObject instanceof InteractiveZone interactiveZone
+                    && (interactiveZone.zoneType() == ZoneType.WORK || interactiveZone.zoneType() == ZoneType.DOOR)) {
+                if (nearby && interactiveZone.zoneType() == ZoneType.WORK) {
+                    graphicsContext.setStroke(HIGHLIGHT);
+                    graphicsContext.setLineWidth(3);
+                    graphicsContext.strokeRect(
+                            gymObject.left(),
+                            gymObject.top(),
+                            gymObject.width(),
+                            gymObject.height()
+                    );
+                }
+                continue;
+            }
+            if (isGymMap(gameMap)
+                    && gymObject instanceof InteractiveZone interactiveZone
+                    && interactiveZone.zoneType() == ZoneType.DOOR) {
+                continue;
+            }
 
             Image image = imageFor(gymObject);
             if (hideMarker) {
@@ -173,6 +233,8 @@ public final class GameRenderer {
                         18,
                         18
                 );
+            } else if (gymObject instanceof WarehouseProp) {
+                drawWarehouseProp(graphicsContext, gymObject);
             } else if (image == null) {
                 graphicsContext.setFill(gymObject.color());
                 graphicsContext.fillRoundRect(
@@ -200,7 +262,8 @@ public final class GameRenderer {
                 );
             }
 
-            if (!hideMarker || nearby) {
+            boolean hideGymAssetLabel = isGymMap(gameMap) && image != null && !nearby;
+            if (!(gymObject instanceof WarehouseProp) && !hideGymAssetLabel && (!hideMarker || nearby)) {
                 graphicsContext.setFill(LABEL_COLOR);
                 graphicsContext.fillText(gymObject.name(), gymObject.centerX(), gymObject.centerY() - 6);
 
@@ -212,17 +275,75 @@ public final class GameRenderer {
         }
     }
 
-    private void drawPlayer(GraphicsContext graphicsContext, Player player) {
-        Image playerImage = playerImageFor(player);
+    private void drawGymObjects(GraphicsContext graphicsContext,
+                                GameMap gameMap,
+                                Optional<GymObject> nearbyObject,
+                                Player player,
+                                boolean foreground) {
+        graphicsContext.setTextAlign(TextAlignment.CENTER);
+        graphicsContext.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+
+        for (GymObject gymObject : gameMap.objects()) {
+            if (gymObject instanceof InteractiveZone interactiveZone
+                    && interactiveZone.zoneType() == ZoneType.DOOR) {
+                continue;
+            }
+
+            Image image = imageFor(gymObject);
+            double playerDepthY = player.position().y() + player.height();
+            boolean drawInForeground = !(gymObject instanceof TrainingMachine trainingMachine
+                    && trainingMachine.machineType() == MachineType.DEADLIFT_PLATFORM)
+                    && gymObject.bottom() > playerDepthY;
+            if (drawInForeground != foreground) {
+                continue;
+            }
+
+            boolean nearby = nearbyObject.filter(object -> object == gymObject).isPresent();
+            if (image == null) {
+                graphicsContext.setFill(gymObject.color());
+                graphicsContext.fillRoundRect(
+                        gymObject.left(),
+                        gymObject.top(),
+                        gymObject.width(),
+                        gymObject.height(),
+                        20,
+                        20
+                );
+            } else {
+                graphicsContext.drawImage(image, gymObject.left(), gymObject.top(), gymObject.width(), gymObject.height());
+            }
+
+            if (nearby) {
+                double highlightInset = 6;
+                double highlightWidth = Math.max(0, gymObject.width() - highlightInset * 2);
+                double highlightHeight = Math.max(0, gymObject.height() - highlightInset * 2);
+                graphicsContext.setStroke(HIGHLIGHT);
+                graphicsContext.setLineWidth(2);
+                graphicsContext.strokeRoundRect(
+                        gymObject.left() + highlightInset,
+                        gymObject.top() + highlightInset,
+                        highlightWidth,
+                        highlightHeight,
+                        10,
+                        10
+                );
+            }
+        }
+    }
+
+    private boolean drawPlayer(GraphicsContext graphicsContext, Player player, boolean carryingWorkBox) {
+        Image playerImage = playerImageFor(player, carryingWorkBox);
         if (playerImage != null) {
             double renderWidth = player.profile().renderWidth();
             double renderHeight = player.profile().renderHeight();
             double drawX = player.centerX() - renderWidth / 2.0;
             double drawY = player.position().y() + player.height() - renderHeight;
             graphicsContext.drawImage(playerImage, drawX, drawY, renderWidth, renderHeight);
+            return carryingWorkBox && carryImageFor(player) != null;
         } else {
             graphicsContext.setFill(PLAYER_COLOR);
             graphicsContext.fillOval(player.position().x(), player.position().y(), player.width(), player.height());
+            return false;
         }
     }
 
@@ -295,7 +416,14 @@ public final class GameRenderer {
         graphicsContext.restore();
     }
 
-    private Image playerImageFor(Player player) {
+    private Image playerImageFor(Player player, boolean carryingWorkBox) {
+        if (carryingWorkBox) {
+            Image carryImage = carryImageFor(player);
+            if (carryImage != null) {
+                return carryImage;
+            }
+        }
+
         PlayerSpriteSet spriteSet = spriteSetFor(player);
         if (player.isMoving() && shouldShowWalkFrame()) {
             Image walkImage = directionalImage(spriteSet.walkFrames(), player.direction());
@@ -315,6 +443,21 @@ public final class GameRenderer {
         return playerSpriteSets.computeIfAbsent(cacheKey, ignored -> loadPlayerSpriteSet(player.profile(), player.currentForm()));
     }
 
+    private Image carryImageFor(Player player) {
+        DirectionalSpriteSet spriteSet = carrySpriteSetFor(player.profile());
+        if (player.isMoving() && shouldShowWalkFrame()) {
+            Image stepImage = directionalImage(spriteSet.stepFrames(), player.direction());
+            if (stepImage != null) {
+                return stepImage;
+            }
+        }
+        return directionalImage(spriteSet.frames(), player.direction());
+    }
+
+    private DirectionalSpriteSet carrySpriteSetFor(PlayerProfile profile) {
+        return playerCarrySpriteSets.computeIfAbsent(profile.id(), ignored -> loadCarrySpriteSet(profile));
+    }
+
     private PlayerSpriteSet loadPlayerSpriteSet(PlayerProfile profile, gymgrind.player.PlayerForm form) {
         Map<PlayerDirection, Image> idleFrames = new EnumMap<>(PlayerDirection.class);
         Map<PlayerDirection, Image> walkFrames = new EnumMap<>(PlayerDirection.class);
@@ -325,6 +468,26 @@ public final class GameRenderer {
         }
 
         return new PlayerSpriteSet(idleFrames, walkFrames);
+    }
+
+    private DirectionalSpriteSet loadCarrySpriteSet(PlayerProfile profile) {
+        Map<PlayerDirection, Image> frames = new EnumMap<>(PlayerDirection.class);
+        Map<PlayerDirection, Image> stepFrames = new EnumMap<>(PlayerDirection.class);
+
+        for (PlayerDirection direction : PlayerDirection.values()) {
+            frames.put(direction, loadImage(carrySpritePath(profile, direction)));
+            stepFrames.put(direction, loadImage(carryStepSpritePath(profile, direction)));
+        }
+
+        return new DirectionalSpriteSet(frames, stepFrames);
+    }
+
+    private String carrySpritePath(PlayerProfile profile, PlayerDirection direction) {
+        return profile.idleSpritePath(direction).replace("_idle_", "_carry_");
+    }
+
+    private String carryStepSpritePath(PlayerProfile profile, PlayerDirection direction) {
+        return profile.idleSpritePath(direction).replace("_idle_", "_carry_").replace(".png", "_step.png");
     }
 
     private Image directionalImage(Map<PlayerDirection, Image> frames, PlayerDirection direction) {
@@ -341,6 +504,668 @@ public final class GameRenderer {
         return frames.get(PlayerDirection.FRONT);
     }
 
+    private void drawGymMap(GraphicsContext graphicsContext, GameMap gameMap) {
+        double left = gameMap.left();
+        double top = gameMap.top();
+        double width = gameMap.width();
+        double height = gameMap.height();
+
+        if (gymRoomImage != null) {
+            graphicsContext.drawImage(gymRoomImage, left, top, width, height);
+        } else {
+            graphicsContext.setFill(Color.web("#050507"));
+            graphicsContext.fillRect(left - 26, top - 26, width + 52, height + 52);
+            drawGymWoodFloor(graphicsContext, left, top, width, height);
+            drawGymBackWall(graphicsContext, left + 34, top + 24, width - 68, 112);
+            drawGymBorder(graphicsContext, left, top, width, height);
+            drawGymTopDoor(graphicsContext, left + width / 2.0 - 54, top - 6);
+            drawGymBottomDoor(graphicsContext, left + width / 2.0 - 62, top + height - 12);
+            drawGymImageOrFallback(graphicsContext, gymWaterCoolerImage, left + 54, top + 70, 72, 158,
+                    () -> drawGymWaterCooler(graphicsContext, left + 64, top + 74));
+            drawGymImageOrFallback(graphicsContext, gymLockerImage, left + width - 314, top + 62, 214, 144,
+                    () -> drawGymLockers(graphicsContext, left + width - 292, top + 76));
+        }
+        drawGymRubberZone(graphicsContext, left + 46, top + 144, 360, 382);
+        drawGymImageOrFallback(graphicsContext, gymDumbbellRackImage, left + 638, top + 176, 184, 124,
+                () -> drawDumbbellRack(graphicsContext, left + 650, top + 172));
+        drawGymImageOrFallback(graphicsContext, gymBenchImage, left + 480, top + 226, 58, 144,
+                () -> drawGymBenchFallback(graphicsContext, left + 480, top + 226));
+        drawGymImageOrFallback(graphicsContext, gymBenchImage, left + 570, top + 226, 58, 144,
+                () -> drawGymBenchFallback(graphicsContext, left + 570, top + 226));
+        drawGymImageOrFallback(graphicsContext, gymMatsImage, left + width - 320, top + height - 182, 152, 104,
+                () -> drawGymMats(graphicsContext, left + width - 310, top + height - 182));
+        drawGymImageOrFallback(graphicsContext, gymKettlebellRackImage, left + width - 128, top + height - 236, 64, 130,
+                () -> drawKettlebellStand(graphicsContext, left + width - 128, top + height - 232));
+    }
+
+    private void drawGymImageOrFallback(GraphicsContext graphicsContext,
+                                        Image image,
+                                        double x,
+                                        double y,
+                                        double width,
+                                        double height,
+                                        Runnable fallback) {
+        if (image != null) {
+            graphicsContext.drawImage(image, x, y, width, height);
+            return;
+        }
+        fallback.run();
+    }
+
+    private void drawGymWoodFloor(GraphicsContext graphicsContext, double left, double top, double width, double height) {
+        graphicsContext.setFill(Color.web("#9B5A24"));
+        graphicsContext.fillRect(left, top, width, height);
+        graphicsContext.setStroke(Color.color(0.38, 0.20, 0.08, 0.48));
+        graphicsContext.setLineWidth(2);
+        double plankHeight = 24;
+        for (double y = top; y < top + height; y += plankHeight) {
+            graphicsContext.strokeLine(left, y, left + width, y);
+            double offset = Math.floor((y - top) / plankHeight) % 2 == 0 ? 0 : 78;
+            for (double x = left + offset; x < left + width; x += 156) {
+                graphicsContext.strokeLine(x, y, x, Math.min(y + plankHeight, top + height));
+            }
+        }
+        graphicsContext.setFill(Color.color(1.0, 0.68, 0.30, 0.08));
+        graphicsContext.fillRect(left + 22, top + 138, width - 44, height - 170);
+    }
+
+    private void drawGymRubberZone(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        graphicsContext.setFill(Color.web("#262A2B"));
+        graphicsContext.fillRect(x, y, width, height);
+        graphicsContext.setStroke(Color.web("#393F40"));
+        graphicsContext.setLineWidth(2);
+        for (double tileX = x; tileX <= x + width; tileX += 72) {
+            graphicsContext.strokeLine(tileX, y, tileX, y + height);
+        }
+        for (double tileY = y; tileY <= y + height; tileY += 72) {
+            graphicsContext.strokeLine(x, tileY, x + width, tileY);
+        }
+        graphicsContext.setStroke(Color.web("#161819"));
+        graphicsContext.setLineWidth(4);
+        graphicsContext.strokeRect(x, y, width, height);
+    }
+
+    private void drawGymBackWall(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        graphicsContext.setFill(Color.web("#303036"));
+        graphicsContext.fillRect(x, y, width, height);
+        graphicsContext.setFill(Color.web("#4A4B4B"));
+        graphicsContext.fillRect(x + 28, y + 38, width - 56, height - 54);
+        graphicsContext.setStroke(Color.web("#24242A"));
+        graphicsContext.setLineWidth(3);
+        for (double brickY = y + 10; brickY < y + height; brickY += 22) {
+            graphicsContext.strokeLine(x, brickY, x + width, brickY);
+            double offset = Math.floor((brickY - y) / 22) % 2 == 0 ? 0 : 42;
+            for (double brickX = x + offset; brickX < x + width; brickX += 84) {
+                graphicsContext.strokeLine(brickX, brickY, brickX, brickY + 22);
+            }
+        }
+        graphicsContext.setFill(Color.web("#1C1B35"));
+        graphicsContext.fillRect(x, y + height - 20, width, 20);
+    }
+
+    private void drawGymBorder(GraphicsContext graphicsContext, double left, double top, double width, double height) {
+        graphicsContext.setFill(Color.web("#E7E4F6"));
+        graphicsContext.fillRect(left - 10, top - 10, width + 20, 28);
+        graphicsContext.fillRect(left - 10, top + height - 18, width + 20, 28);
+        graphicsContext.fillRect(left - 10, top - 10, 28, height + 20);
+        graphicsContext.fillRect(left + width - 18, top - 10, 28, height + 20);
+        graphicsContext.setStroke(Color.web("#9C9BC4"));
+        graphicsContext.setLineWidth(2);
+        for (double x = left - 10; x <= left + width + 10; x += 24) {
+            graphicsContext.strokeLine(x, top - 10, x, top + 18);
+            graphicsContext.strokeLine(x, top + height - 18, x, top + height + 10);
+        }
+        for (double y = top - 10; y <= top + height + 10; y += 24) {
+            graphicsContext.strokeLine(left - 10, y, left + 18, y);
+            graphicsContext.strokeLine(left + width - 18, y, left + width + 10, y);
+        }
+        graphicsContext.setStroke(Color.web("#1D1B36"));
+        graphicsContext.setLineWidth(10);
+        graphicsContext.strokeRect(left + 14, top + 16, width - 28, height - 32);
+    }
+
+    private void drawGymTopDoor(GraphicsContext graphicsContext, double x, double y) {
+        graphicsContext.setFill(Color.web("#1A1110"));
+        graphicsContext.fillRect(x - 10, y, 128, 92);
+        graphicsContext.setFill(Color.web("#7A3F17"));
+        graphicsContext.fillRect(x + 12, y + 18, 84, 70);
+        graphicsContext.setFill(Color.web("#A5652A"));
+        graphicsContext.fillRect(x + 20, y + 24, 30, 58);
+        graphicsContext.fillRect(x + 54, y + 24, 30, 58);
+    }
+
+    private void drawGymBottomDoor(GraphicsContext graphicsContext, double x, double y) {
+        graphicsContext.setFill(Color.web("#3D3D38"));
+        graphicsContext.fillRect(x, y, 124, 38);
+        graphicsContext.setStroke(Color.web("#6B665B"));
+        graphicsContext.setLineWidth(3);
+        graphicsContext.strokeLine(x + 18, y, x + 18, y + 38);
+        graphicsContext.strokeLine(x + 62, y, x + 62, y + 38);
+        graphicsContext.strokeLine(x + 106, y, x + 106, y + 38);
+    }
+
+    private void drawGymWaterCooler(GraphicsContext graphicsContext, double x, double y) {
+        graphicsContext.setFill(Color.web("#D8DEE5"));
+        graphicsContext.fillRect(x, y + 38, 34, 54);
+        graphicsContext.setFill(Color.web("#4EA7E8"));
+        graphicsContext.fillOval(x + 3, y, 28, 46);
+        graphicsContext.setFill(Color.web("#1B5E8C"));
+        graphicsContext.fillRect(x + 45, y + 54, 34, 38);
+    }
+
+    private void drawGymBenchFallback(GraphicsContext graphicsContext, double x, double y) {
+        graphicsContext.setFill(Color.web("#A65E23"));
+        graphicsContext.fillRect(x + 14, y + 24, 50, 118);
+        graphicsContext.setStroke(Color.web("#161719"));
+        graphicsContext.setLineWidth(4);
+        graphicsContext.strokeRect(x + 14, y + 24, 50, 118);
+        graphicsContext.setFill(Color.web("#2B2F31"));
+        graphicsContext.fillRect(x + 10, y + 142, 58, 12);
+        graphicsContext.fillRect(x + 18, y + 154, 12, 28);
+        graphicsContext.fillRect(x + 48, y + 154, 12, 28);
+    }
+
+    private void drawGymLockers(GraphicsContext graphicsContext, double x, double y) {
+        graphicsContext.setFill(Color.web("#2D2F31"));
+        graphicsContext.fillRect(x, y, 172, 88);
+        graphicsContext.setStroke(Color.web("#0E0F10"));
+        graphicsContext.setLineWidth(3);
+        graphicsContext.strokeRect(x, y, 172, 88);
+        for (int i = 0; i < 3; i++) {
+            double doorX = x + 8 + i * 54;
+            graphicsContext.setFill(i == 2 ? Color.web("#333638") : Color.web("#3C3F41"));
+            graphicsContext.fillRect(doorX, y + 8, 48, 72);
+            graphicsContext.strokeRect(doorX, y + 8, 48, 72);
+            graphicsContext.strokeLine(doorX + 14, y + 28, doorX + 30, y + 28);
+            graphicsContext.strokeLine(doorX + 14, y + 34, doorX + 30, y + 34);
+        }
+        graphicsContext.setFill(Color.web("#2D7E35"));
+        graphicsContext.fillOval(x + 194, y + 36, 36, 44);
+        graphicsContext.setFill(Color.web("#3D3024"));
+        graphicsContext.fillRect(x + 204, y + 72, 18, 22);
+    }
+
+    private void drawDumbbellRack(GraphicsContext graphicsContext, double x, double y) {
+        graphicsContext.setFill(Color.web("#2C2117"));
+        graphicsContext.fillRect(x, y + 66, 170, 12);
+        graphicsContext.fillRect(x, y + 26, 170, 12);
+        for (int row = 0; row < 2; row++) {
+            for (int i = 0; i < 7; i++) {
+                double cx = x + 18 + i * 22;
+                double cy = y + 12 + row * 40;
+                graphicsContext.setFill(Color.web("#101112"));
+                graphicsContext.fillOval(cx, cy, 18, 18);
+                graphicsContext.setFill(Color.web("#3A3D40"));
+                graphicsContext.fillRect(cx + 5, cy + 7, 8, 4);
+            }
+        }
+    }
+
+    private void drawGymMats(GraphicsContext graphicsContext, double x, double y) {
+        graphicsContext.setFill(Color.web("#174A8A"));
+        graphicsContext.fillRect(x, y, 76, 94);
+        graphicsContext.setFill(Color.web("#1D5EA8"));
+        graphicsContext.fillRect(x + 82, y, 76, 94);
+        graphicsContext.setStroke(Color.web("#0B2445"));
+        graphicsContext.setLineWidth(3);
+        graphicsContext.strokeRect(x, y, 76, 94);
+        graphicsContext.strokeRect(x + 82, y, 76, 94);
+    }
+
+    private void drawKettlebellStand(GraphicsContext graphicsContext, double x, double y) {
+        graphicsContext.setFill(Color.web("#17191A"));
+        graphicsContext.fillRect(x + 8, y, 56, 146);
+        graphicsContext.setStroke(Color.web("#4B4F52"));
+        graphicsContext.setLineWidth(4);
+        graphicsContext.strokeRect(x + 8, y, 56, 146);
+        Color[] colors = {Color.web("#C66A20"), Color.web("#1E61A8"), Color.web("#161719")};
+        for (int i = 0; i < 3; i++) {
+            graphicsContext.setFill(colors[i]);
+            graphicsContext.fillOval(x + 22, y + 16 + i * 42, 28, 28);
+            graphicsContext.setStroke(Color.web("#0B0D0E"));
+            graphicsContext.setLineWidth(3);
+            graphicsContext.strokeOval(x + 22, y + 16 + i * 42, 28, 28);
+        }
+    }
+
+    private void drawWarehouseMap(GraphicsContext graphicsContext, GameMap gameMap) {
+        double left = gameMap.left();
+        double top = gameMap.top();
+        double width = gameMap.width();
+        double height = gameMap.height();
+
+        graphicsContext.setFill(Color.web("#050505"));
+        graphicsContext.fillRect(left - 28, top - 28, width + 56, height + 56);
+
+        graphicsContext.setFill(Color.web("#595348"));
+        graphicsContext.fillRect(left, top, width, height);
+
+        graphicsContext.setStroke(Color.web("#625B50"));
+        graphicsContext.setLineWidth(1);
+        for (double x = left; x <= left + width; x += 32) {
+            graphicsContext.strokeLine(x, top, x, top + height);
+        }
+        for (double y = top; y <= top + height; y += 32) {
+            graphicsContext.strokeLine(left, y, left + width, y);
+        }
+
+        drawWarehouseFloorNoise(graphicsContext, left, top, width, height);
+        drawSafetyStripes(graphicsContext, left + 86, top + 340, 150, 88);
+        drawSafetyStripes(graphicsContext, left + 456, top + 374, 180, 86);
+        drawSafetyStripes(graphicsContext, left + 830, top + 112, 180, 70);
+        drawWarehouseWoodWall(graphicsContext, left + 14, top + 12, width - 28, 118);
+        drawWarehouseBorder(graphicsContext, left, top, width, height);
+        drawWarehouseAsset(graphicsContext, warehouseWorkbenchImage, left + 34, top + 36, 196, 143);
+        drawWarehouseAsset(graphicsContext, warehouseBinsImage, left + 606, top + 58, 138, 123);
+        drawWarehouseAsset(graphicsContext, warehousePalletJackImage, left + 56, top + 468, 230, 176);
+        drawWarehouseAsset(graphicsContext, warehousePalletImage, left + 884, top + 338, 170, 142);
+        drawHangingLamp(graphicsContext, left + 528, top + 26);
+        drawHangingLamp(graphicsContext, left + 700, top + 26);
+        drawWarehouseDoor(graphicsContext, left + 512, top + height - 70);
+    }
+
+    private void drawWarehouseFloorNoise(GraphicsContext graphicsContext, double left, double top, double width, double height) {
+        graphicsContext.setFill(Color.color(0.13, 0.12, 0.10, 0.22));
+        for (int index = 0; index < 90; index++) {
+            double x = left + 24 + Math.floorMod(index * 47, (int) width - 48);
+            double y = top + 42 + Math.floorMod(index * 31, (int) height - 84);
+            graphicsContext.fillRect(x, y, 2 + index % 4, 2);
+        }
+    }
+
+    private void drawWarehouseAsset(GraphicsContext graphicsContext,
+                                    Image image,
+                                    double x,
+                                    double y,
+                                    double width,
+                                    double height) {
+        if (image == null) {
+            return;
+        }
+
+        graphicsContext.setFill(Color.color(0.02, 0.02, 0.02, 0.24));
+        graphicsContext.fillOval(x + width * 0.16, y + height * 0.78, width * 0.68, height * 0.12);
+        graphicsContext.drawImage(image, x, y, width, height);
+    }
+
+    private void drawSafetyStripes(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        graphicsContext.setStroke(Color.color(0.95, 0.58, 0.13, 0.55));
+        graphicsContext.setLineWidth(3);
+        graphicsContext.strokeRect(x, y, width, height);
+        for (double offset = -height; offset < width; offset += 22) {
+            graphicsContext.strokeLine(x + offset, y + height, x + offset + height, y);
+        }
+    }
+
+    private void drawWarehouseWoodWall(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        graphicsContext.setFill(Color.web("#6E381C"));
+        graphicsContext.fillRect(x, y, width, height);
+        graphicsContext.setFill(Color.web("#8E4A22"));
+        graphicsContext.fillRect(x, y, width, 16);
+        graphicsContext.fillRect(x, y + height - 14, width, 14);
+
+        graphicsContext.setStroke(Color.web("#3C2012"));
+        graphicsContext.setLineWidth(2);
+        for (double boardX = x + 18; boardX < x + width; boardX += 24) {
+            graphicsContext.strokeLine(boardX, y + 16, boardX, y + height - 14);
+        }
+        graphicsContext.setFill(Color.color(1.0, 0.78, 0.38, 0.12));
+        graphicsContext.fillOval(x + width * 0.42, y + 10, 150, 78);
+        graphicsContext.fillOval(x + width * 0.58, y + 10, 150, 78);
+    }
+
+    private void drawWarehouseBorder(GraphicsContext graphicsContext, double left, double top, double width, double height) {
+        graphicsContext.setFill(Color.web("#5B2F18"));
+        graphicsContext.fillRect(left - 6, top - 6, width + 12, 18);
+        graphicsContext.fillRect(left - 6, top + height - 12, width + 12, 18);
+        graphicsContext.fillRect(left - 6, top - 6, 18, height + 12);
+        graphicsContext.fillRect(left + width - 12, top - 6, 18, height + 12);
+
+        graphicsContext.setStroke(Color.web("#E58A30"));
+        graphicsContext.setLineWidth(3);
+        graphicsContext.strokeRect(left - 6, top - 6, width + 12, height + 12);
+
+        graphicsContext.setStroke(Color.web("#6B3A1F"));
+        graphicsContext.setLineWidth(2);
+        for (double x = left + 28; x < left + width - 28; x += 54) {
+            graphicsContext.strokeLine(x, top - 1, x + 28, top + 12);
+            graphicsContext.strokeLine(x, top + height + 1, x + 28, top + height - 12);
+        }
+    }
+
+    private void drawWarehouseOffice(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        graphicsContext.setFill(Color.web("#5E371F"));
+        graphicsContext.fillRoundRect(x, y, width, height, 10, 10);
+        graphicsContext.setFill(Color.web("#88C6D8"));
+        graphicsContext.fillRect(x + 18, y + 18, width - 36, 44);
+        graphicsContext.setStroke(Color.web("#153041"));
+        graphicsContext.setLineWidth(3);
+        graphicsContext.strokeRect(x + 18, y + 18, width - 36, 44);
+        graphicsContext.setFill(Color.web("#D5A55A"));
+        graphicsContext.fillRect(x + 20, y + 76, width - 40, height - 92);
+        drawOrangeCarton(graphicsContext, x + width - 62, y + 86, 34, 28);
+    }
+
+    private void drawWorkbench(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        graphicsContext.setFill(Color.web("#5A321B"));
+        graphicsContext.fillRect(x + 8, y + height - 10, width - 16, 12);
+        graphicsContext.setFill(Color.web("#9B5A2B"));
+        graphicsContext.fillRoundRect(x, y, width, height, 8, 8);
+        graphicsContext.setFill(Color.web("#C98543"));
+        graphicsContext.fillRect(x + 10, y + 8, width - 20, 16);
+        drawWrappedPallet(graphicsContext, x + 78, y + 30, 34, 24);
+        drawOrangeCarton(graphicsContext, x + 142, y + 28, 34, 26);
+        graphicsContext.setFill(Color.web("#77A7C8"));
+        graphicsContext.fillRect(x + width - 32, y + 24, 11, 26);
+    }
+
+    private void drawHangingLamp(GraphicsContext graphicsContext, double x, double y) {
+        graphicsContext.setStroke(Color.web("#21160F"));
+        graphicsContext.setLineWidth(3);
+        graphicsContext.strokeLine(x, y, x, y + 34);
+        graphicsContext.setFill(Color.web("#1B1715"));
+        graphicsContext.fillOval(x - 18, y + 30, 36, 18);
+        graphicsContext.setFill(Color.color(1.0, 0.78, 0.35, 0.30));
+        graphicsContext.fillOval(x - 38, y + 38, 76, 38);
+        graphicsContext.setFill(Color.web("#FFD36E"));
+        graphicsContext.fillOval(x - 7, y + 40, 14, 10);
+    }
+
+    private void drawPalletCluster(GraphicsContext graphicsContext, double x, double y) {
+        drawWoodPallet(graphicsContext, x, y + 38, 132, 30);
+        drawOrangeCarton(graphicsContext, x + 12, y, 42, 40);
+        drawOrangeCarton(graphicsContext, x + 54, y + 12, 40, 28);
+        drawWrappedPallet(graphicsContext, x + 94, y - 4, 34, 44);
+    }
+
+    private void drawWoodPallet(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        graphicsContext.setFill(Color.web("#6E3B1E"));
+        graphicsContext.fillRect(x, y, width, height);
+        graphicsContext.setStroke(Color.web("#B46D35"));
+        graphicsContext.setLineWidth(3);
+        for (double stripX = x + 8; stripX < x + width; stripX += 24) {
+            graphicsContext.strokeLine(stripX, y + 4, stripX, y + height - 4);
+        }
+    }
+
+    private void drawBarrelStack(GraphicsContext graphicsContext, double x, double y) {
+        for (int row = 0; row < 3; row++) {
+            for (int column = 0; column < 2; column++) {
+                drawBarrel(graphicsContext, x + column * 24, y + row * 25, 24, 24);
+            }
+        }
+    }
+
+    private void drawWarehouseDoor(GraphicsContext graphicsContext, double x, double y) {
+        graphicsContext.setFill(Color.web("#050505"));
+        graphicsContext.fillRect(x - 16, y + 54, 112, 44);
+        graphicsContext.setFill(Color.web("#24150E"));
+        graphicsContext.fillRect(x - 6, y - 4, 92, 18);
+        graphicsContext.fillRect(x - 6, y - 4, 18, 84);
+        graphicsContext.fillRect(x + 68, y - 4, 18, 84);
+
+        graphicsContext.setFill(Color.web("#7B3F1E"));
+        graphicsContext.fillRect(x + 14, y + 8, 52, 68);
+        graphicsContext.setFill(Color.web("#A9652E"));
+        graphicsContext.fillRect(x + 20, y + 13, 40, 58);
+        graphicsContext.setStroke(Color.web("#2B160D"));
+        graphicsContext.setLineWidth(3);
+        graphicsContext.strokeRect(x + 14, y + 8, 52, 68);
+        graphicsContext.setStroke(Color.web("#D28A45"));
+        graphicsContext.setLineWidth(2);
+        graphicsContext.strokeLine(x + 21, y + 20, x + 59, y + 20);
+        graphicsContext.strokeLine(x + 21, y + 34, x + 59, y + 34);
+    }
+
+    private void drawWarehouseBlueStacks(GraphicsContext graphicsContext, double x, double y, int columns, int rows) {
+        for (int row = 0; row < rows; row++) {
+            for (int column = 0; column < columns; column++) {
+                drawBlueCrate(graphicsContext, x + column * 20, y + row * 17, 18, 14);
+            }
+        }
+    }
+
+    private void drawBlueCrate(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        graphicsContext.setFill(Color.web("#0F5FB8"));
+        graphicsContext.fillRect(x, y, width, height);
+        graphicsContext.setStroke(Color.web("#07366C"));
+        graphicsContext.setLineWidth(2);
+        graphicsContext.strokeRect(x, y, width, height);
+        graphicsContext.setStroke(Color.web("#2A88E8"));
+        graphicsContext.setLineWidth(1);
+        graphicsContext.strokeLine(x + 3, y + height / 2.0, x + width - 3, y + height / 2.0);
+    }
+
+    private void drawWarehouseProp(GraphicsContext graphicsContext, GymObject gymObject) {
+        graphicsContext.setFill(Color.color(0.02, 0.02, 0.02, 0.32));
+        graphicsContext.fillRect(gymObject.left() + 8, gymObject.bottom() - 4, gymObject.width(), 12);
+
+        graphicsContext.setFill(Color.web("#2F3740"));
+        graphicsContext.fillRect(gymObject.left(), gymObject.top(), 10, gymObject.height());
+        graphicsContext.fillRect(gymObject.right() - 10, gymObject.top(), 10, gymObject.height());
+        graphicsContext.fillRect(gymObject.centerX() - 5, gymObject.top(), 10, gymObject.height());
+
+        graphicsContext.setFill(Color.web("#5A321B"));
+        for (double shelfY = gymObject.top() + 4; shelfY < gymObject.bottom(); shelfY += 56) {
+            graphicsContext.fillRect(gymObject.left() + 8, shelfY, gymObject.width() - 16, 8);
+        }
+
+        graphicsContext.setStroke(Color.web("#1B2930"));
+        graphicsContext.setLineWidth(5);
+        for (double braceTop = gymObject.top() + 8; braceTop < gymObject.bottom() - 42; braceTop += 56) {
+            double braceBottom = Math.min(braceTop + 52, gymObject.bottom() - 8);
+            graphicsContext.strokeLine(gymObject.left() + 10, braceTop, gymObject.right() - 10, braceBottom);
+            graphicsContext.strokeLine(gymObject.right() - 10, braceTop, gymObject.left() + 10, braceBottom);
+        }
+        graphicsContext.setStroke(Color.web("#43535C"));
+        graphicsContext.setLineWidth(2);
+        for (double braceTop = gymObject.top() + 8; braceTop < gymObject.bottom() - 42; braceTop += 56) {
+            double braceBottom = Math.min(braceTop + 52, gymObject.bottom() - 8);
+            graphicsContext.strokeLine(gymObject.left() + 11, braceTop, gymObject.right() - 11, braceBottom);
+            graphicsContext.strokeLine(gymObject.right() - 11, braceTop, gymObject.left() + 11, braceBottom);
+        }
+
+        graphicsContext.setFill(Color.web("#17232A"));
+        for (double holeY = gymObject.top() + 16; holeY < gymObject.bottom() - 12; holeY += 18) {
+            graphicsContext.fillRect(gymObject.left() + 3, holeY, 4, 5);
+            graphicsContext.fillRect(gymObject.right() - 7, holeY, 4, 5);
+        }
+
+        for (double y = gymObject.top() + 14; y < gymObject.bottom() - 20; y += 50) {
+            int row = (int) Math.round((y - gymObject.top()) / 50.0);
+            for (double x = gymObject.left() + 18; x < gymObject.right() - 28; x += 32) {
+                int column = (int) Math.round((x - gymObject.left()) / 28.0);
+                int variant = Math.floorMod(row + column, 4);
+                if (variant == 0) {
+                    drawOrangeCarton(graphicsContext, x, y - 2, 28, 28);
+                } else if (variant == 1) {
+                    drawWrappedPallet(graphicsContext, x, y + 2, 28, 24);
+                } else if (variant == 2) {
+                    drawWoodCrate(graphicsContext, x - 1, y + 2, 30, 24);
+                } else {
+                    drawBarrel(graphicsContext, x + 4, y + 1, 22, 24);
+                }
+            }
+        }
+    }
+
+    private void drawOrangeCarton(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        graphicsContext.setFill(Color.web("#B76B2E"));
+        graphicsContext.fillRect(x, y, width, height);
+        graphicsContext.setFill(Color.web("#D89A55"));
+        graphicsContext.fillRect(x + 3, y + 3, width - 6, Math.max(4, height * 0.22));
+        graphicsContext.setStroke(Color.web("#F2C080"));
+        graphicsContext.setLineWidth(2);
+        graphicsContext.strokeLine(x + width / 2.0, y + 3, x + width / 2.0, y + height - 3);
+        graphicsContext.setStroke(Color.web("#6B341C"));
+        graphicsContext.setLineWidth(2);
+        graphicsContext.strokeRect(x, y, width, height);
+    }
+
+    private void drawWrappedPallet(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        graphicsContext.setFill(Color.web("#6EA7D8"));
+        graphicsContext.fillRect(x, y, width, height);
+        graphicsContext.setFill(Color.web("#B7D7EA"));
+        graphicsContext.fillRect(x + 3, y + 3, width - 6, 4);
+        graphicsContext.fillRect(x + 3, y + 11, width - 6, 3);
+        graphicsContext.setStroke(Color.web("#24517A"));
+        graphicsContext.setLineWidth(2);
+        graphicsContext.strokeRect(x, y, width, height);
+    }
+
+    private void drawBarrel(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        graphicsContext.setFill(Color.web("#8A4B24"));
+        graphicsContext.fillOval(x, y, width, height);
+        graphicsContext.setFill(Color.web("#B56D35"));
+        graphicsContext.fillOval(x + 3, y + 3, width - 6, height - 6);
+        graphicsContext.setStroke(Color.web("#4D2616"));
+        graphicsContext.setLineWidth(2);
+        graphicsContext.strokeOval(x, y, width, height);
+        graphicsContext.strokeLine(x + 3, y + height / 2.0, x + width - 3, y + height / 2.0);
+    }
+
+    private void drawWoodCrate(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        graphicsContext.setFill(Color.web("#7A421F"));
+        graphicsContext.fillRect(x, y, width, height);
+        graphicsContext.setStroke(Color.web("#B46D35"));
+        graphicsContext.setLineWidth(2);
+        graphicsContext.strokeRect(x, y, width, height);
+        graphicsContext.strokeLine(x + 4, y + 4, x + width - 4, y + height - 4);
+        graphicsContext.strokeLine(x + width - 4, y + 4, x + 4, y + height - 4);
+    }
+
+    private void drawWorkShiftFloor(GraphicsContext graphicsContext, WorkShiftState state) {
+        drawWorkZone(graphicsContext, WorkShiftState.PICKUP_ZONE, "ПРИЕМКА", Color.web("#B7791F"));
+        drawWorkZone(graphicsContext, WorkShiftState.DROP_ZONE, "ОТГРУЗКА", Color.web("#22C55E"));
+    }
+
+    private void drawWorkRacks(GraphicsContext graphicsContext) {
+        drawWorkRack(graphicsContext, WorkShiftState.PICKUP_ZONE.left() - 58, WorkShiftState.PICKUP_ZONE.top() - 42, 54, 156);
+        drawWorkRack(graphicsContext, WorkShiftState.DROP_ZONE.right() + 4, WorkShiftState.DROP_ZONE.top() - 22, 44, 142);
+    }
+
+    private void drawWorkRack(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        if (pickupRackImage != null) {
+            graphicsContext.drawImage(pickupRackImage, x, y, width, height);
+            return;
+        }
+
+        graphicsContext.setFill(Color.web("#263A42"));
+        graphicsContext.fillRect(x + 8, y, width - 16, height);
+        graphicsContext.setStroke(Color.web("#50636B"));
+        graphicsContext.setLineWidth(4);
+        graphicsContext.strokeRect(x + 8, y, width - 16, height);
+        drawOrangeCarton(graphicsContext, x + 28, y + 22, 28, 24);
+        drawOrangeCarton(graphicsContext, x + 58, y + 22, 28, 24);
+        drawWrappedPallet(graphicsContext, x + 30, y + 78, 46, 30);
+        drawOrangeCarton(graphicsContext, x + 48, y + 130, 38, 30);
+    }
+
+    private void drawPickupBoxBin(GraphicsContext graphicsContext, int boxesLeft) {
+        CollisionRect zone = WorkShiftState.PICKUP_ZONE;
+        double x = zone.left() + 20;
+        double y = zone.top() + 40;
+        double width = zone.width() - 40;
+        double height = zone.height() - 52;
+
+        graphicsContext.setFill(Color.web("#5A321B"));
+        graphicsContext.fillRect(x, y, width, height);
+        graphicsContext.setFill(Color.web("#8B5429"));
+        graphicsContext.fillRect(x + 5, y + 6, width - 10, height - 11);
+        graphicsContext.setStroke(Color.web("#2B170D"));
+        graphicsContext.setLineWidth(3);
+        graphicsContext.strokeRect(x, y, width, height);
+
+        int visibleBoxes = Math.min(12, Math.max(0, boxesLeft));
+        for (int index = 0; index < visibleBoxes; index++) {
+            double boxX = x + 10 + (index % 4) * 23;
+            double boxY = y + 7 + (index / 4) * 11 + (index % 2) * 2;
+            drawTinyCarton(graphicsContext, boxX, boxY, 20, 14);
+        }
+    }
+
+    private void drawTinyCarton(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        graphicsContext.setFill(Color.web("#B76B2E"));
+        graphicsContext.fillRect(x, y, width, height);
+        graphicsContext.setFill(Color.web("#D89A55"));
+        graphicsContext.fillRect(x + 2, y + 2, width - 4, 4);
+        graphicsContext.setStroke(Color.web("#6B341C"));
+        graphicsContext.setLineWidth(1.5);
+        graphicsContext.strokeRect(x, y, width, height);
+    }
+
+    private void drawWorkZone(GraphicsContext graphicsContext, CollisionRect zone, String label, Color color) {
+        graphicsContext.setFill(Color.color(color.getRed(), color.getGreen(), color.getBlue(), 0.25));
+        graphicsContext.fillRect(zone.x(), zone.y(), zone.width(), zone.height());
+        graphicsContext.setStroke(color);
+        graphicsContext.setLineWidth(3);
+        graphicsContext.strokeRect(zone.x(), zone.y(), zone.width(), zone.height());
+
+        graphicsContext.setFill(Color.web("#F8FAFC"));
+        graphicsContext.setTextAlign(TextAlignment.CENTER);
+        graphicsContext.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        graphicsContext.fillText(label, zone.x() + zone.width() / 2.0, zone.y() + 24);
+    }
+
+    private void drawCarriedWorkBox(GraphicsContext graphicsContext,
+                                    Player player,
+                                    WorkShiftState state,
+                                    boolean renderedCarrySprite) {
+        if (!state.carryingBox() || renderedCarrySprite) {
+            return;
+        }
+
+        double boxSize = 42;
+        double drawX = player.centerX() - boxSize / 2.0;
+        double drawY = player.position().y();
+
+        switch (player.direction()) {
+            case BACK -> drawY = player.position().y() - boxSize * 0.55;
+            case FRONT -> drawY = player.position().y() + player.height() * 0.06;
+            case LEFT -> {
+                drawX = player.position().x() - boxSize * 0.68;
+                drawY = player.position().y() - player.height() * 0.08;
+            }
+            case RIGHT -> {
+                drawX = player.position().x() + player.width() - boxSize * 0.32;
+                drawY = player.position().y() - player.height() * 0.08;
+            }
+        }
+
+        drawWorkBox(graphicsContext, drawX, drawY, boxSize, boxSize);
+    }
+
+    private void drawWorkBox(GraphicsContext graphicsContext, double x, double y, double width, double height) {
+        if (workBoxImage != null) {
+            graphicsContext.drawImage(workBoxImage, x, y, width, height);
+            return;
+        }
+
+        graphicsContext.setFill(Color.web("#0B0F14"));
+        graphicsContext.fillRect(x, y, width, height);
+        graphicsContext.setFill(Color.web("#2C1A13"));
+        graphicsContext.fillRect(x + 4, y + 4, width - 8, height - 8);
+        graphicsContext.setFill(Color.web("#D89458"));
+        graphicsContext.fillRect(x + 8, y + 8, width - 16, height / 4.0);
+        graphicsContext.setStroke(Color.web("#F5C48D"));
+        graphicsContext.setLineWidth(3);
+        graphicsContext.strokeLine(x + width * 0.36, y + 8, x + width * 0.72, y + height - 8);
+    }
+
+    private void drawWorkShiftHud(GraphicsContext graphicsContext, GameMap gameMap, WorkShiftState state) {
+        graphicsContext.setFill(Color.color(0.02, 0.04, 0.07, 0.82));
+        graphicsContext.fillRoundRect(gameMap.left() + 18, gameMap.bottom() - 58, 360, 42, 10, 10);
+        graphicsContext.setFill(HIGHLIGHT);
+        graphicsContext.setTextAlign(TextAlignment.LEFT);
+        graphicsContext.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
+        graphicsContext.fillText(
+                "Работа: " + state.deliveredBoxes() + "/" + WorkShiftState.TARGET_BOXES
+                        + " коробок | награда " + WorkShiftState.REWARD_MONEY,
+                gameMap.left() + 34,
+                gameMap.bottom() - 32
+        );
+    }
+
     private Image imageFor(GymObject gymObject) {
         if (gymObject instanceof TrainingMachine trainingMachine) {
             return machineImages.get(trainingMachine.machineType());
@@ -349,6 +1174,14 @@ public final class GameRenderer {
             return zoneImages.get(interactiveZone.zoneType());
         }
         return null;
+    }
+
+    private boolean isWarehouseMap(GameMap gameMap) {
+        return "Работа".equals(gameMap.name());
+    }
+
+    private boolean isGymMap(GameMap gameMap) {
+        return "Зал".equals(gameMap.name());
     }
 
     private Image backgroundImageFor(GameMap gameMap) {
@@ -800,5 +1633,9 @@ public final class GameRenderer {
 
     private record PlayerSpriteSet(Map<PlayerDirection, Image> idleFrames,
                                    Map<PlayerDirection, Image> walkFrames) {
+    }
+
+    private record DirectionalSpriteSet(Map<PlayerDirection, Image> frames,
+                                        Map<PlayerDirection, Image> stepFrames) {
     }
 }
