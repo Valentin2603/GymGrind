@@ -1,6 +1,7 @@
 package gymgrind.save;
 
 import gymgrind.game.LocationId;
+import gymgrind.player.PlayerForm;
 import gymgrind.daily.DailyQuestSaveData;
 import gymgrind.shop.SupplementType;
 
@@ -19,10 +20,14 @@ public record SaveData(
         int money,
         double bodyFat,
         Set<SupplementType> activeSupplements,
+        PlayerForm currentForm,
+        Set<SupplementType> purchasedSupplements,
         DailyQuestSaveData dailyQuests
 ) {
     public SaveData {
-        activeSupplements = Set.copyOf(activeSupplements);
+        activeSupplements = activeSupplements == null ? Set.of() : Set.copyOf(activeSupplements);
+        currentForm = currentForm == null ? PlayerForm.BASE : currentForm;
+        purchasedSupplements = purchasedSupplements == null ? Set.of() : Set.copyOf(purchasedSupplements);
         dailyQuests = dailyQuests == null ? DailyQuestSaveData.empty() : dailyQuests;
     }
 }
