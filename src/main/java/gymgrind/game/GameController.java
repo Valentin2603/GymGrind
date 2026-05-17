@@ -1,5 +1,6 @@
 package gymgrind.game;
 
+import gymgrind.gym.CoachDialoguePool;
 import gymgrind.gym.GameMap;
 import gymgrind.gym.InteractionService;
 import gymgrind.gym.Position;
@@ -45,6 +46,8 @@ public final class GameController {
     private static final double WINDOW_WIDTH = 1280;
     private static final double WINDOW_HEIGHT = 720;
     private static final double ACTIVITY_STAMINA_COST_MULTIPLIER = 1.3;
+    private static final double COACH_SPEECH_DURATION_SECONDS = 9.0;
+    private static final boolean SHOW_COACH_SPEECH = false;
 
     private final Stage stage;
     private final GameView view;
@@ -59,6 +62,7 @@ public final class GameController {
     private final GameRenderer renderer;
     private final CalendarState calendarState;
     private final SaveService saveService;
+    private final CoachDialoguePool coachDialoguePool;
 
     private GameState gameState;
     private Optional<GymObject> nearbyObject;
@@ -66,6 +70,8 @@ public final class GameController {
     private Optional<TrainingSession> activeTrainingSession;
     private Optional<SkillCheckResult> pendingSuccessResult;
     private String statusMessage;
+    private String coachSpeechText;
+    private double coachSpeechTimeLeft;
     private AnimationTimer gameLoop;
 
     public GameController(Stage stage) {
@@ -82,11 +88,14 @@ public final class GameController {
         this.renderer = new GameRenderer();
         this.calendarState = CalendarState.createDefault();
         this.saveService = new SaveService();
+        this.coachDialoguePool = new CoachDialoguePool();
         this.gameState = GameState.MENU;
         this.nearbyObject = Optional.empty();
         this.activeSkillCheck = Optional.empty();
         this.activeTrainingSession = Optional.empty();
         this.pendingSuccessResult = Optional.empty();
+        this.coachSpeechText = "";
+        this.coachSpeechTimeLeft = 0.0;
         this.statusMessage = "Нажмите «Начать», чтобы начать день в комнате игрока.";
     }
 
@@ -136,6 +145,7 @@ public final class GameController {
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
         pendingSuccessResult = Optional.empty();
+        clearCoachSpeech();
         view.hideOverlay();
         statusMessage = "Вы дома. Подойдите к кровати, компьютеру или двери и нажмите E.";
         refreshUi();
@@ -158,6 +168,7 @@ public final class GameController {
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
         pendingSuccessResult = Optional.empty();
+        clearCoachSpeech();
         view.hideOverlay();
         statusMessage = "Сохранение загружено. День " + calendarState.currentDay()
                 + "/" + calendarState.maxDays() + ".";
@@ -232,6 +243,8 @@ public final class GameController {
     }
 
     private void update(double deltaSeconds) {
+        updateCoachSpeech(deltaSeconds);
+
         switch (gameState) {
             case PLAYING -> {
                 movementService.movePlayer(player, inputState, currentMap(), deltaSeconds);
@@ -263,7 +276,8 @@ public final class GameController {
                 nearbyObject,
                 gameState,
                 activeSkillCheck,
-                pendingSuccessResult
+                pendingSuccessResult,
+                coachSpeech()
         );
     }
 
@@ -368,6 +382,7 @@ public final class GameController {
             switch (zone.zoneType()) {
                 case COMPUTER, SHOP -> openShop();
                 case BED -> sleepAtHome();
+                case COACH -> talkToCoach();
                 case DOOR -> openLocationMenu();
                 case REST -> rest();
                 case STAGE -> tryStage();
@@ -440,6 +455,7 @@ public final class GameController {
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
         pendingSuccessResult = Optional.empty();
+        clearCoachSpeech();
         view.hideOverlay();
 
         GameMap destinationMap = locationManager.travelTo(locationId);
@@ -449,6 +465,13 @@ public final class GameController {
         statusMessage = "Вы перешли в локацию: " + locationId.displayName() + ".";
         refreshUi();
         view.requestGameFocus();
+    }
+
+    private void talkToCoach() {
+        coachSpeechText = coachDialoguePool.nextPhrase();
+        coachSpeechTimeLeft = COACH_SPEECH_DURATION_SECONDS;
+        statusMessage = "Тренер делится советом.";
+        refreshUi();
     }
 
     private void sleepAtHome() {
@@ -913,6 +936,32 @@ public final class GameController {
 
     private boolean isTooTiredForMinigame() {
         return player.stats().fatigue() >= 100;
+    }
+
+    private Optional<String> coachSpeech() {
+        if (!SHOW_COACH_SPEECH) {
+            return Optional.empty();
+        }
+        if (coachSpeechText == null || coachSpeechText.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(coachSpeechText);
+    }
+
+    private void updateCoachSpeech(double deltaSeconds) {
+        if (coachSpeechText == null || coachSpeechText.isBlank()) {
+            return;
+        }
+
+        coachSpeechTimeLeft -= deltaSeconds;
+        if (coachSpeechTimeLeft <= 0.0) {
+            clearCoachSpeech();
+        }
+    }
+
+    private void clearCoachSpeech() {
+        coachSpeechText = "";
+        coachSpeechTimeLeft = 0.0;
     }
 
     private GameMap currentMap() {

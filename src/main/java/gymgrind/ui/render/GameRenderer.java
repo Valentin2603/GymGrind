@@ -14,16 +14,20 @@ import gymgrind.training.minigames.SkillCheckResult;
 import gymgrind.training.minigames.SkillCheckSession;
 import gymgrind.training.TrainingMachine;
 import gymgrind.gym.objects.ZoneType;
+import javafx.geometry.VPos;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -77,7 +81,8 @@ public final class GameRenderer {
                        Optional<GymObject> nearbyObject,
                        GameState gameState,
                        Optional<SkillCheckSession> activeSkillCheck,
-                       Optional<SkillCheckResult> pendingSuccessResult) {
+                       Optional<SkillCheckResult> pendingSuccessResult,
+                       Optional<String> coachSpeechText) {
         double canvasWidth = graphicsContext.getCanvas().getWidth();
         double canvasHeight = graphicsContext.getCanvas().getHeight();
 
@@ -87,6 +92,7 @@ public final class GameRenderer {
         drawMap(graphicsContext, gameMap);
         drawObjects(graphicsContext, gameMap, nearbyObject);
         drawPlayer(graphicsContext, player);
+        drawCoachSpeechBubble(graphicsContext, gameMap, coachSpeechText);
         drawDebugCollisions(graphicsContext, gameMap, player);
         drawLegend(graphicsContext, gameState, gameMap);
 
@@ -220,6 +226,75 @@ public final class GameRenderer {
         }
     }
 
+    private void drawCoachSpeechBubble(GraphicsContext graphicsContext,
+                                       GameMap gameMap,
+                                       Optional<String> coachSpeechText) {
+        if (coachSpeechText.isEmpty() || coachSpeechText.get().isBlank()) {
+            return;
+        }
+
+        Optional<InteractiveZone> coachZone = gameMap.objects().stream()
+                .filter(InteractiveZone.class::isInstance)
+                .map(InteractiveZone.class::cast)
+                .filter(zone -> zone.zoneType() == ZoneType.COACH)
+                .findFirst();
+        if (coachZone.isEmpty()) {
+            return;
+        }
+
+        Font bubbleFont = Font.font("Segoe UI", FontWeight.BOLD, 13);
+        double maxTextWidth = 360;
+        List<String> lines = wrapText(coachSpeechText.get(), bubbleFont, maxTextWidth);
+        if (lines.isEmpty()) {
+            return;
+        }
+
+        double lineHeight = 18;
+        double paddingX = 18;
+        double paddingY = 14;
+        double maxLineWidth = lines.stream()
+                .mapToDouble(line -> measureTextWidth(line, bubbleFont))
+                .max()
+                .orElse(180);
+
+        double bubbleWidth = Math.max(240, Math.min(maxTextWidth + paddingX * 2, maxLineWidth + paddingX * 2));
+        double bubbleHeight = lines.size() * lineHeight + paddingY * 2;
+        double anchorX = coachZone.get().centerX();
+        double bubbleLeft = clamp(anchorX - bubbleWidth / 2.0, 20, graphicsContext.getCanvas().getWidth() - bubbleWidth - 20);
+        double bubbleTop = Math.max(20, coachZone.get().top() - bubbleHeight - 30);
+        double tailTipX = clamp(anchorX, bubbleLeft + 36, bubbleLeft + bubbleWidth - 36);
+        double tailTipY = coachZone.get().top() + 8;
+        double tailBaseY = bubbleTop + bubbleHeight - 4;
+
+        graphicsContext.save();
+        graphicsContext.setTextAlign(TextAlignment.LEFT);
+        graphicsContext.setTextBaseline(VPos.TOP);
+        graphicsContext.setFont(bubbleFont);
+
+        graphicsContext.setFill(Color.color(0.03, 0.05, 0.08, 0.26));
+        graphicsContext.fillRoundRect(bubbleLeft + 5, bubbleTop + 6, bubbleWidth, bubbleHeight, 18, 18);
+        fillTriangle(graphicsContext, tailTipX + 5, tailTipY + 6, tailTipX - 13 + 5, tailBaseY + 6, tailTipX + 13 + 5, tailBaseY + 6);
+
+        graphicsContext.setFill(Color.color(0.98, 0.98, 0.99, 0.97));
+        graphicsContext.fillRoundRect(bubbleLeft, bubbleTop, bubbleWidth, bubbleHeight, 18, 18);
+        fillTriangle(graphicsContext, tailTipX, tailTipY, tailTipX - 13, tailBaseY, tailTipX + 13, tailBaseY);
+
+        graphicsContext.setStroke(Color.web("#1F2937"));
+        graphicsContext.setLineWidth(2);
+        graphicsContext.strokeRoundRect(bubbleLeft, bubbleTop, bubbleWidth, bubbleHeight, 18, 18);
+        strokeTriangle(graphicsContext, tailTipX, tailTipY, tailTipX - 13, tailBaseY, tailTipX + 13, tailBaseY);
+
+        graphicsContext.setFill(Color.web("#111827"));
+        for (int index = 0; index < lines.size(); index++) {
+            graphicsContext.fillText(
+                    lines.get(index),
+                    bubbleLeft + paddingX,
+                    bubbleTop + paddingY + index * lineHeight
+            );
+        }
+        graphicsContext.restore();
+    }
+
     private Image playerImageFor(Player player) {
         PlayerSpriteSet spriteSet = spriteSetFor(player.profile());
         if (player.isMoving() && shouldShowWalkFrame()) {
@@ -280,6 +355,78 @@ public final class GameRenderer {
             return null;
         }
         return mapBackgrounds.computeIfAbsent(gameMap.backgroundImagePath(), this::loadImage);
+    }
+
+    private List<String> wrapText(String text, Font font, double maxWidth) {
+        String trimmed = text == null ? "" : text.trim();
+        if (trimmed.isEmpty()) {
+            return List.of();
+        }
+
+        String[] words = trimmed.split("\\s+");
+        List<String> lines = new ArrayList<>();
+        StringBuilder currentLine = new StringBuilder();
+        for (String word : words) {
+            String candidate = currentLine.length() == 0 ? word : currentLine + " " + word;
+            if (currentLine.length() == 0 || measureTextWidth(candidate, font) <= maxWidth) {
+                currentLine.setLength(0);
+                currentLine.append(candidate);
+                continue;
+            }
+
+            lines.add(currentLine.toString());
+            currentLine.setLength(0);
+            currentLine.append(word);
+        }
+
+        if (!currentLine.isEmpty()) {
+            lines.add(currentLine.toString());
+        }
+        return lines;
+    }
+
+    private double measureTextWidth(String text, Font font) {
+        Text helper = new Text(text);
+        helper.setFont(font);
+        return helper.getLayoutBounds().getWidth();
+    }
+
+    private void fillTriangle(GraphicsContext graphicsContext,
+                              double x1,
+                              double y1,
+                              double x2,
+                              double y2,
+                              double x3,
+                              double y3) {
+        graphicsContext.fillPolygon(
+                new double[]{x1, x2, x3},
+                new double[]{y1, y2, y3},
+                3
+        );
+    }
+
+    private void strokeTriangle(GraphicsContext graphicsContext,
+                                double x1,
+                                double y1,
+                                double x2,
+                                double y2,
+                                double x3,
+                                double y3) {
+        graphicsContext.strokePolygon(
+                new double[]{x1, x2, x3},
+                new double[]{y1, y2, y3},
+                3
+        );
+    }
+
+    private double clamp(double value, double min, double max) {
+        if (value < min) {
+            return min;
+        }
+        if (value > max) {
+            return max;
+        }
+        return value;
     }
 
     private Image loadImage(String resourcePath) {
