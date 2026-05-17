@@ -17,10 +17,6 @@ public final class WarehouseProp extends GymObject {
         this.label = label;
     }
 
-    @Override
-    public boolean isInteractive() {
-        return false;
-    }
 
     @Override
     public String shortTypeLabel() {
