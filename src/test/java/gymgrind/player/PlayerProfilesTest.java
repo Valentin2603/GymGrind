@@ -17,10 +17,10 @@ final class PlayerProfilesTest {
 
         assertTrue(darkDrun.isPresent());
         assertEquals("Тёмный друн", darkDrun.get().displayName());
-        assertEquals(12, darkDrun.get().baseStrength());
-        assertEquals(84, darkDrun.get().baseMuscle());
-        assertEquals(6, darkDrun.get().baseStamina());
-        assertEquals(35, darkDrun.get().baseBodyFat());
+        assertEquals(210, darkDrun.get().baseStrength());
+        assertEquals(245, darkDrun.get().baseMuscle());
+        assertEquals(115, darkDrun.get().baseStamina());
+        assertEquals(35.0, darkDrun.get().baseBodyFat());
     }
 
     @Test
@@ -31,9 +31,9 @@ final class PlayerProfilesTest {
 
         assertTrue(fattyPopka.isPresent());
         assertEquals("Жирная Попка", fattyPopka.get().displayName());
-        assertEquals(18, fattyPopka.get().baseStrength());
-        assertEquals(132, fattyPopka.get().baseMuscle());
-        assertEquals(3, fattyPopka.get().baseStamina());
-        assertEquals(60, fattyPopka.get().baseBodyFat());
+        assertEquals(280, fattyPopka.get().baseStrength());
+        assertEquals(315, fattyPopka.get().baseMuscle());
+        assertEquals(85, fattyPopka.get().baseStamina());
+        assertEquals(60.0, fattyPopka.get().baseBodyFat());
     }
 }
