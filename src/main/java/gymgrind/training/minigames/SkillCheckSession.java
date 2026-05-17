@@ -24,6 +24,8 @@ public final class SkillCheckSession {
     private double drainPerSecond;
     private double correctGain;
     private double wrongPenalty;
+    private int sequenceCorrectInputs;
+    private int sequenceWrongInputs;
 
     private SkillCheckSession(TrainingMachine machine,
                               SkillCheckMode mode,
@@ -43,7 +45,9 @@ public final class SkillCheckSession {
                               double barProgress,
                               double drainPerSecond,
                               double correctGain,
-                              double wrongPenalty) {
+                              double wrongPenalty,
+                              int sequenceCorrectInputs,
+                              int sequenceWrongInputs) {
         this.machine = machine;
         this.mode = mode;
         this.requiredHits = requiredHits;
@@ -63,6 +67,8 @@ public final class SkillCheckSession {
         this.drainPerSecond = drainPerSecond;
         this.correctGain = correctGain;
         this.wrongPenalty = wrongPenalty;
+        this.sequenceCorrectInputs = sequenceCorrectInputs;
+        this.sequenceWrongInputs = sequenceWrongInputs;
     }
 
     public static SkillCheckSession timingZone(TrainingMachine machine,
@@ -97,7 +103,9 @@ public final class SkillCheckSession {
                 0.0,
                 0.0,
                 0.0,
-                0.0
+                0.0,
+                0,
+                0
         );
     }
 
@@ -126,7 +134,9 @@ public final class SkillCheckSession {
                 barProgress,
                 drainPerSecond,
                 correctGain,
-                wrongPenalty
+                wrongPenalty,
+                0,
+                0
         );
     }
 
@@ -291,6 +301,26 @@ public final class SkillCheckSession {
 
     public double wrongPenalty() {
         return wrongPenalty;
+    }
+
+    public void registerSequenceCorrectInput() {
+        sequenceCorrectInputs++;
+    }
+
+    public void registerSequenceWrongInput() {
+        sequenceWrongInputs++;
+    }
+
+    public int sequenceCorrectInputs() {
+        return sequenceCorrectInputs;
+    }
+
+    public int sequenceWrongInputs() {
+        return sequenceWrongInputs;
+    }
+
+    public int sequenceInputs() {
+        return sequenceCorrectInputs + sequenceWrongInputs;
     }
 
     public boolean isSequenceCompleted() {

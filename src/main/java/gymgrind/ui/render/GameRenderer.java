@@ -1464,7 +1464,8 @@ public final class GameRenderer {
                 formatDelta("Масса", result.muscleDelta()),
                 formatDelta("Выносл.", result.staminaDelta()),
                 formatDelta("Устал.", result.fatigueDelta()),
-                formatDelta("Деньги", result.moneyDelta())
+                formatDelta("Деньги", result.moneyDelta()),
+                formatFatDelta("Жир", result.bodyFatDelta())
         };
     }
 
@@ -1473,6 +1474,14 @@ public final class GameRenderer {
             return label + " 0";
         }
         return label + " " + (delta > 0 ? "+" : "") + delta;
+    }
+
+    private String formatFatDelta(String label, double delta) {
+        if (Math.abs(delta) < 0.05) {
+            return label + " 0%";
+        }
+        String sign = delta > 0 ? "+" : "";
+        return label + " " + sign + String.format(java.util.Locale.US, "%.1f", delta) + "%";
     }
 
     private Color gradeColor(TrainingGrade grade) {

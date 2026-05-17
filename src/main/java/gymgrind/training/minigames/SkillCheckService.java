@@ -20,10 +20,10 @@ public final class SkillCheckService {
     private static final double TREADMILL_MIN_SUCCESS_ZONE_WIDTH = 0.07;
 
     private static final int SQUAT_PROMPT_LENGTH = 14;
-    private static final double SQUAT_START_BAR_PROGRESS = 0.32;
-    private static final double SQUAT_DRAIN_PER_SECOND = 0.145;
-    private static final double SQUAT_CORRECT_GAIN = 0.125;
-    private static final double SQUAT_WRONG_PENALTY = 0.27;
+    private static final double SQUAT_START_BAR_PROGRESS = 0.34;
+    private static final double SQUAT_DRAIN_PER_SECOND = 0.125;
+    private static final double SQUAT_CORRECT_GAIN = 0.148;
+    private static final double SQUAT_WRONG_PENALTY = 0.24;
     private static final char[] SQUAT_SYMBOLS = "QWERTYUIOPASDFGHJKLZXCVBNM1234567890".toCharArray();
     private static final KeyCode[] TREADMILL_KEYS = {
             KeyCode.Q, KeyCode.W, KeyCode.E, KeyCode.R, KeyCode.T, KeyCode.Y, KeyCode.U, KeyCode.I, KeyCode.O, KeyCode.P,
@@ -41,9 +41,9 @@ public final class SkillCheckService {
                     machine,
                     randomSequencePrompt(Math.max(SQUAT_PROMPT_LENGTH, tuning.rhythmLength())),
                     SQUAT_START_BAR_PROGRESS,
-                    SQUAT_DRAIN_PER_SECOND * tuning.speedMultiplier() * (1.0 - tuning.muscleBonus() * 0.10 + tuning.bodyFatLoad() * 0.08),
-                    SQUAT_CORRECT_GAIN * (1.0 + tuning.strengthBonus() * 0.08 - tuning.bodyFatLoad() * 0.04),
-                    SQUAT_WRONG_PENALTY * Math.sqrt(tuning.speedMultiplier()) * (1.0 - tuning.strengthBonus() * 0.10 + tuning.bodyFatLoad() * 0.09)
+                    SQUAT_DRAIN_PER_SECOND * tuning.speedMultiplier() * squatBodyPenalty(tuning),
+                    SQUAT_CORRECT_GAIN * squatControlBonus(tuning),
+                    SQUAT_WRONG_PENALTY * Math.sqrt(tuning.speedMultiplier()) * squatMistakePenalty(tuning)
             );
             default -> startTimingSession(trainingSession, strength);
         };
@@ -107,6 +107,7 @@ public final class SkillCheckService {
 
     public boolean registerSequenceInput(SkillCheckSession session, char inputSymbol) {
         if (inputSymbol == session.expectedSequenceSymbol()) {
+            session.registerSequenceCorrectInput();
             double nextBarProgress = Math.min(1.0, session.barProgress() + session.correctGain());
             session.setBarProgress(nextBarProgress);
             if (!session.isSequenceCompleted()) {
@@ -115,6 +116,7 @@ public final class SkillCheckService {
             return true;
         }
 
+        session.registerSequenceWrongInput();
         double nextBarProgress = Math.max(0.0, session.barProgress() - session.wrongPenalty());
         session.setBarProgress(nextBarProgress);
         return false;
@@ -124,7 +126,7 @@ public final class SkillCheckService {
         return switch (session.machine().machineType()) {
             case BENCH_PRESS -> new SkillCheckResult(
                     true,
-                    session.machine().name() + ": серия собрана. Сила +2, масса +1, усталость +6.",
+                    session.machine().name() + ": серия собрана, штанга прошла ровно.",
                     2,
                     1,
                     0,
@@ -133,7 +135,13 @@ public final class SkillCheckService {
             );
             case SQUAT_RACK -> new SkillCheckResult(
                     true,
-                    session.machine().name() + ": подход дожат. Сила +1, масса +2, выносливость +1, усталость +8.",
+                    sequenceGrade(session),
+                    session.machine().name()
+                            + ": присед дожат. Верных клавиш "
+                            + session.sequenceCorrectInputs()
+                            + ", ошибок "
+                            + session.sequenceWrongInputs()
+                            + ".",
                     1,
                     2,
                     1,
@@ -142,7 +150,7 @@ public final class SkillCheckService {
             );
             case TREADMILL -> new SkillCheckResult(
                     true,
-                    session.machine().name() + ": интервальный бег выдержан. Выносливость +4, усталость +7.",
+                    session.machine().name() + ": интервальный бег выдержан.",
                     0,
                     0,
                     4,
@@ -151,7 +159,7 @@ public final class SkillCheckService {
             );
             case DEADLIFT_PLATFORM -> new SkillCheckResult(
                     true,
-                    session.machine().name() + ": мощный подъём. Сила +2, масса +1, выносливость +1, усталость +9.",
+                    session.machine().name() + ": мощный подъём, техника удержана.",
                     2,
                     1,
                     1,
@@ -170,7 +178,7 @@ public final class SkillCheckService {
                             + session.completedHits()
                             + "/"
                             + session.requiredHits()
-                            + ". Прогресса нет, усталость +5.",
+                            + ".",
                     0,
                     0,
                     0,
@@ -179,7 +187,12 @@ public final class SkillCheckService {
             );
             case SQUAT_RACK -> new SkillCheckResult(
                     false,
-                    session.machine().name() + ": ритм развалился, полоса опустела. Прогресса нет, усталость +7.",
+                    session.machine().name()
+                            + ": ритм развалился, шкала опустела. Верных клавиш "
+                            + session.sequenceCorrectInputs()
+                            + ", ошибок "
+                            + session.sequenceWrongInputs()
+                            + ".",
                     0,
                     0,
                     0,
@@ -193,7 +206,7 @@ public final class SkillCheckService {
                             + session.completedHits()
                             + "/"
                             + session.requiredHits()
-                            + ". Прогресса нет, усталость +2.",
+                            + ".",
                     0,
                     0,
                     0,
@@ -202,7 +215,7 @@ public final class SkillCheckService {
             );
             case DEADLIFT_PLATFORM -> new SkillCheckResult(
                     false,
-                    session.machine().name() + ": мимо зелёной зоны. Прогресса нет, усталость +7.",
+                    session.machine().name() + ": сила ушла мимо рабочей зоны.",
                     0,
                     0,
                     0,
@@ -303,7 +316,7 @@ public final class SkillCheckService {
             return session.machine().name()
                     + ": верно. Следующий символ "
                     + session.expectedSequenceSymbol()
-                    + ". Полоса "
+                    + ". Шкала "
                     + percent
                     + "%.";
         }
@@ -311,7 +324,7 @@ public final class SkillCheckService {
         return session.machine().name()
                 + ": ошибка. Нужен символ "
                 + session.expectedSequenceSymbol()
-                + ". Полоса "
+                + ". Шкала "
                 + percent
                 + "%.";
     }
@@ -413,6 +426,38 @@ public final class SkillCheckService {
             case DEADLIFT_PLATFORM -> 1.12;
             case SQUAT_RACK -> 1.00;
         };
+    }
+
+    private TrainingGrade sequenceGrade(SkillCheckSession session) {
+        int inputs = Math.max(1, session.sequenceInputs());
+        double accuracy = session.sequenceCorrectInputs() / (double) inputs;
+        if (session.sequenceWrongInputs() <= 1 && accuracy >= 0.86) {
+            return TrainingGrade.EXCELLENT;
+        }
+        return TrainingGrade.NORMAL;
+    }
+
+    private double squatBodyPenalty(TrainingTuning tuning) {
+        return 1.0
+                - tuning.muscleBonus() * 0.09
+                - tuning.staminaBonus() * 0.08
+                + tuning.bodyFatLoad() * 0.16;
+    }
+
+    private double squatControlBonus(TrainingTuning tuning) {
+        return clamp(
+                1.0 + tuning.strengthBonus() * 0.08 + tuning.staminaBonus() * 0.05 - tuning.bodyFatLoad() * 0.08,
+                0.82,
+                1.12
+        );
+    }
+
+    private double squatMistakePenalty(TrainingTuning tuning) {
+        return clamp(
+                1.0 - tuning.strengthBonus() * 0.08 - tuning.staminaBonus() * 0.05 + tuning.bodyFatLoad() * 0.18,
+                0.86,
+                1.24
+        );
     }
 
     private double randomSuccessZoneStart(double successZoneWidth) {

@@ -96,17 +96,7 @@ public final class TrainingService {
     public TrainingOutcome finishTraining(Player player, TrainingSession session, MinigameResult result) {
         TrainingReward finalReward = session.reward().scaleProgress(result.grade().rewardMultiplier());
         player.stats().addTrainingReward(finalReward);
-
-        String message = session.machine().name()
-                + ": " + result.grade().label()
-                + ". " + result.details()
-                + " Получено: сила +" + finalReward.strength()
-                + ", масса +" + finalReward.muscle()
-                + ", выносливость +" + finalReward.stamina()
-                + ", усталость +" + finalReward.fatigue()
-                + ".";
-
-        return new TrainingOutcome(finalReward, message);
+        return new TrainingOutcome(finalReward, buildResultDescription(session, result));
     }
 
     public boolean isSupportedMinigame(MachineType machineType) {
@@ -121,6 +111,43 @@ public final class TrainingService {
             case TREADMILL -> new TrainingReward(0, 0, 12, 7, -2);
             case DEADLIFT_PLATFORM -> new TrainingReward(14, 5, 0, 13, 0);
         };
+    }
+
+    private String buildResultDescription(TrainingSession session, MinigameResult result) {
+        String base = switch (session.machine().machineType()) {
+            case BENCH_PRESS -> switch (result.grade()) {
+                case EXCELLENT -> "Жим получился мощным и ровным: штанга почти не гуляла.";
+                case NORMAL -> "Жим засчитан: подход рабочий, но штангу немного водило.";
+                case FAIL -> "Жим вышел тяжёлым: контроль штанги сорвался, прогресс снижен.";
+            };
+            case SQUAT_RACK -> switch (result.grade()) {
+                case EXCELLENT -> "Присед отличный: ритм, глубина и техника удержаны почти без ошибок.";
+                case NORMAL -> "Присед засчитан: подход дожат, но техника была не идеально стабильной.";
+                case FAIL -> "Присед сорвался: ритм потерян, поэтому прогресс сильно снижен.";
+            };
+            case TREADMILL -> switch (result.grade()) {
+                case EXCELLENT -> "Беговая прошла отлично: интервалы выдержаны в хорошем темпе.";
+                case NORMAL -> "Беговая засчитана: темп удержан, но были неточные интервалы.";
+                case FAIL -> "Беговая далась тяжело: темп часто сбивался, прогресс снижен.";
+            };
+            case DEADLIFT_PLATFORM -> switch (result.grade()) {
+                case EXCELLENT -> "Становая отличная: сила держалась в рабочей зоне почти весь подход.";
+                case NORMAL -> "Становая засчитана: подъём выполнен, но мощность плавала.";
+                case FAIL -> "Становая сорвалась: сила ушла мимо рабочей зоны, прогресс снижен.";
+            };
+        };
+
+        if (result.details() == null || result.details().isBlank()) {
+            return session.machine().name() + ": " + result.grade().label() + ". " + base;
+        }
+
+        return session.machine().name()
+                + ": "
+                + result.grade().label()
+                + ". "
+                + base
+                + " "
+                + result.details();
     }
 
     private double statBonus(int stat) {
