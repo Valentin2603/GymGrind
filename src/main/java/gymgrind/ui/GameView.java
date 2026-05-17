@@ -140,6 +140,10 @@ public final class GameView extends StackPane {
         dailyQuestPanel.showCompletion(notification);
     }
 
+    public void setHudCompactMode(boolean compactMode) {
+        hud.setCompactMode(compactMode);
+    }
+
     public void setInteractionPrompt(String text) {
         interactionPrompt.setText(text);
         interactionPrompt.setVisible(!text.isBlank());

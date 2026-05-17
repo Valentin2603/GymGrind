@@ -59,6 +59,7 @@ public final class Hud extends VBox {
     private final Label bodyFatLabel;
     private final Label formLabel;
     private boolean statsVisible;
+    private boolean compactMode;
 
     public Hud() {
         setSpacing(8);
@@ -134,6 +135,28 @@ public final class Hud extends VBox {
         fatigueLabel.setText("Усталость: " + stats.fatigue());
         bodyFatLabel.setText("Жир: " + stats.bodyFatPercent() + "%");
         formLabel.setText("Форма: " + stats.form());
+    }
+
+    public void setCompactMode(boolean compactMode) {
+        if (this.compactMode == compactMode) {
+            return;
+        }
+
+        this.compactMode = compactMode;
+        if (compactMode) {
+            setStatsVisible(false);
+            setScaleX(0.55);
+            setScaleY(0.55);
+            setTranslateX(HUD_WIDTH * 0.22);
+            setTranslateY(-HUD_HEIGHT * 0.22);
+            setOpacity(0.92);
+        } else {
+            setScaleX(1.0);
+            setScaleY(1.0);
+            setTranslateX(0);
+            setTranslateY(0);
+            setOpacity(1.0);
+        }
     }
 
     private Pane createHudFrame() {

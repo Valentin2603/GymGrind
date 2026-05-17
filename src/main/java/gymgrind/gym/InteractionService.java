@@ -13,6 +13,7 @@ public final class InteractionService {
 
     public Optional<GymObject> findNearbyObject(Player player, GameMap gameMap) {
         return gameMap.objects().stream()
+                .filter(GymObject::isInteractive)
                 .filter(object -> distanceBetween(player, object) <= INTERACTION_DISTANCE)
                 .min(Comparator.comparingDouble(object -> distanceBetween(player, object)));
     }

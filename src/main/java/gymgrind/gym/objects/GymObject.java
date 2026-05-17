@@ -63,6 +63,10 @@ public abstract class GymObject {
         return position.y() + height / 2.0;
     }
 
+    public boolean isInteractive() {
+        return true;
+    }
+
     public abstract String shortTypeLabel();
 
     public abstract String interact();
