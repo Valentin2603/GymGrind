@@ -114,7 +114,45 @@ public final class PlayerProfiles {
             300,
             60,
             96,
-            96
+            96,
+            List.of(
+                    new PlayerFormDefinition(
+                            PlayerForm.SECOND,
+                            "fatty_popka_second",
+                            285,
+                            320,
+                            110,
+                            48.0,
+                            null
+                    ),
+                    new PlayerFormDefinition(
+                            PlayerForm.THIRD,
+                            "fatty_popka_third",
+                            295,
+                            330,
+                            135,
+                            34.0,
+                            null
+                    ),
+                    new PlayerFormDefinition(
+                            PlayerForm.FOURTH,
+                            "fatty_popka_fourth",
+                            310,
+                            350,
+                            155,
+                            22.0,
+                            null
+                    ),
+                    new PlayerFormDefinition(
+                            PlayerForm.FOURTH_STEROIDS,
+                            "fatty_popka_fourth_steroids",
+                            330,
+                            385,
+                            175,
+                            15.5,
+                            SupplementType.RECOVERY_SHOT
+                    )
+            )
     );
 
     private static final List<PlayerProfile> ALL = List.of(STREET_ROOKIE, DARK_DRUN, FATTY_POPKA);

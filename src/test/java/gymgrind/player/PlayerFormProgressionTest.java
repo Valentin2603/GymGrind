@@ -64,4 +64,44 @@ final class PlayerFormProgressionTest {
         assertEquals(Optional.of(PlayerForm.FOURTH_STEROIDS), secondUnlock);
         assertTrue(player.hasPurchasedSupplement(SupplementType.RECOVERY_SHOT));
     }
+
+    @Test
+    void fattyPopkaUnlocksSecondFormMostlyThroughFatLoss() {
+        Player player = Player.createDefault(GameMap.createHomeLayout());
+        player.applyProfile(PlayerProfiles.findById("fatty_popka"), GameMap.createHomeLayout());
+        player.stats().restoreValues(285, 320, 110, 0, 300, 48.0);
+
+        Optional<PlayerForm> unlockedForm = player.unlockFormAfterSleep();
+
+        assertEquals(Optional.of(PlayerForm.SECOND), unlockedForm);
+        assertEquals(PlayerForm.SECOND, player.currentForm());
+    }
+
+    @Test
+    void fattyPopkaCanReachRegularFourthFormWithoutSteroids() {
+        Player player = Player.createDefault(GameMap.createHomeLayout());
+        player.applyProfile(PlayerProfiles.findById("fatty_popka"), GameMap.createHomeLayout());
+        player.stats().restoreValues(315, 355, 160, 0, 300, 21.5);
+
+        Optional<PlayerForm> unlockedForm = player.unlockFormAfterSleep();
+
+        assertEquals(Optional.of(PlayerForm.FOURTH), unlockedForm);
+        assertEquals(PlayerForm.FOURTH, player.currentForm());
+    }
+
+    @Test
+    void fattyPopkaSteroidFormRequiresRecoveryShot() {
+        Player player = Player.createDefault(GameMap.createHomeLayout());
+        player.applyProfile(PlayerProfiles.findById("fatty_popka"), GameMap.createHomeLayout());
+        player.stats().restoreValues(335, 390, 180, 0, 300, 15.0);
+
+        Optional<PlayerForm> firstUnlock = player.unlockFormAfterSleep();
+        assertEquals(Optional.of(PlayerForm.FOURTH), firstUnlock);
+
+        player.recordPurchase(SupplementType.RECOVERY_SHOT);
+        Optional<PlayerForm> secondUnlock = player.unlockFormAfterSleep();
+
+        assertEquals(Optional.of(PlayerForm.FOURTH_STEROIDS), secondUnlock);
+        assertTrue(player.hasPurchasedSupplement(SupplementType.RECOVERY_SHOT));
+    }
 }

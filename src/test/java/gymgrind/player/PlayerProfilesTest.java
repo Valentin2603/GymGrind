@@ -36,5 +36,6 @@ final class PlayerProfilesTest {
         assertEquals(315, fattyPopka.get().baseMuscle());
         assertEquals(85, fattyPopka.get().baseStamina());
         assertEquals(60.0, fattyPopka.get().baseBodyFat());
+        assertEquals(4, fattyPopka.get().formProgression().size());
     }
 }

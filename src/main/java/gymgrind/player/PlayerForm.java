@@ -4,6 +4,7 @@ public enum PlayerForm {
     BASE("Base"),
     SECOND("Second"),
     THIRD("Third"),
+    FOURTH("Fourth"),
     FOURTH_STEROIDS("FourthSteroids");
 
     private final String displayName;
