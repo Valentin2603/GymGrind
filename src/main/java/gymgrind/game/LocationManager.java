@@ -1,5 +1,6 @@
 package gymgrind.game;
 
+import gymgrind.gym.CompetitionStageMap;
 import gymgrind.gym.GameMap;
 
 import java.util.EnumMap;
@@ -16,7 +17,7 @@ public final class LocationManager {
         locations.put(LocationId.HOME, GameMap.createHomeLayout());
         locations.put(LocationId.GYM, GameMap.createGymLayout());
         locations.put(LocationId.WORK, GameMap.createWorkLayout());
-        locations.put(LocationId.STAGE, GameMap.createStageLayout());
+        locations.put(LocationId.STAGE, CompetitionStageMap.createLayout());
 
         if (locations.size() != LocationId.values().length) {
             throw new IllegalStateException("Each LocationId must have a registered GameMap");

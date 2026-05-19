@@ -57,6 +57,19 @@ final class LocationManagerTest {
         assertFalse(gymZones.contains(ZoneType.REST));
     }
 
+    @Test
+    void stageLayoutUsesCompetitionBackgroundAndDoorZone() {
+        LocationManager manager = new LocationManager();
+        GameMap stageMap = manager.mapFor(LocationId.STAGE);
+
+        List<ZoneType> stageZones = extractZoneTypes(stageMap);
+
+        assertTrue(stageMap.hasBackgroundImage());
+        assertTrue(stageMap.hasCollisionAreas());
+        assertTrue(stageMap.backgroundImagePath().contains("competition_stage.png"));
+        assertTrue(stageZones.contains(ZoneType.DOOR));
+    }
+
     private List<ZoneType> extractZoneTypes(GameMap gameMap) {
         return gameMap.objects().stream()
                 .filter(InteractiveZone.class::isInstance)

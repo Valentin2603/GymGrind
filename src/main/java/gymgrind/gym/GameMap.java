@@ -308,6 +308,10 @@ public final class GameMap {
     }
 
     public static GameMap createStageLayout() {
+        // Legacy entry point: keep old callers on the new competition stage layout.
+        if (CompetitionStageMap.class != null) {
+            return CompetitionStageMap.createLayout();
+        }
         return new GameMap(
                 "Сцена",
                 "Отдельная локация под будущие выступления. Пока здесь только точка перехода.",
