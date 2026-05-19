@@ -14,16 +14,16 @@ public final class SkillCheckService {
     private static final double MIN_MARKER_PROGRESS = 0.0;
     private static final double MAX_MARKER_PROGRESS = 1.0;
 
-    private static final int TREADMILL_TARGET_HITS = 7;
-    private static final int TREADMILL_ATTEMPTS = 11;
-    private static final double TREADMILL_SUCCESS_ZONE_SHRINK = 0.009;
-    private static final double TREADMILL_MIN_SUCCESS_ZONE_WIDTH = 0.10;
+    private static final int TREADMILL_TARGET_HITS = 8;
+    private static final int TREADMILL_ATTEMPTS = 12;
+    private static final double TREADMILL_SUCCESS_ZONE_SHRINK = 0.011;
+    private static final double TREADMILL_MIN_SUCCESS_ZONE_WIDTH = 0.09;
 
     private static final int SQUAT_PROMPT_LENGTH = 14;
-    private static final double SQUAT_START_BAR_PROGRESS = 0.34;
-    private static final double SQUAT_DRAIN_PER_SECOND = 0.125;
-    private static final double SQUAT_CORRECT_GAIN = 0.148;
-    private static final double SQUAT_WRONG_PENALTY = 0.24;
+    private static final double SQUAT_START_BAR_PROGRESS = 0.28;
+    private static final double SQUAT_DRAIN_PER_SECOND = 0.15;
+    private static final double SQUAT_CORRECT_GAIN = 0.128;
+    private static final double SQUAT_WRONG_PENALTY = 0.27;
     private static final char[] SQUAT_SYMBOLS = "QWERTYUIOPASDFGHJKLZXCVBNM1234567890".toCharArray();
     private static final KeyCode[] TREADMILL_KEYS = {
             KeyCode.Q, KeyCode.W, KeyCode.E, KeyCode.R, KeyCode.T, KeyCode.Y, KeyCode.U, KeyCode.I, KeyCode.O, KeyCode.P,
@@ -238,7 +238,7 @@ public final class SkillCheckService {
         TrainingGrade grade;
         if (hits >= session.requiredHits() + 2 && misses <= 2) {
             grade = TrainingGrade.EXCELLENT;
-        } else if (hits >= Math.max(4, session.requiredHits() - 2)) {
+        } else if (hits >= Math.max(5, session.requiredHits() - 1)) {
             grade = TrainingGrade.NORMAL;
         } else {
             grade = TrainingGrade.FAIL;
@@ -334,8 +334,8 @@ public final class SkillCheckService {
         TrainingTuning tuning = trainingSession.tuning();
         double successZoneWidth = clamp(
                 successZoneWidthFor(machine.machineType()) * tuning.zoneMultiplier() * (1.0 + tuning.staminaBonus() * 0.10 - tuning.bodyFatLoad() * 0.04),
-                machine.machineType() == MachineType.TREADMILL ? 0.11 : 0.08,
-                machine.machineType() == MachineType.TREADMILL ? 0.30 : 0.24
+                machine.machineType() == MachineType.TREADMILL ? 0.10 : 0.08,
+                machine.machineType() == MachineType.TREADMILL ? 0.28 : 0.24
         );
         double markerSpeedMultiplier = tuning.speedMultiplier() * (1.0 - tuning.staminaBonus() * 0.16 + tuning.bodyFatLoad() * 0.05);
         return SkillCheckSession.timingZone(
@@ -413,7 +413,7 @@ public final class SkillCheckService {
     private double successZoneWidthFor(MachineType machineType) {
         return switch (machineType) {
             case BENCH_PRESS -> 0.19;
-            case TREADMILL -> 0.22;
+            case TREADMILL -> 0.20;
             case DEADLIFT_PLATFORM -> 0.14;
             case SQUAT_RACK -> 0.17;
         };
@@ -422,7 +422,7 @@ public final class SkillCheckService {
     private double markerSpeedFor(MachineType machineType, int strength) {
         return switch (machineType) {
             case BENCH_PRESS -> 1.00;
-            case TREADMILL -> 1.55;
+            case TREADMILL -> 1.62;
             case DEADLIFT_PLATFORM -> 1.12;
             case SQUAT_RACK -> 1.00;
         };
@@ -439,24 +439,24 @@ public final class SkillCheckService {
 
     private double squatBodyPenalty(TrainingTuning tuning) {
         return 1.0
-                - tuning.muscleBonus() * 0.09
-                - tuning.staminaBonus() * 0.08
-                + tuning.bodyFatLoad() * 0.16;
+                - tuning.muscleBonus() * 0.05
+                - tuning.staminaBonus() * 0.05
+                + tuning.bodyFatLoad() * 0.14;
     }
 
     private double squatControlBonus(TrainingTuning tuning) {
         return clamp(
-                1.0 + tuning.strengthBonus() * 0.08 + tuning.staminaBonus() * 0.05 - tuning.bodyFatLoad() * 0.08,
-                0.82,
-                1.12
+                1.0 + tuning.strengthBonus() * 0.05 + tuning.staminaBonus() * 0.03 - tuning.bodyFatLoad() * 0.06,
+                0.84,
+                1.08
         );
     }
 
     private double squatMistakePenalty(TrainingTuning tuning) {
         return clamp(
-                1.0 - tuning.strengthBonus() * 0.08 - tuning.staminaBonus() * 0.05 + tuning.bodyFatLoad() * 0.18,
-                0.86,
-                1.24
+                1.0 - tuning.strengthBonus() * 0.04 - tuning.staminaBonus() * 0.03 + tuning.bodyFatLoad() * 0.16,
+                0.88,
+                1.22
         );
     }
 

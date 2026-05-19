@@ -12,4 +12,5 @@ module gymgrind {
     exports gymgrind.training.minigames;
     exports gymgrind.ui;
     exports gymgrind.ui.render;
+    exports gymgrind.ui.tutorial;
 }
