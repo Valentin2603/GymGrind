@@ -19,7 +19,7 @@ public final class InteractionService {
     }
 
     public String buildPrompt(Optional<GymObject> nearbyObject, GameState gameState) {
-        if (gameState != GameState.PLAYING) {
+        if (gameState != GameState.PLAYING && gameState != GameState.COMPETITION) {
             return "";
         }
 

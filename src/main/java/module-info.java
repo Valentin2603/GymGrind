@@ -1,5 +1,6 @@
 module gymgrind {
     requires javafx.controls;
+    requires javafx.swing;
 
     exports gymgrind.app;
     exports gymgrind.assets;

@@ -112,7 +112,7 @@ public final class Hud extends VBox {
     }
 
     public void update(Player player, GameState gameState, CalendarState calendarState) {
-        boolean visible = gameState != GameState.MENU;
+        boolean visible = gameState != GameState.MENU && gameState != GameState.COMPETITION_INTRO;
         setVisible(visible);
         setManaged(visible);
         if (!visible) {
