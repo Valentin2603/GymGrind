@@ -524,11 +524,108 @@ public final class GameView extends StackPane {
         showOverlay(panel);
     }
 
+    public void showConfirmationDialog(String titleText,
+                                       String messageText,
+                                       String confirmText,
+                                       String cancelText,
+                                       Runnable onConfirm,
+                                       Runnable onCancel) {
+        VBox panel = new VBox(14);
+        panel.setAlignment(Pos.CENTER);
+        panel.setMaxWidth(460);
+        panel.setPadding(new Insets(24));
+        panel.setStyle("-fx-background-color: rgba(8, 15, 23, 0.94);"
+                + "-fx-background-radius: 18;"
+                + "-fx-border-color: #F59E0B;"
+                + "-fx-border-radius: 18;"
+                + "-fx-border-width: 2;");
+
+        Label title = new Label(titleText);
+        title.setFont(Font.font("Segoe UI", 24));
+        title.setStyle("-fx-text-fill: #F8FAFC; -fx-font-weight: bold;");
+
+        Label message = new Label(messageText);
+        message.setFont(Font.font("Segoe UI", 15));
+        message.setWrapText(true);
+        message.setAlignment(Pos.CENTER);
+        message.setStyle("-fx-text-fill: #CBD5E1;");
+
+        Button confirm = createOverlayButton(confirmText, "#D97706");
+        Button cancel = createOverlayButton(cancelText, "#475569");
+        confirm.setPrefWidth(320);
+        cancel.setPrefWidth(320);
+        confirm.setOnAction(event -> onConfirm.run());
+        cancel.setOnAction(event -> onCancel.run());
+
+        panel.getChildren().addAll(title, message, confirm, cancel);
+        showOverlay(panel);
+    }
+
+    public void showStackedMessageDialog(String titleText,
+                                         String messageText,
+                                         String buttonText,
+                                         Runnable onClose) {
+        StackPane shell = new StackPane();
+        shell.setPickOnBounds(true);
+        shell.setStyle("-fx-background-color: rgba(2, 6, 23, 0.30);");
+
+        VBox panel = new VBox(14);
+        panel.setAlignment(Pos.CENTER);
+        panel.setMaxWidth(460);
+        panel.setPadding(new Insets(24));
+        panel.setStyle("-fx-background-color: rgba(8, 15, 23, 0.97);"
+                + "-fx-background-radius: 18;"
+                + "-fx-border-color: #EF4444;"
+                + "-fx-border-radius: 18;"
+                + "-fx-border-width: 2;");
+
+        Label title = new Label(titleText);
+        title.setFont(Font.font("Segoe UI", 24));
+        title.setStyle("-fx-text-fill: #F8FAFC; -fx-font-weight: bold;");
+
+        Label message = new Label(messageText);
+        message.setFont(Font.font("Segoe UI", 15));
+        message.setWrapText(true);
+        message.setAlignment(Pos.CENTER);
+        message.setStyle("-fx-text-fill: #CBD5E1;");
+
+        Button close = createOverlayButton(buttonText, "#DC2626");
+        close.setPrefWidth(320);
+        close.setOnAction(event -> {
+            hideTopOverlay();
+            onClose.run();
+        });
+
+        panel.getChildren().addAll(title, message, close);
+        shell.getChildren().add(panel);
+        showStackedOverlay(shell);
+    }
+
     public void showOverlay(Node node) {
         overlayLayer.getChildren().setAll(node);
         overlayLayer.setVisible(true);
         overlayLayer.setManaged(true);
         Platform.runLater(node::requestFocus);
+    }
+
+    public void showStackedOverlay(Node node) {
+        overlayLayer.getChildren().add(node);
+        overlayLayer.setVisible(true);
+        overlayLayer.setManaged(true);
+        Platform.runLater(node::requestFocus);
+    }
+
+    public void hideTopOverlay() {
+        int childCount = overlayLayer.getChildren().size();
+        if (childCount == 0) {
+            return;
+        }
+
+        overlayLayer.getChildren().remove(childCount - 1);
+        if (overlayLayer.getChildren().isEmpty()) {
+            overlayLayer.setVisible(false);
+            overlayLayer.setManaged(false);
+        }
     }
 
     public void hideOverlay() {

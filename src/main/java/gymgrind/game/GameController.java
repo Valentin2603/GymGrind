@@ -13,6 +13,7 @@ import gymgrind.gym.objects.ZoneType;
 import gymgrind.player.MovementService;
 import gymgrind.player.Player;
 import gymgrind.player.PlayerForm;
+import gymgrind.player.PlayerFormDefinition;
 import gymgrind.player.PlayerProfile;
 import gymgrind.player.PlayerProfiles;
 import gymgrind.player.Stats;
@@ -487,7 +488,7 @@ public final class GameController {
         view.showLocationMenu(
                 locationManager.currentLocation(),
                 locationManager.availableDestinations(),
-                this::travelToLocation,
+                this::handleLocationSelection,
                 this::closeLocationMenu
         );
         refreshUi();
@@ -525,6 +526,50 @@ public final class GameController {
         statusMessage = "Вы перешли в локацию: " + locationId.displayName() + ".";
         refreshUi();
         view.requestGameFocus();
+    }
+
+    private void handleLocationSelection(LocationId locationId) {
+        if (locationId == LocationId.STAGE) {
+            tryOpenCompetitionStage();
+            return;
+        }
+
+        travelToLocation(locationId);
+    }
+
+    private void tryOpenCompetitionStage() {
+        Optional<PlayerFormDefinition> naturalStageRequirement = player.profile().strongestNaturalFormDefinition();
+        if (naturalStageRequirement.isEmpty() || !naturalStageRequirement.get().isUnlockedFor(player)) {
+            statusMessage = "На сцену ещё рано. Сначала доведи персонажа до его последней натуральной формы.";
+            view.showStackedMessageDialog(
+                    "Пока Рано",
+                    "Для выхода на сцену персонаж должен дотянуться до своей последней натуральной формы. "
+                            + "Пока характеристик недостаточно.",
+                    "Понял",
+                    () -> {
+                        statusMessage = "Выберите локацию для перехода.";
+                        refreshUi();
+                    }
+            );
+            refreshUi();
+            return;
+        }
+
+        statusMessage = "Форма подходит. Ты уверен, что хочешь выйти на сцену?";
+        view.showConfirmationDialog(
+                "Выход На Сцену",
+                "Персонаж уже дотягивает до последней натуральной формы. Точно идём на сцену соревнований?",
+                "Да, выйти",
+                "Нет, назад",
+                this::confirmCompetitionStageTravel,
+                this::openLocationMenu
+        );
+        refreshUi();
+    }
+
+    private void confirmCompetitionStageTravel() {
+        showQuestNotifications(dailyQuestManager.onStage(player));
+        travelToLocation(LocationId.STAGE);
     }
 
     private void talkToCoach() {

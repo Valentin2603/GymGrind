@@ -3,6 +3,7 @@ package gymgrind.player;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public final class PlayerProfile {
 
@@ -171,6 +172,12 @@ public final class PlayerProfile {
 
     public List<PlayerFormDefinition> formProgression() {
         return formProgression;
+    }
+
+    public Optional<PlayerFormDefinition> strongestNaturalFormDefinition() {
+        return formProgression.stream()
+                .filter(definition -> definition.requiredPurchasedSupplement() == null)
+                .reduce((first, second) -> second);
     }
 
     private PlayerFormDefinition formDefinition(PlayerForm form) {

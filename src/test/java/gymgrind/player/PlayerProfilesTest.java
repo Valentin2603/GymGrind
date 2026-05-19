@@ -22,6 +22,7 @@ final class PlayerProfilesTest {
         assertEquals(115, darkDrun.get().baseStamina());
         assertEquals(35.0, darkDrun.get().baseBodyFat());
         assertEquals(3, darkDrun.get().formProgression().size());
+        assertEquals(PlayerForm.THIRD, darkDrun.get().strongestNaturalFormDefinition().orElseThrow().form());
     }
 
     @Test
@@ -37,5 +38,6 @@ final class PlayerProfilesTest {
         assertEquals(85, fattyPopka.get().baseStamina());
         assertEquals(60.0, fattyPopka.get().baseBodyFat());
         assertEquals(4, fattyPopka.get().formProgression().size());
+        assertEquals(PlayerForm.FOURTH, fattyPopka.get().strongestNaturalFormDefinition().orElseThrow().form());
     }
 }

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class PlayerFormProgressionTest {
@@ -103,5 +104,39 @@ final class PlayerFormProgressionTest {
 
         assertEquals(Optional.of(PlayerForm.FOURTH_STEROIDS), secondUnlock);
         assertTrue(player.hasPurchasedSupplement(SupplementType.RECOVERY_SHOT));
+    }
+
+    @Test
+    void tamikCanQualifyForStageWithoutSteroidForm() {
+        Player player = Player.createDefault(GameMap.createHomeLayout());
+        player.stats().restoreValues(200, 225, 245, 0, 300, 9.6);
+
+        boolean canEnterStage = player.profile()
+                .strongestNaturalFormDefinition()
+                .orElseThrow()
+                .isUnlockedFor(player);
+
+        assertTrue(canEnterStage);
+    }
+
+    @Test
+    void fattyPopkaNeedsFourthNaturalFormForStage() {
+        Player player = Player.createDefault(GameMap.createHomeLayout());
+        player.applyProfile(PlayerProfiles.findById("fatty_popka"), GameMap.createHomeLayout());
+        player.stats().restoreValues(295, 330, 135, 0, 300, 34.0);
+
+        boolean canEnterStageAtThird = player.profile()
+                .strongestNaturalFormDefinition()
+                .orElseThrow()
+                .isUnlockedFor(player);
+
+        player.stats().restoreValues(310, 350, 155, 0, 300, 22.0);
+        boolean canEnterStageAtFourth = player.profile()
+                .strongestNaturalFormDefinition()
+                .orElseThrow()
+                .isUnlockedFor(player);
+
+        assertFalse(canEnterStageAtThird);
+        assertTrue(canEnterStageAtFourth);
     }
 }
