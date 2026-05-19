@@ -290,12 +290,12 @@ public final class DailyQuestManager {
             case FATTY_CARDIO -> bool(progress.profileId.equals("fatty_popka") && progress.cardioCount > 0);
             case FATTY_FAT_REDUCED -> bool(progress.profileId.equals("fatty_popka") && progress.fatReduced);
             case FATTY_TWO_NO_FAIL -> progress.profileId.equals("fatty_popka") ? progress.noFailTrainingCount : 0;
-            case FORM_300 -> bool(player.stats().form() >= 300);
-            case FORM_400 -> bool(player.stats().form() >= 400);
+            case FORM_300 -> bool(player.stats().form() >= 100);
+            case FORM_400 -> bool(player.stats().form() >= 120);
             case STAGE_FATIGUE_UNDER_60 -> bool(progress.stageAttempted && player.stats().fatigue() < 60);
             case STAGE_AFTER_PURCHASE -> bool(progress.stageAttempted && progress.boughtSupplement);
             case STAGE_AFTER_NO_FAIL_DAY -> bool(progress.stageAttempted && !progress.failedTrainingToday);
-            case STAGE_READY -> bool(player.stats().form() >= 320 && player.stats().fatigue() < 50);
+            case STAGE_READY -> bool(player.stats().form() >= 110 && player.stats().fatigue() < 50);
             case COMPLETE_DAILY_GOALS -> completedRegularQuestCount();
         };
     }

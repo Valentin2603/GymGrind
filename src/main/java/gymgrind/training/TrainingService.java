@@ -35,16 +35,16 @@ public final class TrainingService {
 
         double speedMultiplier = fatigueProfile.speedMultiplier()
                 * weight.speedMultiplier()
-                * (1.0 + bodyFatLoad * 0.32 + cardioLoad * 0.16 + squatLoad * 0.06)
-                * (1.0 - staminaBonus * 0.14);
+                * (1.0 + bodyFatLoad * 0.26 + cardioLoad * 0.16 + squatLoad * 0.08)
+                * (1.0 - staminaBonus * 0.09);
         boolean hadPreWorkout = player.activeSupplements().has(SupplementType.PRE_WORKOUT);
         speedMultiplier = supplementService.applySpeedBonuses(player.activeSupplements(), speedMultiplier);
 
         double zoneMultiplier = fatigueProfile.zoneMultiplier()
                 * weight.zoneMultiplier()
-                * clamp(1.0 - bodyFatLoad * 0.14 - cardioLoad * 0.10 - squatLoad * 0.04 + staminaBonus * 0.10, 0.72, 1.14);
+                * clamp(1.0 - bodyFatLoad * 0.10 - cardioLoad * 0.10 - squatLoad * 0.05 + staminaBonus * 0.06, 0.74, 1.10);
         zoneMultiplier = supplementService.applyZoneBonuses(player.activeSupplements(), zoneMultiplier);
-        int bodyLoadRhythmPenalty = Math.max(0, (int) Math.round(bodyFatLoad * 1.6 + cardioLoad * 1.2 + squatLoad * 0.6 - staminaBonus * 1.4));
+        int bodyLoadRhythmPenalty = Math.max(0, (int) Math.round(bodyFatLoad * 1.2 + cardioLoad * 1.3 + squatLoad * 0.8 - staminaBonus * 1.0));
         int rhythmLength = Math.max(4, 6 + fatigueProfile.rhythmLengthBonus() + weight.rhythmLengthBonus() + bodyLoadRhythmPenalty);
         double rhythmTime = 15.0;
 
@@ -199,7 +199,7 @@ public final class TrainingService {
     }
 
     private double bodyFatLoad(double bodyFat) {
-        return clamp((bodyFat - 12.0) / 48.0, 0.0, 1.15);
+        return clamp((bodyFat - 14.0) / 56.0, 0.0, 1.0);
     }
 
     private double muscleLoad(int muscle) {

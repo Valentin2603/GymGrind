@@ -150,8 +150,12 @@ public final class MainMenu extends StackPane {
     }
 
     public void setContinueAvailable(boolean available) {
+        setContinueAvailable(available, available ? "Продолжить" : "Продолжить (нет сохранения)");
+    }
+
+    public void setContinueAvailable(boolean available, String text) {
         continueButton.setDisable(!available);
-        continueButton.setText(available ? "Продолжить" : "Продолжить (нет сохранения)");
+        continueButton.setText(text);
     }
 
     public void setOnExit(Runnable action) {

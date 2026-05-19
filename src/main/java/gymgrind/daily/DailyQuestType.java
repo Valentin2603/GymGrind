@@ -61,12 +61,12 @@ public enum DailyQuestType {
     FATTY_FAT_REDUCED("Жирная Попка: снизить процент жира", 1, new DailyQuestBonus(150, 0, 0, 4, 0), false, "fatty_popka", false),
     FATTY_TWO_NO_FAIL("Жирная Попка: 2 тренировки без FAIL", 2, DailyQuestBonus.money(160), false, "fatty_popka", false),
 
-    FORM_300("Достичь формы 300+", 1, DailyQuestBonus.money(150), false, null, true),
-    FORM_400("Достичь формы 400+", 1, DailyQuestBonus.money(220), false, null, true),
+    FORM_300("Достичь формы 100+", 1, DailyQuestBonus.money(150), false, null, true),
+    FORM_400("Достичь формы 120+", 1, DailyQuestBonus.money(220), false, null, true),
     STAGE_FATIGUE_UNDER_60("Выйти на сцену с усталостью ниже 60", 1, DailyQuestBonus.money(200), false, null, true),
     STAGE_AFTER_PURCHASE("Выйти на сцену после покупки добавки", 1, DailyQuestBonus.money(160), false, null, true),
     STAGE_AFTER_NO_FAIL_DAY("Выйти на сцену после дня без провалов", 1, DailyQuestBonus.money(180), false, null, true),
-    STAGE_READY("Подготовиться к сцене: форма 320+ и усталость ниже 50", 1, DailyQuestBonus.money(250), false, null, true),
+    STAGE_READY("Подготовиться к сцене: форма 110+ и усталость ниже 50", 1, DailyQuestBonus.money(250), false, null, true),
     COMPLETE_DAILY_GOALS("Закрыть все ежедневные задания", 3, DailyQuestBonus.money(300));
 
     private final String title;
@@ -117,7 +117,7 @@ public enum DailyQuestType {
         if (profileId != null && !profileId.equals(player.profile().id())) {
             return false;
         }
-        return !stageGoal || day >= 7 || player.stats().form() >= 280;
+        return !stageGoal || day >= 7 || player.stats().form() >= 90;
     }
 
     private boolean isSimpleNoFailGoal() {

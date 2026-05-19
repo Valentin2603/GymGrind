@@ -81,6 +81,7 @@ public final class GameView extends StackPane {
     private final Label interactionPrompt;
     private final Label statusMessage;
     private final StackPane overlayLayer;
+    private final StackPane tutorialLayer;
 
     public GameView(double width, double height) {
         setPrefSize(width, height);
@@ -101,13 +102,17 @@ public final class GameView extends StackPane {
         overlayLayer.setVisible(false);
         overlayLayer.setManaged(false);
         overlayLayer.setPickOnBounds(false);
+        tutorialLayer = new StackPane();
+        tutorialLayer.setVisible(false);
+        tutorialLayer.setManaged(false);
+        tutorialLayer.setPickOnBounds(true);
 
         VBox bottomMessages = new VBox(10, interactionPrompt, statusMessage);
         bottomMessages.setPadding(new Insets(0, 24, 24, 24));
         bottomMessages.setAlignment(Pos.BOTTOM_CENTER);
         bottomMessages.setMouseTransparent(true);
 
-        getChildren().addAll(canvas, leftHudColumn, hud, bottomMessages, overlayLayer, mainMenu);
+        getChildren().addAll(canvas, leftHudColumn, hud, bottomMessages, overlayLayer, mainMenu, tutorialLayer);
 
         StackPane.setAlignment(leftHudColumn, Pos.TOP_LEFT);
         StackPane.setMargin(leftHudColumn, new Insets(16, 0, 0, 16));
@@ -116,6 +121,7 @@ public final class GameView extends StackPane {
         StackPane.setAlignment(bottomMessages, Pos.BOTTOM_CENTER);
         StackPane.setAlignment(overlayLayer, Pos.CENTER);
         StackPane.setAlignment(mainMenu, Pos.CENTER);
+        StackPane.setAlignment(tutorialLayer, Pos.CENTER);
     }
 
     public GraphicsContext getGraphicsContext() {
@@ -169,6 +175,10 @@ public final class GameView extends StackPane {
 
     public void setContinueAvailable(boolean available) {
         mainMenu.setContinueAvailable(available);
+    }
+
+    public void setContinueAvailable(boolean available, String text) {
+        mainMenu.setContinueAvailable(available, text);
     }
 
     public void setOnExit(Runnable action) {
@@ -236,14 +246,14 @@ public final class GameView extends StackPane {
         title.setFont(Font.font("Segoe UI", 26));
         title.setStyle("-fx-text-fill: #F8FAFC; -fx-font-weight: bold;");
 
-        Label feedback = new Label("Игра остановлена. Можно сохраниться или вернуться назад.");
+        Label feedback = new Label("Игра остановлена. Можно сохраниться, вернуться к выбору персонажа или продолжить.");
         feedback.setFont(Font.font("Segoe UI", 14));
         feedback.setWrapText(true);
         feedback.setAlignment(Pos.CENTER);
         feedback.setStyle("-fx-text-fill: #CBD5E1;");
 
         Button save = createOverlayButton("Сохранить игру", "#22C55E");
-        Button exit = createOverlayButton("Выйти из игры", "#EF4444");
+        Button exit = createOverlayButton("К выбору персонажа", "#EF4444");
         Button resume = createOverlayButton("Назад", "#475569");
 
         save.setOnAction(event -> feedback.setText(onSave.get()));
@@ -632,6 +642,19 @@ public final class GameView extends StackPane {
         overlayLayer.getChildren().clear();
         overlayLayer.setVisible(false);
         overlayLayer.setManaged(false);
+    }
+
+    public void showTutorial(Node node) {
+        tutorialLayer.getChildren().setAll(node);
+        tutorialLayer.setVisible(true);
+        tutorialLayer.setManaged(true);
+        Platform.runLater(node::requestFocus);
+    }
+
+    public void hideTutorial() {
+        tutorialLayer.getChildren().clear();
+        tutorialLayer.setVisible(false);
+        tutorialLayer.setManaged(false);
     }
 
     public void requestGameFocus() {
