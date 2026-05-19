@@ -64,7 +64,13 @@ public final class Stats {
     }
 
     public int form() {
-        return (int) Math.round((strength + muscle + stamina) / 5.0 - bodyFat);
+        double strengthScore = diminishingStatScore(strength, 86.0, 240.0);
+        double muscleScore = diminishingStatScore(muscle, 88.0, 260.0);
+        double staminaScore = diminishingStatScore(stamina, 76.0, 220.0);
+        double fatPenalty = (bodyFat - MIN_BODY_FAT) * 1.65
+                + Math.max(0.0, bodyFat - 18.0) * 0.75;
+
+        return Math.max(0, (int) Math.round(strengthScore + muscleScore + staminaScore - fatPenalty));
     }
 
     public double staminaFatigueMultiplier() {
@@ -147,7 +153,13 @@ public final class Stats {
             return bodyFatDelta;
         }
 
-        double burnRate = clamp((bodyFat - MIN_BODY_FAT) * 0.075, 0.0, 0.80);
+        double fatRange = 52.0 - MIN_BODY_FAT;
+        double fatPressure = clamp((bodyFat - MIN_BODY_FAT) / fatRange, 0.0, 1.0);
+        double burnRate = clamp(0.06 + fatPressure * 0.86, 0.06, 0.95);
         return bodyFatDelta * burnRate;
+    }
+
+    private double diminishingStatScore(int value, double maxContribution, double softCap) {
+        return maxContribution * value / (value + softCap);
     }
 }

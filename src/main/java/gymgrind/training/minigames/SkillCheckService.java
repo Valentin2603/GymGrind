@@ -16,8 +16,8 @@ public final class SkillCheckService {
 
     private static final int TREADMILL_TARGET_HITS = 7;
     private static final int TREADMILL_ATTEMPTS = 11;
-    private static final double TREADMILL_SUCCESS_ZONE_SHRINK = 0.012;
-    private static final double TREADMILL_MIN_SUCCESS_ZONE_WIDTH = 0.07;
+    private static final double TREADMILL_SUCCESS_ZONE_SHRINK = 0.009;
+    private static final double TREADMILL_MIN_SUCCESS_ZONE_WIDTH = 0.10;
 
     private static final int SQUAT_PROMPT_LENGTH = 14;
     private static final double SQUAT_START_BAR_PROGRESS = 0.34;
@@ -334,8 +334,8 @@ public final class SkillCheckService {
         TrainingTuning tuning = trainingSession.tuning();
         double successZoneWidth = clamp(
                 successZoneWidthFor(machine.machineType()) * tuning.zoneMultiplier() * (1.0 + tuning.staminaBonus() * 0.10 - tuning.bodyFatLoad() * 0.04),
-                0.08,
-                0.24
+                machine.machineType() == MachineType.TREADMILL ? 0.11 : 0.08,
+                machine.machineType() == MachineType.TREADMILL ? 0.30 : 0.24
         );
         double markerSpeedMultiplier = tuning.speedMultiplier() * (1.0 - tuning.staminaBonus() * 0.16 + tuning.bodyFatLoad() * 0.05);
         return SkillCheckSession.timingZone(
@@ -413,7 +413,7 @@ public final class SkillCheckService {
     private double successZoneWidthFor(MachineType machineType) {
         return switch (machineType) {
             case BENCH_PRESS -> 0.19;
-            case TREADMILL -> 0.16;
+            case TREADMILL -> 0.22;
             case DEADLIFT_PLATFORM -> 0.14;
             case SQUAT_RACK -> 0.17;
         };
