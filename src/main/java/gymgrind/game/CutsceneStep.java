@@ -5,7 +5,8 @@ public record CutsceneStep(
         String title,
         String description,
         String judgeKey,
-        double durationSeconds
+        double durationSeconds,
+        boolean requiresPlayerAdvance
 ) {
 
     public enum Type {
@@ -15,15 +16,15 @@ public record CutsceneStep(
     }
 
     public static CutsceneStep announcement(String title, String description, double durationSeconds) {
-        return new CutsceneStep(Type.ANNOUNCEMENT, title, description, null, durationSeconds);
+        return new CutsceneStep(Type.ANNOUNCEMENT, title, description, null, durationSeconds, false);
     }
 
     public static CutsceneStep judgeReveal(String judgeKey, String title, String description, double durationSeconds) {
-        return new CutsceneStep(Type.JUDGE_REVEAL, title, description, judgeKey, durationSeconds);
+        return new CutsceneStep(Type.JUDGE_REVEAL, title, description, judgeKey, durationSeconds, true);
     }
 
     public static CutsceneStep finale(String title, String description, double durationSeconds) {
-        return new CutsceneStep(Type.FINALE, title, description, null, durationSeconds);
+        return new CutsceneStep(Type.FINALE, title, description, null, durationSeconds, false);
     }
 
     public boolean hasJudge() {

@@ -15,7 +15,7 @@ final class PlayerFormProgressionTest {
     @Test
     void tamikUnlocksSecondFormWhenThresholdsAreMet() {
         Player player = Player.createDefault(GameMap.createHomeLayout());
-        player.stats().restoreValues(150, 175, 235, 0, 300, 10.6);
+        player.stats().restoreValues(150, 180, 220, 0, 300, 10.6);
 
         Optional<PlayerForm> unlockedForm = player.unlockFormAfterSleep();
 
@@ -26,7 +26,7 @@ final class PlayerFormProgressionTest {
     @Test
     void steroidFormRequiresShotPurchase() {
         Player player = Player.createDefault(GameMap.createHomeLayout());
-        player.stats().restoreValues(260, 300, 260, 0, 300, 9.0);
+        player.stats().restoreValues(270, 320, 255, 0, 300, 9.0);
 
         Optional<PlayerForm> firstUnlock = player.unlockFormAfterSleep();
         assertEquals(Optional.of(PlayerForm.THIRD), firstUnlock);
@@ -42,7 +42,7 @@ final class PlayerFormProgressionTest {
     void darkDrunUnlocksSecondFormWhenHeCutsFatAndBuildsCardio() {
         Player player = Player.createDefault(GameMap.createHomeLayout());
         player.applyProfile(PlayerProfiles.findById("dark_drun"), GameMap.createHomeLayout());
-        player.stats().restoreValues(230, 270, 145, 0, 300, 24.0);
+        player.stats().restoreValues(245, 295, 160, 0, 300, 21.0);
 
         Optional<PlayerForm> unlockedForm = player.unlockFormAfterSleep();
 
@@ -54,7 +54,7 @@ final class PlayerFormProgressionTest {
     void darkDrunSteroidFormStillRequiresRecoveryShot() {
         Player player = Player.createDefault(GameMap.createHomeLayout());
         player.applyProfile(PlayerProfiles.findById("dark_drun"), GameMap.createHomeLayout());
-        player.stats().restoreValues(280, 335, 195, 0, 300, 14.0);
+        player.stats().restoreValues(320, 390, 215, 0, 300, 14.0);
 
         Optional<PlayerForm> firstUnlock = player.unlockFormAfterSleep();
         assertEquals(Optional.of(PlayerForm.THIRD), firstUnlock);
@@ -70,7 +70,7 @@ final class PlayerFormProgressionTest {
     void fattyPopkaUnlocksSecondFormMostlyThroughFatLoss() {
         Player player = Player.createDefault(GameMap.createHomeLayout());
         player.applyProfile(PlayerProfiles.findById("fatty_popka"), GameMap.createHomeLayout());
-        player.stats().restoreValues(285, 320, 110, 0, 300, 48.0);
+        player.stats().restoreValues(305, 350, 120, 0, 300, 38.0);
 
         Optional<PlayerForm> unlockedForm = player.unlockFormAfterSleep();
 
@@ -82,7 +82,7 @@ final class PlayerFormProgressionTest {
     void fattyPopkaCanReachRegularFourthFormWithoutSteroids() {
         Player player = Player.createDefault(GameMap.createHomeLayout());
         player.applyProfile(PlayerProfiles.findById("fatty_popka"), GameMap.createHomeLayout());
-        player.stats().restoreValues(315, 355, 160, 0, 300, 21.5);
+        player.stats().restoreValues(370, 430, 185, 0, 300, 19.0);
 
         Optional<PlayerForm> unlockedForm = player.unlockFormAfterSleep();
 
@@ -94,7 +94,7 @@ final class PlayerFormProgressionTest {
     void fattyPopkaSteroidFormRequiresRecoveryShot() {
         Player player = Player.createDefault(GameMap.createHomeLayout());
         player.applyProfile(PlayerProfiles.findById("fatty_popka"), GameMap.createHomeLayout());
-        player.stats().restoreValues(335, 390, 180, 0, 300, 15.0);
+        player.stats().restoreValues(415, 480, 210, 0, 300, 14.5);
 
         Optional<PlayerForm> firstUnlock = player.unlockFormAfterSleep();
         assertEquals(Optional.of(PlayerForm.FOURTH), firstUnlock);
@@ -109,7 +109,7 @@ final class PlayerFormProgressionTest {
     @Test
     void tamikCanQualifyForStageWithoutSteroidForm() {
         Player player = Player.createDefault(GameMap.createHomeLayout());
-        player.stats().restoreValues(200, 225, 245, 0, 300, 9.6);
+        player.stats().restoreValues(205, 245, 238, 0, 300, 9.6);
 
         boolean canEnterStage = player.profile()
                 .strongestNaturalFormDefinition()
@@ -123,14 +123,14 @@ final class PlayerFormProgressionTest {
     void fattyPopkaNeedsFourthNaturalFormForStage() {
         Player player = Player.createDefault(GameMap.createHomeLayout());
         player.applyProfile(PlayerProfiles.findById("fatty_popka"), GameMap.createHomeLayout());
-        player.stats().restoreValues(295, 330, 135, 0, 300, 34.0);
+        player.stats().restoreValues(335, 390, 155, 0, 300, 27.0);
 
         boolean canEnterStageAtThird = player.profile()
                 .strongestNaturalFormDefinition()
                 .orElseThrow()
                 .isUnlockedFor(player);
 
-        player.stats().restoreValues(310, 350, 155, 0, 300, 22.0);
+        player.stats().restoreValues(370, 430, 185, 0, 300, 19.0);
         boolean canEnterStageAtFourth = player.profile()
                 .strongestNaturalFormDefinition()
                 .orElseThrow()

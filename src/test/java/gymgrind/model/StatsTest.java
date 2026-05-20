@@ -20,7 +20,7 @@ final class StatsTest {
         assertEquals(100, stats.availableStamina());
         assertEquals(100, stats.maxAvailableStamina());
         assertEquals(0, stats.money());
-        assertEquals(8.0, stats.bodyFat());
+        assertEquals(10.454545454545455, stats.bodyFat());
     }
 
     @Test

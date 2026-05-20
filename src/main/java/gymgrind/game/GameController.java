@@ -124,6 +124,7 @@ public final class GameController {
 
         scene.setOnKeyPressed(event -> handleKeyPressed(event.getCode()));
         scene.setOnKeyReleased(event -> handleKeyReleased(event.getCode()));
+        scene.setOnMousePressed(event -> handleMousePressed());
 
         view.setOnStart(this::showTutorialBeforeStart);
         view.setOnContinue(this::loadSavedRun);
@@ -410,8 +411,10 @@ public final class GameController {
         }
 
         if (gameState == GameState.COMPETITION_INTRO) {
-            if (keyCode == KeyCode.ENTER || keyCode == KeyCode.SPACE) {
+            if (keyCode == KeyCode.ENTER) {
                 skipCompetitionIntro();
+            } else if (keyCode == KeyCode.SPACE) {
+                advanceCompetitionIntro();
             }
             return;
         }
@@ -481,6 +484,12 @@ public final class GameController {
             case D, RIGHT -> inputState.setRight(false);
             default -> {
             }
+        }
+    }
+
+    private void handleMousePressed() {
+        if (gameState == GameState.COMPETITION_INTRO) {
+            advanceCompetitionIntro();
         }
     }
 
@@ -667,6 +676,21 @@ public final class GameController {
         statusMessage = "Соревнования начинаются!";
         refreshUi();
         view.requestGameFocus();
+    }
+
+    private void advanceCompetitionIntro() {
+        if (activeCompetitionIntro.isEmpty()) {
+            return;
+        }
+
+        CompetitionIntroCutscene cutscene = activeCompetitionIntro.get();
+        cutscene.advance();
+        if (cutscene.isFinished()) {
+            finishCompetitionIntro();
+            return;
+        }
+
+        refreshUi();
     }
 
     private void skipCompetitionIntro() {

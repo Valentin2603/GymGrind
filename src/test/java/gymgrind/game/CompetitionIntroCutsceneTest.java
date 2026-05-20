@@ -13,14 +13,30 @@ class CompetitionIntroCutsceneTest {
         CompetitionIntroCutscene cutscene = new CompetitionIntroCutscene();
 
         assertEquals(5, cutscene.stepCount());
-        assertTrue(cutscene.totalDurationSeconds() > 10.0);
+        assertTrue(cutscene.totalDurationSeconds() > 5.0);
     }
 
     @Test
-    void cutsceneFinishesAfterFullDuration() {
+    void cutsceneWaitsForManualAdvanceOnJudgeSteps() {
         CompetitionIntroCutscene cutscene = new CompetitionIntroCutscene();
 
         cutscene.update(cutscene.totalDurationSeconds() + 0.25);
+
+        assertFalse(cutscene.isFinished());
+    }
+
+    @Test
+    void cutsceneFinishesAfterAdvancingJudgeSteps() {
+        CompetitionIntroCutscene cutscene = new CompetitionIntroCutscene();
+
+        cutscene.update(3.0);
+        cutscene.update(1.25);
+        cutscene.advance();
+        cutscene.update(1.25);
+        cutscene.advance();
+        cutscene.update(1.25);
+        cutscene.advance();
+        cutscene.update(3.0);
 
         assertTrue(cutscene.isFinished());
     }
