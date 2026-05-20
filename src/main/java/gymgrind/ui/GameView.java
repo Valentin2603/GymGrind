@@ -311,6 +311,9 @@ public final class GameView extends StackPane {
         Label activeLabel = createShopCardLabel("#9FB1C5", 12, true);
         Label feedbackLabel = createShopCardLabel("#F8E5CC", 12, true);
         Label abilitiesListLabel = createShopCardLabel("#E2E8F0", 13, true);
+        boostLabel.setMinHeight(38);
+        descriptionLabel.setMinHeight(106);
+        feedbackLabel.setMinHeight(34);
 
         Label detailsCaption = createShopCardLabel("#9FB1C5", 11, false);
         detailsCaption.setText("ОПИСАНИЕ");
@@ -363,9 +366,9 @@ public final class GameView extends StackPane {
                 feedbackLabel
         );
         detailsCard.setAlignment(Pos.TOP_LEFT);
-        detailsCard.setPrefSize(332, 332);
-        detailsCard.setMinSize(332, 332);
-        detailsCard.setMaxSize(332, 332);
+        detailsCard.setPrefSize(380, 430);
+        detailsCard.setMinSize(380, 430);
+        detailsCard.setMaxSize(380, 430);
         detailsCard.setPadding(new Insets(18));
         detailsCard.setVisible(false);
         detailsCard.setManaged(false);
@@ -716,6 +719,8 @@ public final class GameView extends StackPane {
         Label label = new Label();
         label.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, size));
         label.setWrapText(wrap);
+        label.setMinHeight(Region.USE_PREF_SIZE);
+        label.setMaxWidth(Double.MAX_VALUE);
         label.setStyle("-fx-text-fill: " + color + ";");
         return label;
     }
@@ -741,10 +746,17 @@ public final class GameView extends StackPane {
     private String formatActiveSupplements(Player player) {
         String labels = player.activeSupplements().labels();
         if ("нет".equalsIgnoreCase(labels)) {
-            return "Сейчас ничего не активировано.\n\nКупленные бафы на следующую тренировку появятся здесь.";
+            if (player.hasPurchasedSupplement(SupplementType.RECOVERY_SHOT)) {
+                return "Постоянно: шприц прогресса\n• меньше усталости\n• больше прирост статов\n• мини-игры чуть легче";
+            }
+            return "Сейчас ничего не активировано.\n\nКупленные бафы появятся здесь.";
         }
 
-        return "• " + labels.replace(", ", "\n• ");
+        String result = "• " + labels.replace(", ", "\n• ");
+        if (player.hasPurchasedSupplement(SupplementType.RECOVERY_SHOT)) {
+            result += "\n• Шприц прогресса: постоянный буст";
+        }
+        return result;
     }
 
     private static double shopScale(double value) {

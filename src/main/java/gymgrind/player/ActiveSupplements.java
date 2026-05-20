@@ -22,6 +22,10 @@ public final class ActiveSupplements {
         active.remove(supplementType);
     }
 
+    public void clearDayLongEffects() {
+        active.remove(SupplementType.PRE_WORKOUT);
+    }
+
     public void clear() {
         active.clear();
     }

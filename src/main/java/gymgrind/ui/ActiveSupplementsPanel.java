@@ -36,6 +36,11 @@ public final class ActiveSupplementsPanel extends VBox {
 
     public void update(Player player) {
         if (player.activeSupplements().activeTypes().isEmpty()) {
+            if (player.hasPurchasedSupplement(SupplementType.RECOVERY_SHOT)) {
+                listLabel.setText("- Шприц прогресса: постоянный буст к статам, усталости и мини-играм.");
+                listLabel.setStyle("-fx-text-fill: #E2E8F0;");
+                return;
+            }
             listLabel.setText("Нет активных добавок.");
             listLabel.setStyle("-fx-text-fill: #94A3B8;");
             return;
@@ -50,6 +55,9 @@ public final class ActiveSupplementsPanel extends VBox {
                     .append(type.label())
                     .append(": ")
                     .append(type.effect());
+        }
+        if (player.hasPurchasedSupplement(SupplementType.RECOVERY_SHOT)) {
+            builder.append('\n').append("- Шприц прогресса: постоянный буст.");
         }
         listLabel.setText(builder.toString());
         listLabel.setStyle("-fx-text-fill: #E2E8F0;");
