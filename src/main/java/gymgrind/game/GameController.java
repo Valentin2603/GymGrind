@@ -69,6 +69,7 @@ public final class GameController {
     private final CalendarState calendarState;
     private final SaveService saveService;
     private final CoachDialoguePool coachDialoguePool;
+    private final PoseAssetLoader poseAssetLoader;
 
     private final WorkShiftState workShiftState;
 
@@ -82,6 +83,10 @@ public final class GameController {
     private Optional<DailyQuestSnapshot> activeTrainingStartSnapshot;
     private Optional<SkillCheckResult> pendingSuccessResult;
     private Optional<CompetitionIntroCutscene> activeCompetitionIntro;
+    private Optional<PosingMinigame> activePosingMinigame;
+    private Optional<JudgeResultsCutscene> activeJudgeResultsCutscene;
+    private Optional<CompetitionResultScreen> activeCompetitionResultScreen;
+    private Optional<PerformanceResult> latestCompetitionPerformance;
     private String statusMessage;
     private String coachSpeechText;
     private double coachSpeechTimeLeft;
@@ -102,6 +107,7 @@ public final class GameController {
         this.calendarState = CalendarState.createDefault();
         this.saveService = new SaveService();
         this.coachDialoguePool = new CoachDialoguePool();
+        this.poseAssetLoader = new PoseAssetLoader();
 
         this.workShiftState = new WorkShiftState();
 
@@ -114,6 +120,10 @@ public final class GameController {
         this.activeTrainingStartSnapshot = Optional.empty();
         this.pendingSuccessResult = Optional.empty();
         this.activeCompetitionIntro = Optional.empty();
+        this.activePosingMinigame = Optional.empty();
+        this.activeJudgeResultsCutscene = Optional.empty();
+        this.activeCompetitionResultScreen = Optional.empty();
+        this.latestCompetitionPerformance = Optional.empty();
         this.coachSpeechText = "";
         this.coachSpeechTimeLeft = 0.0;
         this.statusMessage = "Нажмите «Начать», чтобы начать день в комнате игрока.";
@@ -166,7 +176,7 @@ public final class GameController {
         activeTrainingSession = Optional.empty();
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
-        activeCompetitionIntro = Optional.empty();
+        clearCompetitionFlow();
         clearCoachSpeech();
 
         workShiftState.reset();
@@ -220,7 +230,7 @@ public final class GameController {
         activeTrainingSession = Optional.empty();
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
-        activeCompetitionIntro = Optional.empty();
+        clearCompetitionFlow();
         clearCoachSpeech();
 
         workShiftState.reset();
@@ -341,6 +351,28 @@ public final class GameController {
                     }
                 }
             }
+            case POSING_MINIGAME -> {
+                nearbyObject = Optional.empty();
+                if (activePosingMinigame.isPresent()) {
+                    PosingMinigame minigame = activePosingMinigame.get();
+                    minigame.update(deltaSeconds);
+                    if (minigame.isFinished()) {
+                        finishPosingMinigame();
+                        return;
+                    }
+                }
+            }
+            case JUDGE_RESULTS -> {
+                nearbyObject = Optional.empty();
+                if (activeJudgeResultsCutscene.isPresent()) {
+                    JudgeResultsCutscene cutscene = activeJudgeResultsCutscene.get();
+                    cutscene.update(deltaSeconds);
+                    if (cutscene.isFinished()) {
+                        finishJudgeResultsCutscene();
+                        return;
+                    }
+                }
+            }
             case MINIGAME -> {
                 nearbyObject = Optional.empty();
                 if (activeSkillCheck.isPresent()) {
@@ -352,7 +384,7 @@ public final class GameController {
                     }
                 }
             }
-            case RESULT, SHOP, DIALOGUE -> nearbyObject = Optional.empty();
+            case RESULT, SHOP, DIALOGUE, COMPETITION_RESULT -> nearbyObject = Optional.empty();
             default -> nearbyObject = Optional.empty();
         }
 
@@ -362,6 +394,34 @@ public final class GameController {
     private void render() {
         if (gameState == GameState.COMPETITION_INTRO && activeCompetitionIntro.isPresent()) {
             activeCompetitionIntro.get().render(
+                    view.getGraphicsContext(),
+                    view.getGraphicsContext().getCanvas().getWidth(),
+                    view.getGraphicsContext().getCanvas().getHeight()
+            );
+            return;
+        }
+
+        if (gameState == GameState.POSING_MINIGAME && activePosingMinigame.isPresent()) {
+            activePosingMinigame.get().render(
+                    view.getGraphicsContext(),
+                    view.getGraphicsContext().getCanvas().getWidth(),
+                    view.getGraphicsContext().getCanvas().getHeight(),
+                    renderer.debugCollisionsEnabled()
+            );
+            return;
+        }
+
+        if (gameState == GameState.JUDGE_RESULTS && activeJudgeResultsCutscene.isPresent()) {
+            activeJudgeResultsCutscene.get().render(
+                    view.getGraphicsContext(),
+                    view.getGraphicsContext().getCanvas().getWidth(),
+                    view.getGraphicsContext().getCanvas().getHeight()
+            );
+            return;
+        }
+
+        if (gameState == GameState.COMPETITION_RESULT && activeCompetitionResultScreen.isPresent()) {
+            activeCompetitionResultScreen.get().render(
                     view.getGraphicsContext(),
                     view.getGraphicsContext().getCanvas().getWidth(),
                     view.getGraphicsContext().getCanvas().getHeight()
@@ -415,6 +475,29 @@ public final class GameController {
                 skipCompetitionIntro();
             } else if (keyCode == KeyCode.SPACE) {
                 advanceCompetitionIntro();
+            }
+            return;
+        }
+
+        if (gameState == GameState.POSING_MINIGAME) {
+            handlePosingMinigameKeyPressed(keyCode);
+            return;
+        }
+
+        if (gameState == GameState.JUDGE_RESULTS) {
+            if (keyCode == KeyCode.ENTER) {
+                skipJudgeResultsCutscene();
+            } else if (keyCode == KeyCode.SPACE) {
+                advanceJudgeResultsCutscene();
+            }
+            return;
+        }
+
+        if (gameState == GameState.COMPETITION_RESULT) {
+            if (keyCode == KeyCode.ENTER
+                    || keyCode == KeyCode.SPACE
+                    || keyCode == KeyCode.ESCAPE) {
+                closeCompetitionResult();
             }
             return;
         }
@@ -473,7 +556,10 @@ public final class GameController {
         if (gameState == GameState.MINIGAME
                 || gameState == GameState.RESULT
                 || gameState == GameState.DIALOGUE
-                || gameState == GameState.COMPETITION_INTRO) {
+                || gameState == GameState.COMPETITION_INTRO
+                || gameState == GameState.POSING_MINIGAME
+                || gameState == GameState.JUDGE_RESULTS
+                || gameState == GameState.COMPETITION_RESULT) {
             return;
         }
 
@@ -490,6 +576,10 @@ public final class GameController {
     private void handleMousePressed() {
         if (gameState == GameState.COMPETITION_INTRO) {
             advanceCompetitionIntro();
+        } else if (gameState == GameState.JUDGE_RESULTS) {
+            advanceJudgeResultsCutscene();
+        } else if (gameState == GameState.COMPETITION_RESULT) {
+            closeCompetitionResult();
         }
     }
 
@@ -598,7 +688,7 @@ public final class GameController {
         activeTrainingSession = Optional.empty();
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
-        activeCompetitionIntro = Optional.empty();
+        clearCompetitionFlow();
         clearCoachSpeech();
         view.hideOverlay();
 
@@ -662,6 +752,10 @@ public final class GameController {
     private void startCompetitionIntro() {
         inputState.clear();
         nearbyObject = Optional.empty();
+        activePosingMinigame = Optional.empty();
+        activeJudgeResultsCutscene = Optional.empty();
+        activeCompetitionResultScreen = Optional.empty();
+        latestCompetitionPerformance = Optional.empty();
         activeCompetitionIntro = Optional.of(new CompetitionIntroCutscene());
         gameState = GameState.COMPETITION_INTRO;
         statusMessage = "";
@@ -671,9 +765,88 @@ public final class GameController {
 
     private void finishCompetitionIntro() {
         activeCompetitionIntro = Optional.empty();
+        startPosingMinigame();
+    }
+
+    private void startPosingMinigame() {
+        inputState.clear();
+        nearbyObject = Optional.empty();
+        PosingMinigame minigame = new PosingMinigame(poseAssetLoader);
+        minigame.start(
+                player,
+                view.getGraphicsContext().getCanvas().getWidth(),
+                view.getGraphicsContext().getCanvas().getHeight()
+        );
+        activePosingMinigame = Optional.of(minigame);
+        gameState = GameState.POSING_MINIGAME;
+        statusMessage = "";
+        refreshUi();
+        view.requestGameFocus();
+    }
+
+    private void finishPosingMinigame() {
+        if (activePosingMinigame.isEmpty()) {
+            return;
+        }
+
+        PerformanceResult result = activePosingMinigame.get().getResult();
+        activePosingMinigame = Optional.empty();
+        latestCompetitionPerformance = Optional.of(result);
+        startJudgeResultsCutscene(result);
+    }
+
+    private void startJudgeResultsCutscene(PerformanceResult result) {
+        inputState.clear();
+        nearbyObject = Optional.empty();
+        activeJudgeResultsCutscene = Optional.of(new JudgeResultsCutscene(result));
+        gameState = GameState.JUDGE_RESULTS;
+        statusMessage = "";
+        refreshUi();
+        view.requestGameFocus();
+    }
+
+    private void advanceJudgeResultsCutscene() {
+        if (activeJudgeResultsCutscene.isEmpty()) {
+            return;
+        }
+
+        JudgeResultsCutscene cutscene = activeJudgeResultsCutscene.get();
+        cutscene.advance();
+        if (cutscene.isFinished()) {
+            finishJudgeResultsCutscene();
+            return;
+        }
+
+        refreshUi();
+    }
+
+    private void skipJudgeResultsCutscene() {
+        if (activeJudgeResultsCutscene.isEmpty()) {
+            return;
+        }
+
+        activeJudgeResultsCutscene.get().skip();
+        finishJudgeResultsCutscene();
+    }
+
+    private void finishJudgeResultsCutscene() {
+        activeJudgeResultsCutscene = Optional.empty();
+        PerformanceResult result = latestCompetitionPerformance.orElseGet(() -> new PerformanceResult(0, 0, 0, 0, 0, 0, 0, 0, false));
+        activeCompetitionResultScreen = Optional.of(new CompetitionResultScreen(player.profile().displayName(), result));
+        gameState = GameState.COMPETITION_RESULT;
+        statusMessage = "";
+        refreshUi();
+        view.requestGameFocus();
+    }
+
+    private void closeCompetitionResult() {
+        activeCompetitionResultScreen = Optional.empty();
         gameState = GameState.COMPETITION;
         nearbyObject = interactionService.findNearbyObject(player, currentMap());
-        statusMessage = "Соревнования начинаются!";
+        PerformanceResult result = latestCompetitionPerformance.orElse(null);
+        statusMessage = result == null
+                ? "Соревнование завершено."
+                : "Соревнование завершено. Итоговый балл: " + result.totalScore() + "/10.";
         refreshUi();
         view.requestGameFocus();
     }
@@ -700,6 +873,22 @@ public final class GameController {
 
         activeCompetitionIntro.get().skip();
         finishCompetitionIntro();
+    }
+
+    private void handlePosingMinigameKeyPressed(KeyCode keyCode) {
+        if (activePosingMinigame.isEmpty()) {
+            return;
+        }
+
+        boolean consumed = activePosingMinigame.get().handleKeyPressed(keyCode);
+        if (activePosingMinigame.get().isFinished()) {
+            finishPosingMinigame();
+            return;
+        }
+
+        if (consumed) {
+            refreshUi();
+        }
     }
 
     private void talkToCoach() {
@@ -893,7 +1082,10 @@ public final class GameController {
     }
 
     private String buildPrompt() {
-        if (gameState == GameState.COMPETITION_INTRO) {
+        if (gameState == GameState.COMPETITION_INTRO
+                || gameState == GameState.POSING_MINIGAME
+                || gameState == GameState.JUDGE_RESULTS
+                || gameState == GameState.COMPETITION_RESULT) {
             return "";
         }
 
@@ -1189,6 +1381,7 @@ public final class GameController {
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
         nearbyObject = Optional.empty();
+        clearCompetitionFlow();
         clearCoachSpeech();
         gameState = GameState.MENU;
         statusMessage = "Вы вернулись к выбору персонажа. Сохранение выполняется только по кнопке в паузе.";
@@ -1244,6 +1437,14 @@ public final class GameController {
 
     private boolean isExplorationState() {
         return gameState == GameState.PLAYING || gameState == GameState.COMPETITION;
+    }
+
+    private void clearCompetitionFlow() {
+        activeCompetitionIntro = Optional.empty();
+        activePosingMinigame = Optional.empty();
+        activeJudgeResultsCutscene = Optional.empty();
+        activeCompetitionResultScreen = Optional.empty();
+        latestCompetitionPerformance = Optional.empty();
     }
 
     private GameState explorationStateForCurrentLocation() {
