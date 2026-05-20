@@ -38,7 +38,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public final class GameView extends StackPane {
+public final class      GameView extends StackPane {
 
     private static final String SHOP_IMAGE_PATH = "/assets/ui/shop/shop_screen.png";
     private static final double SHOP_SOURCE_SIZE = 1254.0;
@@ -117,7 +117,7 @@ public final class GameView extends StackPane {
         StackPane.setAlignment(leftHudColumn, Pos.TOP_LEFT);
         StackPane.setMargin(leftHudColumn, new Insets(16, 0, 0, 16));
         StackPane.setAlignment(hud, Pos.TOP_RIGHT);
-        StackPane.setMargin(hud, new Insets(16, 16, 0, 0));
+        StackPane.setMargin(hud, new Insets(4, 34, 0, 0));
         StackPane.setAlignment(bottomMessages, Pos.BOTTOM_CENTER);
         StackPane.setAlignment(overlayLayer, Pos.CENTER);
         StackPane.setAlignment(mainMenu, Pos.CENTER);

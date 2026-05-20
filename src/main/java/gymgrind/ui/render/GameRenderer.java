@@ -9,6 +9,7 @@ import gymgrind.gym.objects.InteractiveZone;
 import gymgrind.gym.objects.WarehouseProp;
 import gymgrind.player.Player;
 import gymgrind.player.PlayerDirection;
+import gymgrind.player.PlayerForm;
 import gymgrind.player.PlayerProfile;
 import gymgrind.training.MachineType;
 import gymgrind.training.TrainingGrade;
@@ -19,6 +20,7 @@ import gymgrind.gym.objects.ZoneType;
 import javafx.geometry.VPos;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
+import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
@@ -26,6 +28,7 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 
 import java.io.InputStream;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -50,6 +53,12 @@ public final class GameRenderer {
     private static final Color SEQUENCE_BAR_FILL = Color.web("#F59E0B");
     private static final double TILE_SIZE = 64;
     private static final long WALK_FRAME_NANOS = 180_000_000L;
+    private static final double WORK_UNIFORM_RENDER_SCALE = 0.90;
+    private static final double WORK_UNIFORM_WIDTH_SCALE = 0.75;
+    private static final int WORK_UNIFORM_FRAME_WIDTH = 380;
+    private static final int WORK_UNIFORM_FRAME_HEIGHT = 627;
+    private static final int WORK_UNIFORM_CONTENT_HEIGHT = 608;
+    private static final int WORK_UNIFORM_MAX_CONTENT_WIDTH = 300;
 
     private final Image floorTile = loadImage("/assets/tiles/floor_tile.png");
     private final Image wallTile = loadImage("/assets/tiles/wall_tile.png");
@@ -71,6 +80,7 @@ public final class GameRenderer {
     private final Map<String, Image> mapBackgrounds;
     private final Map<String, PlayerSpriteSet> playerSpriteSets;
     private final Map<String, DirectionalSpriteSet> playerCarrySpriteSets;
+    private final Map<String, PlayerSpriteSet> workUniformSpriteSets;
     private boolean debugCollisions;
 
     public GameRenderer() {
@@ -90,6 +100,7 @@ public final class GameRenderer {
         mapBackgrounds = new HashMap<>();
         playerSpriteSets = new HashMap<>();
         playerCarrySpriteSets = new HashMap<>();
+        workUniformSpriteSets = new HashMap<>();
     }
 
     public void render(GraphicsContext graphicsContext,
@@ -100,7 +111,8 @@ public final class GameRenderer {
                        Optional<SkillCheckSession> activeSkillCheck,
                        Optional<SkillCheckResult> pendingSuccessResult,
                        Optional<WorkShiftState> workShiftState,
-                       Optional<String> coachSpeechText) {
+                       Optional<String> coachSpeechText,
+                       double fadeOverlayAlpha) {
         double canvasWidth = graphicsContext.getCanvas().getWidth();
         double canvasHeight = graphicsContext.getCanvas().getHeight();
 
@@ -116,7 +128,8 @@ public final class GameRenderer {
         }
         workShiftState.ifPresent(state -> drawWorkRacks(graphicsContext));
         boolean carryingWorkBox = workShiftState.map(WorkShiftState::carryingBox).orElse(false);
-        boolean renderedCarrySprite = drawPlayer(graphicsContext, player, carryingWorkBox);
+        boolean wearingWorkUniform = workShiftState.map(WorkShiftState::workerDressed).orElse(false);
+        boolean renderedCarrySprite = drawPlayer(graphicsContext, player, carryingWorkBox, wearingWorkUniform);
         if (isGymMap(gameMap)) {
             drawGymObjects(graphicsContext, gameMap, nearbyObject, player, true);
         }
@@ -131,6 +144,22 @@ public final class GameRenderer {
         } else {
             pendingSuccessResult.ifPresent(result -> drawSuccessResultOverlay(graphicsContext, result));
         }
+
+        drawFadeOverlay(graphicsContext, fadeOverlayAlpha);
+    }
+
+    private void drawFadeOverlay(GraphicsContext graphicsContext, double alpha) {
+        if (alpha <= 0.0) {
+            return;
+        }
+        double overlayAlpha = clamp(alpha, 0.0, 1.0);
+        graphicsContext.setFill(Color.color(0, 0, 0, overlayAlpha));
+        graphicsContext.fillRect(
+                0,
+                0,
+                graphicsContext.getCanvas().getWidth(),
+                graphicsContext.getCanvas().getHeight()
+        );
     }
 
     private void drawMap(GraphicsContext graphicsContext, GameMap gameMap) {
@@ -249,7 +278,7 @@ public final class GameRenderer {
                 graphicsContext.drawImage(image, gymObject.left(), gymObject.top(), gymObject.width(), gymObject.height());
             }
 
-            if (nearby) {
+            if (nearby && !(gymObject instanceof WarehouseProp)) {
                 graphicsContext.setStroke(HIGHLIGHT);
                 graphicsContext.setLineWidth(3);
                 graphicsContext.strokeRoundRect(
@@ -331,15 +360,22 @@ public final class GameRenderer {
         }
     }
 
-    private boolean drawPlayer(GraphicsContext graphicsContext, Player player, boolean carryingWorkBox) {
-        Image playerImage = playerImageFor(player, carryingWorkBox);
+    private boolean drawPlayer(GraphicsContext graphicsContext,
+                               Player player,
+                               boolean carryingWorkBox,
+                               boolean wearingWorkUniform) {
+        Image playerImage = playerImageFor(player, carryingWorkBox, wearingWorkUniform);
         if (playerImage != null) {
-            double renderWidth = player.profile().renderWidth();
-            double renderHeight = player.profile().renderHeight();
+            double renderScale = wearingWorkUniform ? WORK_UNIFORM_RENDER_SCALE : 1.0;
+            double widthScale = wearingWorkUniform ? WORK_UNIFORM_WIDTH_SCALE : 1.0;
+            double renderWidth = player.profile().renderWidth() * renderScale * widthScale;
+            double renderHeight = player.profile().renderHeight() * renderScale;
             double drawX = player.centerX() - renderWidth / 2.0;
             double drawY = player.position().y() + player.height() - renderHeight;
+            graphicsContext.setImageSmoothing(false);
             graphicsContext.drawImage(playerImage, drawX, drawY, renderWidth, renderHeight);
-            return carryingWorkBox && carryImageFor(player) != null;
+            return carryingWorkBox
+                    && ((wearingWorkUniform && workUniformSpriteSetFor(player, true) != null) || carryImageFor(player) != null);
         } else {
             graphicsContext.setFill(PLAYER_COLOR);
             graphicsContext.fillOval(player.position().x(), player.position().y(), player.width(), player.height());
@@ -416,7 +452,14 @@ public final class GameRenderer {
         graphicsContext.restore();
     }
 
-    private Image playerImageFor(Player player, boolean carryingWorkBox) {
+    private Image playerImageFor(Player player, boolean carryingWorkBox, boolean wearingWorkUniform) {
+        if (wearingWorkUniform) {
+            PlayerSpriteSet spriteSet = workUniformSpriteSetFor(player, carryingWorkBox);
+            if (spriteSet != null) {
+                return playerImageFromSpriteSet(player, spriteSet);
+            }
+        }
+
         if (carryingWorkBox) {
             Image carryImage = carryImageFor(player);
             if (carryImage != null) {
@@ -424,7 +467,10 @@ public final class GameRenderer {
             }
         }
 
-        PlayerSpriteSet spriteSet = spriteSetFor(player);
+        return playerImageFromSpriteSet(player, spriteSetFor(player));
+    }
+
+    private Image playerImageFromSpriteSet(Player player, PlayerSpriteSet spriteSet) {
         if (player.isMoving() && shouldShowWalkFrame()) {
             Image walkImage = directionalImage(spriteSet.walkFrames(), player.direction());
             if (walkImage != null) {
@@ -456,6 +502,313 @@ public final class GameRenderer {
 
     private DirectionalSpriteSet carrySpriteSetFor(PlayerProfile profile) {
         return playerCarrySpriteSets.computeIfAbsent(profile.id(), ignored -> loadCarrySpriteSet(profile));
+    }
+
+    private PlayerSpriteSet workUniformSpriteSetFor(Player player, boolean carryingBox) {
+        String sheetPath = workUniformSheetPath(player.profile(), player.currentForm(), carryingBox);
+        String referenceSheetPath = workUniformSheetPath(player.profile(), player.currentForm(), false);
+        String cacheKey = player.profile().id() + ":" + sheetPath;
+        return workUniformSpriteSets.computeIfAbsent(
+                cacheKey,
+                ignored -> loadWorkUniformSpriteSet(loadImage(sheetPath), loadImage(referenceSheetPath), player.profile().id())
+        );
+    }
+
+    private String workUniformSheetPath(PlayerProfile profile, PlayerForm form, boolean carryingBox) {
+        String spriteNumber = switch (profile.id()) {
+            case "street_rookie" -> switch (form) {
+                case BASE -> "10";
+                case SECOND -> "9";
+                case THIRD -> "11";
+                case FOURTH, FOURTH_STEROIDS -> "8";
+            };
+            case "fatty_popka" -> switch (form) {
+                case BASE -> "12";
+                case SECOND -> "5";
+                case THIRD -> "7";
+                case FOURTH -> "4";
+                case FOURTH_STEROIDS -> "6";
+            };
+            case "dark_drun" -> switch (form) {
+                case BASE -> "13";
+                case SECOND -> "1";
+                case THIRD -> "3";
+                case FOURTH, FOURTH_STEROIDS -> "2";
+            };
+            default -> "1";
+        };
+        return "/assets/characters/" + spriteNumber + (carryingBox ? "_box" : "") + ".png";
+    }
+
+    private PlayerSpriteSet loadWorkUniformSpriteSet(Image sheet, Image referenceSheet, String profileId) {
+        if (sheet == null || sheet.getPixelReader() == null || sheet.getWidth() <= 0 || sheet.getHeight() <= 0) {
+            return null;
+        }
+        if (referenceSheet == null || referenceSheet.getPixelReader() == null) {
+            referenceSheet = sheet;
+        }
+
+        int frameWidth = Math.max(1, (int) Math.floor(sheet.getWidth() / 4.0));
+        int frameHeight = Math.max(1, (int) Math.floor(sheet.getHeight() / 2.0));
+        int referenceFrameWidth = Math.max(1, (int) Math.floor(referenceSheet.getWidth() / 4.0));
+        int referenceFrameHeight = Math.max(1, (int) Math.floor(referenceSheet.getHeight() / 2.0));
+        Map<PlayerDirection, Image> idleFrames = new EnumMap<>(PlayerDirection.class);
+        Map<PlayerDirection, Image> walkFrames = new EnumMap<>(PlayerDirection.class);
+
+        Image frontIdle = cropFrame(sheet, referenceSheet, 0, 0, frameWidth, frameHeight, referenceFrameWidth, referenceFrameHeight);
+        Image frontWalk = cropFrame(sheet, referenceSheet, 1, 0, frameWidth, frameHeight, referenceFrameWidth, referenceFrameHeight);
+        Image backIdle = cropFrame(sheet, referenceSheet, 0, 1, frameWidth, frameHeight, referenceFrameWidth, referenceFrameHeight);
+        Image backWalk = cropFrame(sheet, referenceSheet, 1, 1, frameWidth, frameHeight, referenceFrameWidth, referenceFrameHeight);
+        idleFrames.put(PlayerDirection.FRONT, frontIdle);
+        walkFrames.put(PlayerDirection.FRONT, frontWalk);
+        Image sideIdle = cropFrame(sheet, referenceSheet, 2, 0, frameWidth, frameHeight, referenceFrameWidth, referenceFrameHeight);
+        Image sideWalk = cropFrame(sheet, referenceSheet, 3, 0, frameWidth, frameHeight, referenceFrameWidth, referenceFrameHeight);
+        if ("dark_drun".equals(profileId)) {
+            idleFrames.put(PlayerDirection.RIGHT, mirrorImage(sideIdle));
+            walkFrames.put(PlayerDirection.RIGHT, mirrorImage(sideWalk));
+            idleFrames.put(PlayerDirection.LEFT, sideIdle);
+            walkFrames.put(PlayerDirection.LEFT, sideWalk);
+        } else {
+            idleFrames.put(PlayerDirection.RIGHT, sideIdle);
+            walkFrames.put(PlayerDirection.RIGHT, sideWalk);
+            idleFrames.put(PlayerDirection.LEFT, mirrorImage(sideIdle));
+            walkFrames.put(PlayerDirection.LEFT, mirrorImage(sideWalk));
+        }
+        idleFrames.put(PlayerDirection.BACK, backIdle);
+        walkFrames.put(PlayerDirection.BACK, backWalk);
+
+        return new PlayerSpriteSet(idleFrames, walkFrames);
+    }
+
+    private Image cropFrame(Image sheet,
+                            Image referenceSheet,
+                            int column,
+                            int row,
+                            int frameWidth,
+                            int frameHeight,
+                            int referenceFrameWidth,
+                            int referenceFrameHeight) {
+        int x = column * frameWidth;
+        int y = row * frameHeight;
+        int width = Math.max(1, Math.min(frameWidth, (int) sheet.getWidth() - x));
+        int height = Math.max(1, Math.min(frameHeight, (int) sheet.getHeight() - y));
+        boolean[] backgroundMask = backgroundMask(sheet, x, y, width, height);
+        removeSmallForegroundArtifacts(backgroundMask, width, height);
+        FrameBounds sourceBounds = foregroundBounds(backgroundMask, width, height);
+
+        if (sourceBounds.isEmpty()) {
+            return new WritableImage(WORK_UNIFORM_FRAME_WIDTH, WORK_UNIFORM_FRAME_HEIGHT);
+        }
+
+        FrameBounds referenceBounds = referenceBounds(
+                referenceSheet,
+                column,
+                row,
+                referenceFrameWidth,
+                referenceFrameHeight
+        );
+        if (referenceBounds.isEmpty()) {
+            referenceBounds = sourceBounds;
+        }
+
+        int sourceWidth = sourceBounds.width();
+        int sourceHeight = sourceBounds.height();
+        int scaleWidth = Math.max(referenceBounds.width(), sourceWidth);
+        int scaleHeight = Math.max(referenceBounds.height(), sourceHeight);
+        double scale = Math.min(
+                WORK_UNIFORM_CONTENT_HEIGHT / (double) scaleHeight,
+                WORK_UNIFORM_MAX_CONTENT_WIDTH / (double) scaleWidth
+        );
+        int targetWidth = Math.max(1, (int) Math.round(sourceWidth * scale));
+        int targetHeight = Math.max(1, (int) Math.round(sourceHeight * scale));
+        int targetX = Math.max(0, (WORK_UNIFORM_FRAME_WIDTH - targetWidth) / 2);
+        int targetY = Math.max(0, WORK_UNIFORM_FRAME_HEIGHT - targetHeight - 18);
+
+        WritableImage image = new WritableImage(WORK_UNIFORM_FRAME_WIDTH, WORK_UNIFORM_FRAME_HEIGHT);
+        for (int targetPixelY = 0; targetPixelY < targetHeight; targetPixelY++) {
+            int sourcePixelY = sourceBounds.minY() + Math.min(sourceHeight - 1, (int) Math.floor(targetPixelY / scale));
+            for (int targetPixelX = 0; targetPixelX < targetWidth; targetPixelX++) {
+                int sourcePixelX = sourceBounds.minX() + Math.min(sourceWidth - 1, (int) Math.floor(targetPixelX / scale));
+                int finalX = targetX + targetPixelX;
+                int finalY = targetY + targetPixelY;
+                if (finalX < 0 || finalY < 0 || finalX >= WORK_UNIFORM_FRAME_WIDTH || finalY >= WORK_UNIFORM_FRAME_HEIGHT) {
+                    continue;
+                }
+                Color color = sheet.getPixelReader().getColor(x + sourcePixelX, y + sourcePixelY);
+                if (backgroundMask[sourcePixelY * width + sourcePixelX]) {
+                    color = Color.TRANSPARENT;
+                }
+                image.getPixelWriter().setColor(finalX, finalY, color);
+            }
+        }
+        return image;
+    }
+
+    private FrameBounds referenceBounds(Image sheet, int column, int row, int frameWidth, int frameHeight) {
+        int x = column * frameWidth;
+        int y = row * frameHeight;
+        int width = Math.max(1, Math.min(frameWidth, (int) sheet.getWidth() - x));
+        int height = Math.max(1, Math.min(frameHeight, (int) sheet.getHeight() - y));
+        boolean[] mask = backgroundMask(sheet, x, y, width, height);
+        removeSmallForegroundArtifacts(mask, width, height);
+        return foregroundBounds(mask, width, height);
+    }
+
+    private FrameBounds foregroundBounds(boolean[] backgroundMask, int width, int height) {
+        int minX = width;
+        int minY = height;
+        int maxX = -1;
+        int maxY = -1;
+
+        for (int frameY = 0; frameY < height; frameY++) {
+            for (int frameX = 0; frameX < width; frameX++) {
+                if (!backgroundMask[frameY * width + frameX]) {
+                    minX = Math.min(minX, frameX);
+                    minY = Math.min(minY, frameY);
+                    maxX = Math.max(maxX, frameX);
+                    maxY = Math.max(maxY, frameY);
+                }
+            }
+        }
+
+        return new FrameBounds(minX, minY, maxX, maxY);
+    }
+
+    private void removeSmallForegroundArtifacts(boolean[] backgroundMask, int width, int height) {
+        boolean[] visited = new boolean[backgroundMask.length];
+        ArrayDeque<int[]> queue = new ArrayDeque<>();
+        List<Integer> component = new ArrayList<>();
+        int[][] offsets = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int startIndex = y * width + x;
+                if (backgroundMask[startIndex] || visited[startIndex]) {
+                    continue;
+                }
+
+                component.clear();
+                visited[startIndex] = true;
+                queue.addLast(new int[]{x, y});
+                while (!queue.isEmpty()) {
+                    int[] point = queue.removeFirst();
+                    int index = point[1] * width + point[0];
+                    component.add(index);
+
+                    for (int[] offset : offsets) {
+                        int nextX = point[0] + offset[0];
+                        int nextY = point[1] + offset[1];
+                        if (nextX < 0 || nextY < 0 || nextX >= width || nextY >= height) {
+                            continue;
+                        }
+                        int nextIndex = nextY * width + nextX;
+                        if (backgroundMask[nextIndex] || visited[nextIndex]) {
+                            continue;
+                        }
+                        visited[nextIndex] = true;
+                        queue.addLast(new int[]{nextX, nextY});
+                    }
+                }
+
+                if (component.size() < 900) {
+                    for (int index : component) {
+                        backgroundMask[index] = true;
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean[] backgroundMask(Image sheet, int x, int y, int width, int height) {
+        boolean[] mask = new boolean[width * height];
+        Color[] edgeColors = {
+                sheet.getPixelReader().getColor(x, y),
+                sheet.getPixelReader().getColor(x + width - 1, y),
+                sheet.getPixelReader().getColor(x, y + height - 1),
+                sheet.getPixelReader().getColor(x + width - 1, y + height - 1)
+        };
+        ArrayDeque<int[]> queue = new ArrayDeque<>();
+
+        for (int px = 0; px < width; px++) {
+            enqueueBackgroundPixel(sheet, x, y, width, height, edgeColors, mask, queue, px, 0);
+            enqueueBackgroundPixel(sheet, x, y, width, height, edgeColors, mask, queue, px, height - 1);
+        }
+        for (int py = 1; py < height - 1; py++) {
+            enqueueBackgroundPixel(sheet, x, y, width, height, edgeColors, mask, queue, 0, py);
+            enqueueBackgroundPixel(sheet, x, y, width, height, edgeColors, mask, queue, width - 1, py);
+        }
+
+        int[][] offsets = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        while (!queue.isEmpty()) {
+            int[] point = queue.removeFirst();
+            for (int[] offset : offsets) {
+                int nextX = point[0] + offset[0];
+                int nextY = point[1] + offset[1];
+                enqueueBackgroundPixel(sheet, x, y, width, height, edgeColors, mask, queue, nextX, nextY);
+            }
+        }
+
+        return mask;
+    }
+
+    private void enqueueBackgroundPixel(Image sheet,
+                                        int sourceX,
+                                        int sourceY,
+                                        int width,
+                                        int height,
+                                        Color[] edgeColors,
+                                        boolean[] mask,
+                                        ArrayDeque<int[]> queue,
+                                        int x,
+                                        int y) {
+        if (x < 0 || y < 0 || x >= width || y >= height || mask[y * width + x]) {
+            return;
+        }
+        Color color = sheet.getPixelReader().getColor(sourceX + x, sourceY + y);
+        if (!isBackgroundColor(color, edgeColors)) {
+            return;
+        }
+        mask[y * width + x] = true;
+        queue.addLast(new int[]{x, y});
+    }
+
+    private boolean isBackgroundColor(Color color, Color[] edgeColors) {
+        if (color.getOpacity() <= 0.05) {
+            return true;
+        }
+        for (Color edgeColor : edgeColors) {
+            double edgeBrightness = (edgeColor.getRed() + edgeColor.getGreen() + edgeColor.getBlue()) / 3.0;
+            double threshold = edgeBrightness < 0.12 ? 0.04 : 0.17;
+            if (colorDistance(color, edgeColor) < threshold) {
+                return true;
+            }
+        }
+        double brightness = (color.getRed() + color.getGreen() + color.getBlue()) / 3.0;
+        double channelSpread = Math.max(color.getRed(), Math.max(color.getGreen(), color.getBlue()))
+                - Math.min(color.getRed(), Math.min(color.getGreen(), color.getBlue()));
+        return brightness > 0.86 && channelSpread < 0.12;
+    }
+
+    private double colorDistance(Color first, Color second) {
+        double red = first.getRed() - second.getRed();
+        double green = first.getGreen() - second.getGreen();
+        double blue = first.getBlue() - second.getBlue();
+        return Math.sqrt(red * red + green * green + blue * blue);
+    }
+
+    private Image mirrorImage(Image image) {
+        if (image == null || image.getPixelReader() == null) {
+            return image;
+        }
+        int width = (int) image.getWidth();
+        int height = (int) image.getHeight();
+        WritableImage mirrored = new WritableImage(width, height);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                mirrored.getPixelWriter().setColor(width - x - 1, y, image.getPixelReader().getColor(x, y));
+            }
+        }
+        return mirrored;
     }
 
     private PlayerSpriteSet loadPlayerSpriteSet(PlayerProfile profile, gymgrind.player.PlayerForm form) {
@@ -755,10 +1108,10 @@ public final class GameRenderer {
         drawSafetyStripes(graphicsContext, left + 830, top + 112, 180, 70);
         drawWarehouseWoodWall(graphicsContext, left + 14, top + 12, width - 28, 118);
         drawWarehouseBorder(graphicsContext, left, top, width, height);
-        drawWarehouseAsset(graphicsContext, warehouseWorkbenchImage, left + 34, top + 36, 196, 143);
-        drawWarehouseAsset(graphicsContext, warehouseBinsImage, left + 606, top + 58, 138, 123);
-        drawWarehouseAsset(graphicsContext, warehousePalletJackImage, left + 56, top + 468, 230, 176);
-        drawWarehouseAsset(graphicsContext, warehousePalletImage, left + 884, top + 338, 170, 142);
+        drawWarehouseAsset(graphicsContext, warehouseWorkbenchImage, left + 38, top + 42, 176, 128);
+        drawWarehouseAsset(graphicsContext, warehouseBinsImage, left + 616, top + 68, 118, 105);
+        drawWarehouseAsset(graphicsContext, warehousePalletJackImage, left + 32, top + 416, 150, 115);
+        drawWarehouseAsset(graphicsContext, warehousePalletImage, left + 892, top + 346, 145, 121);
         drawHangingLamp(graphicsContext, left + 528, top + 26);
         drawHangingLamp(graphicsContext, left + 700, top + 26);
         drawWarehouseDoor(graphicsContext, left + 512, top + height - 70);
@@ -897,24 +1250,39 @@ public final class GameRenderer {
     }
 
     private void drawWarehouseDoor(GraphicsContext graphicsContext, double x, double y) {
-        graphicsContext.setFill(Color.web("#050505"));
-        graphicsContext.fillRect(x - 16, y + 54, 112, 44);
-        graphicsContext.setFill(Color.web("#24150E"));
-        graphicsContext.fillRect(x - 6, y - 4, 92, 18);
-        graphicsContext.fillRect(x - 6, y - 4, 18, 84);
-        graphicsContext.fillRect(x + 68, y - 4, 18, 84);
+        double passageWidth = 118;
+        double passageHeight = 54;
+        double passageX = x - 14;
+        double passageY = y + 40;
 
-        graphicsContext.setFill(Color.web("#7B3F1E"));
-        graphicsContext.fillRect(x + 14, y + 8, 52, 68);
-        graphicsContext.setFill(Color.web("#A9652E"));
-        graphicsContext.fillRect(x + 20, y + 13, 40, 58);
-        graphicsContext.setStroke(Color.web("#2B160D"));
+        graphicsContext.setFill(Color.web("#050505"));
+        graphicsContext.fillRect(passageX - 10, passageY + passageHeight - 2, passageWidth + 20, 16);
+
+        graphicsContext.setFill(Color.web("#595348"));
+        graphicsContext.fillRoundRect(passageX, passageY, passageWidth, passageHeight, 6, 6);
+
+        graphicsContext.setStroke(Color.web("#625B50"));
+        graphicsContext.setLineWidth(1);
+        for (double tileX = passageX + 18; tileX < passageX + passageWidth; tileX += 32) {
+            graphicsContext.strokeLine(tileX, passageY + 2, tileX, passageY + passageHeight - 2);
+        }
+        for (double tileY = passageY + 16; tileY < passageY + passageHeight; tileY += 32) {
+            graphicsContext.strokeLine(passageX + 2, tileY, passageX + passageWidth - 2, tileY);
+        }
+
+        graphicsContext.setStroke(Color.web("#E58A30"));
         graphicsContext.setLineWidth(3);
-        graphicsContext.strokeRect(x + 14, y + 8, 52, 68);
-        graphicsContext.setStroke(Color.web("#D28A45"));
+        graphicsContext.strokeLine(passageX, passageY, passageX, passageY + passageHeight - 4);
+        graphicsContext.strokeLine(passageX + passageWidth, passageY, passageX + passageWidth, passageY + passageHeight - 4);
+        graphicsContext.strokeLine(passageX, passageY + passageHeight - 4, passageX + passageWidth, passageY + passageHeight - 4);
+
+        graphicsContext.setFill(Color.color(0.95, 0.58, 0.13, 0.18));
+        graphicsContext.fillRect(passageX + 8, passageY + 8, passageWidth - 16, 12);
+        graphicsContext.setStroke(Color.color(0.95, 0.58, 0.13, 0.48));
         graphicsContext.setLineWidth(2);
-        graphicsContext.strokeLine(x + 21, y + 20, x + 59, y + 20);
-        graphicsContext.strokeLine(x + 21, y + 34, x + 59, y + 34);
+        for (double stripeX = passageX + 10; stripeX < passageX + passageWidth - 18; stripeX += 18) {
+            graphicsContext.strokeLine(stripeX, passageY + 20, stripeX + 14, passageY + 8);
+        }
     }
 
     private void drawWarehouseBlueStacks(GraphicsContext graphicsContext, double x, double y, int columns, int rows) {
@@ -937,6 +1305,24 @@ public final class GameRenderer {
     }
 
     private void drawWarehouseProp(GraphicsContext graphicsContext, GymObject gymObject) {
+        if (pickupRackImage != null) {
+            graphicsContext.setFill(Color.color(0.02, 0.02, 0.02, 0.28));
+            graphicsContext.fillOval(
+                    gymObject.left() + gymObject.width() * 0.08,
+                    gymObject.bottom() - 8,
+                    gymObject.width() * 0.84,
+                    16
+            );
+            graphicsContext.drawImage(
+                    pickupRackImage,
+                    gymObject.left(),
+                    gymObject.top(),
+                    gymObject.width(),
+                    gymObject.height()
+            );
+            return;
+        }
+
         graphicsContext.setFill(Color.color(0.02, 0.02, 0.02, 0.32));
         graphicsContext.fillRect(gymObject.left() + 8, gymObject.bottom() - 4, gymObject.width(), 12);
 
@@ -1035,13 +1421,15 @@ public final class GameRenderer {
     }
 
     private void drawWorkShiftFloor(GraphicsContext graphicsContext, WorkShiftState state) {
+        String shiftLabel = state.workerDressed() ? "ФИНИШ" : "СМЕНА";
+        drawWorkZone(graphicsContext, WorkShiftState.SHIFT_ZONE, shiftLabel, Color.web("#38BDF8"));
         drawWorkZone(graphicsContext, WorkShiftState.PICKUP_ZONE, "ПРИЕМКА", Color.web("#B7791F"));
         drawWorkZone(graphicsContext, WorkShiftState.DROP_ZONE, "ОТГРУЗКА", Color.web("#22C55E"));
     }
 
     private void drawWorkRacks(GraphicsContext graphicsContext) {
-        drawWorkRack(graphicsContext, WorkShiftState.PICKUP_ZONE.left() - 58, WorkShiftState.PICKUP_ZONE.top() - 42, 54, 156);
-        drawWorkRack(graphicsContext, WorkShiftState.DROP_ZONE.right() + 4, WorkShiftState.DROP_ZONE.top() - 22, 44, 142);
+        drawWorkRack(graphicsContext, WorkShiftState.PICKUP_ZONE.left() - 74, WorkShiftState.PICKUP_ZONE.top() - 108, 70, 190);
+        drawWorkRack(graphicsContext, WorkShiftState.DROP_ZONE.right() + 8, WorkShiftState.DROP_ZONE.top() - 34, 74, 184);
     }
 
     private void drawWorkRack(GraphicsContext graphicsContext, double x, double y, double width, double height) {
@@ -1646,5 +2034,19 @@ public final class GameRenderer {
 
     private record DirectionalSpriteSet(Map<PlayerDirection, Image> frames,
                                         Map<PlayerDirection, Image> stepFrames) {
+    }
+
+    private record FrameBounds(int minX, int minY, int maxX, int maxY) {
+        private boolean isEmpty() {
+            return maxX < minX || maxY < minY;
+        }
+
+        private int width() {
+            return maxX - minX + 1;
+        }
+
+        private int height() {
+            return maxY - minY + 1;
+        }
     }
 }
