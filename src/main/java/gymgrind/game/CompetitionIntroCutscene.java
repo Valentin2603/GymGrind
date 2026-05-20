@@ -544,8 +544,8 @@ public final class CompetitionIntroCutscene {
                 judgeCard.key(),
                 new JudgeAsset(
                         judgeCard,
-                        loadBufferedImage(judgeCard.normalImagePath()),
-                        loadBufferedImage(judgeCard.shockedImagePath())
+                        loadPortraitImage(judgeCard.normalImagePath()),
+                        loadPortraitImage(judgeCard.shockedImagePath())
                 )
         );
     }
@@ -559,6 +559,10 @@ public final class CompetitionIntroCutscene {
         } catch (IOException exception) {
             throw new IllegalStateException("Failed to load cutscene resource: " + resourcePath, exception);
         }
+    }
+
+    private BufferedImage loadPortraitImage(String resourcePath) {
+        return PoseAssetLoader.preparePoseImage(loadBufferedImage(resourcePath));
     }
 
     private record JudgeCard(

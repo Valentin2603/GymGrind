@@ -14,6 +14,7 @@ import gymgrind.gym.objects.ZoneType;
 import gymgrind.player.MovementService;
 import gymgrind.player.Player;
 import gymgrind.player.PlayerForm;
+import gymgrind.player.PlayerFormDefinition;
 import gymgrind.player.PlayerProfile;
 import gymgrind.player.PlayerProfiles;
 import gymgrind.player.Stats;
@@ -71,6 +72,7 @@ public final class GameController {
     private final CalendarState calendarState;
     private final SaveService saveService;
     private final CoachDialoguePool coachDialoguePool;
+    private final PoseAssetLoader poseAssetLoader;
 
     private final WorkShiftState workShiftState;
 
@@ -84,6 +86,11 @@ public final class GameController {
     private Optional<TrainingSession> activeTrainingSession;
     private Optional<DailyQuestSnapshot> activeTrainingStartSnapshot;
     private Optional<SkillCheckResult> pendingSuccessResult;
+    private Optional<CompetitionIntroCutscene> activeCompetitionIntro;
+    private Optional<PosingMinigame> activePosingMinigame;
+    private Optional<JudgeResultsCutscene> activeJudgeResultsCutscene;
+    private Optional<CompetitionResultScreen> activeCompetitionResultScreen;
+    private Optional<PerformanceResult> latestCompetitionPerformance;
     private String statusMessage;
     private String coachSpeechText;
     private double coachSpeechTimeLeft;
@@ -105,6 +112,7 @@ public final class GameController {
         this.calendarState = CalendarState.createDefault();
         this.saveService = new SaveService();
         this.coachDialoguePool = new CoachDialoguePool();
+        this.poseAssetLoader = new PoseAssetLoader();
 
         this.workShiftState = new WorkShiftState();
 
@@ -117,10 +125,15 @@ public final class GameController {
         this.activeTrainingSession = Optional.empty();
         this.activeTrainingStartSnapshot = Optional.empty();
         this.pendingSuccessResult = Optional.empty();
+        this.activeCompetitionIntro = Optional.empty();
+        this.activePosingMinigame = Optional.empty();
+        this.activeJudgeResultsCutscene = Optional.empty();
+        this.activeCompetitionResultScreen = Optional.empty();
+        this.latestCompetitionPerformance = Optional.empty();
         this.coachSpeechText = "";
         this.coachSpeechTimeLeft = 0.0;
         this.clothesChangeFadeTimeLeft = 0.0;
-        this.statusMessage = "Нажмите «Начать», чтобы начать день в комнате игрока.";
+        this.statusMessage = "РќР°Р¶РјРёС‚Рµ В«РќР°С‡Р°С‚СЊВ», С‡С‚РѕР±С‹ РЅР°С‡Р°С‚СЊ РґРµРЅСЊ РІ РєРѕРјРЅР°С‚Рµ РёРіСЂРѕРєР°.";
     }
 
     public Scene createScene() {
@@ -128,6 +141,7 @@ public final class GameController {
 
         scene.setOnKeyPressed(event -> handleKeyPressed(event.getCode()));
         scene.setOnKeyReleased(event -> handleKeyReleased(event.getCode()));
+        scene.setOnMousePressed(event -> handleMousePressed());
 
         view.setOnStart(this::showTutorialBeforeStart);
         view.setOnContinue(this::loadSavedRun);
@@ -163,12 +177,13 @@ public final class GameController {
         player.applyProfile(view.selectedProfile(), currentMap());
         calendarState.reset();
         inputState.clear();
-        gameState = GameState.PLAYING;
+        gameState = explorationStateForCurrentLocation();
         nearbyObject = Optional.empty();
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
+        clearCompetitionFlow();
         clearCoachSpeech();
 
         workShiftState.reset();
@@ -178,7 +193,7 @@ public final class GameController {
 
         view.hideOverlay();
         view.hideTutorial();
-        statusMessage = "Вы дома. Подойдите к кровати, компьютеру или двери и нажмите E.";
+        statusMessage = "Р’С‹ РґРѕРјР°. РџРѕРґРѕР№РґРёС‚Рµ Рє РєСЂРѕРІР°С‚Рё, РєРѕРјРїСЊСЋС‚РµСЂСѓ РёР»Рё РґРІРµСЂРё Рё РЅР°Р¶РјРёС‚Рµ E.";
         refreshUi();
         view.requestGameFocus();
     }
@@ -209,20 +224,21 @@ public final class GameController {
     private void loadSavedRun() {
         Optional<SaveData> saveData = saveService.load();
         if (saveData.isEmpty()) {
-            statusMessage = "Сохранение не найдено или повреждено.";
+            statusMessage = "РЎРѕС…СЂР°РЅРµРЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ РёР»Рё РїРѕРІСЂРµР¶РґРµРЅРѕ.";
             refreshContinueButton();
             refreshUi();
             return;
         }
 
         applySaveData(saveData.get());
-        gameState = GameState.PLAYING;
+        gameState = explorationStateForCurrentLocation();
         inputState.clear();
         nearbyObject = Optional.empty();
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
+        clearCompetitionFlow();
         clearCoachSpeech();
 
         workShiftState.reset();
@@ -233,7 +249,7 @@ public final class GameController {
         achievementManager.restore(saveData.get().completedAchievements());
 
         view.hideOverlay();
-        statusMessage = "Сохранение загружено. День " + calendarState.currentDay()
+        statusMessage = "РЎРѕС…СЂР°РЅРµРЅРёРµ Р·Р°РіСЂСѓР¶РµРЅРѕ. Р”РµРЅСЊ " + calendarState.currentDay()
                 + "/" + calendarState.maxDays() + ".";
         refreshUi();
         view.requestGameFocus();
@@ -262,8 +278,8 @@ public final class GameController {
     private String saveCurrentRunFromPause() {
         boolean saved = saveCurrentRun();
         statusMessage = saved
-                ? "Игра сохранена: " + saveService.savePath()
-                : "Не удалось сохранить игру.";
+                ? "РРіСЂР° СЃРѕС…СЂР°РЅРµРЅР°: " + saveService.savePath()
+                : "РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РёРіСЂСѓ.";
         refreshUi();
         return statusMessage;
     }
@@ -295,7 +311,7 @@ public final class GameController {
                 data.money(),
                 data.bodyFat()
         );
-        view.setContinueAvailable(true, "Продолжить: " + profile.displayName() + " | форма " + savedStats.form());
+        view.setContinueAvailable(true, "РџСЂРѕРґРѕР»Р¶РёС‚СЊ: " + profile.displayName() + " | С„РѕСЂРјР° " + savedStats.form());
     }
 
     private boolean canSaveCurrentRun() {
@@ -331,9 +347,42 @@ public final class GameController {
         updateClothesChangeFade(deltaSeconds);
 
         switch (gameState) {
-            case PLAYING -> {
+            case PLAYING, COMPETITION -> {
                 movementService.movePlayer(player, inputState, currentMap(), deltaSeconds);
                 nearbyObject = interactionService.findNearbyObject(player, currentMap());
+            }
+            case COMPETITION_INTRO -> {
+                nearbyObject = Optional.empty();
+                if (activeCompetitionIntro.isPresent()) {
+                    CompetitionIntroCutscene cutscene = activeCompetitionIntro.get();
+                    cutscene.update(deltaSeconds);
+                    if (cutscene.isFinished()) {
+                        finishCompetitionIntro();
+                        return;
+                    }
+                }
+            }
+            case POSING_MINIGAME -> {
+                nearbyObject = Optional.empty();
+                if (activePosingMinigame.isPresent()) {
+                    PosingMinigame minigame = activePosingMinigame.get();
+                    minigame.update(deltaSeconds);
+                    if (minigame.isFinished()) {
+                        finishPosingMinigame();
+                        return;
+                    }
+                }
+            }
+            case JUDGE_RESULTS -> {
+                nearbyObject = Optional.empty();
+                if (activeJudgeResultsCutscene.isPresent()) {
+                    JudgeResultsCutscene cutscene = activeJudgeResultsCutscene.get();
+                    cutscene.update(deltaSeconds);
+                    if (cutscene.isFinished()) {
+                        finishJudgeResultsCutscene();
+                        return;
+                    }
+                }
             }
             case MINIGAME -> {
                 nearbyObject = Optional.empty();
@@ -346,7 +395,7 @@ public final class GameController {
                     }
                 }
             }
-            case RESULT, SHOP, DIALOGUE -> nearbyObject = Optional.empty();
+            case RESULT, SHOP, DIALOGUE, COMPETITION_RESULT -> nearbyObject = Optional.empty();
             default -> nearbyObject = Optional.empty();
         }
 
@@ -354,6 +403,43 @@ public final class GameController {
     }
 
     private void render() {
+        if (gameState == GameState.COMPETITION_INTRO && activeCompetitionIntro.isPresent()) {
+            activeCompetitionIntro.get().render(
+                    view.getGraphicsContext(),
+                    view.getGraphicsContext().getCanvas().getWidth(),
+                    view.getGraphicsContext().getCanvas().getHeight()
+            );
+            return;
+        }
+
+        if (gameState == GameState.POSING_MINIGAME && activePosingMinigame.isPresent()) {
+            activePosingMinigame.get().render(
+                    view.getGraphicsContext(),
+                    view.getGraphicsContext().getCanvas().getWidth(),
+                    view.getGraphicsContext().getCanvas().getHeight(),
+                    renderer.debugCollisionsEnabled()
+            );
+            return;
+        }
+
+        if (gameState == GameState.JUDGE_RESULTS && activeJudgeResultsCutscene.isPresent()) {
+            activeJudgeResultsCutscene.get().render(
+                    view.getGraphicsContext(),
+                    view.getGraphicsContext().getCanvas().getWidth(),
+                    view.getGraphicsContext().getCanvas().getHeight()
+            );
+            return;
+        }
+
+        if (gameState == GameState.COMPETITION_RESULT && activeCompetitionResultScreen.isPresent()) {
+            activeCompetitionResultScreen.get().render(
+                    view.getGraphicsContext(),
+                    view.getGraphicsContext().getCanvas().getWidth(),
+                    view.getGraphicsContext().getCanvas().getHeight()
+            );
+            return;
+        }
+
         renderer.render(
                 view.getGraphicsContext(),
                 currentMap(),
@@ -404,9 +490,41 @@ public final class GameController {
         if (keyCode == KeyCode.F3) {
             boolean debugEnabled = renderer.toggleDebugCollisions();
             statusMessage = debugEnabled
-                    ? "Режим отладки коллизий включён."
-                    : "Режим отладки коллизий выключен.";
+                    ? "Р РµР¶РёРј РѕС‚Р»Р°РґРєРё РєРѕР»Р»РёР·РёР№ РІРєР»СЋС‡С‘РЅ."
+                    : "Р РµР¶РёРј РѕС‚Р»Р°РґРєРё РєРѕР»Р»РёР·РёР№ РІС‹РєР»СЋС‡РµРЅ.";
             refreshUi();
+            return;
+        }
+
+        if (gameState == GameState.COMPETITION_INTRO) {
+            if (keyCode == KeyCode.ENTER) {
+                skipCompetitionIntro();
+            } else if (keyCode == KeyCode.SPACE) {
+                advanceCompetitionIntro();
+            }
+            return;
+        }
+
+        if (gameState == GameState.POSING_MINIGAME) {
+            handlePosingMinigameKeyPressed(keyCode);
+            return;
+        }
+
+        if (gameState == GameState.JUDGE_RESULTS) {
+            if (keyCode == KeyCode.ENTER) {
+                skipJudgeResultsCutscene();
+            } else if (keyCode == KeyCode.SPACE) {
+                advanceJudgeResultsCutscene();
+            }
+            return;
+        }
+
+        if (gameState == GameState.COMPETITION_RESULT) {
+            if (keyCode == KeyCode.ENTER
+                    || keyCode == KeyCode.SPACE
+                    || keyCode == KeyCode.ESCAPE) {
+                closeCompetitionResult();
+            }
             return;
         }
 
@@ -451,7 +569,7 @@ public final class GameController {
                 }
             }
             case ESCAPE -> {
-                if (gameState == GameState.PLAYING) {
+                if (isExplorationState()) {
                     openPauseMenu();
                 }
             }
@@ -461,7 +579,13 @@ public final class GameController {
     }
 
     private void handleKeyReleased(KeyCode keyCode) {
-        if (gameState == GameState.MINIGAME || gameState == GameState.RESULT || gameState == GameState.DIALOGUE) {
+        if (gameState == GameState.MINIGAME
+                || gameState == GameState.RESULT
+                || gameState == GameState.DIALOGUE
+                || gameState == GameState.COMPETITION_INTRO
+                || gameState == GameState.POSING_MINIGAME
+                || gameState == GameState.JUDGE_RESULTS
+                || gameState == GameState.COMPETITION_RESULT) {
             return;
         }
 
@@ -475,9 +599,19 @@ public final class GameController {
         }
     }
 
+    private void handleMousePressed() {
+        if (gameState == GameState.COMPETITION_INTRO) {
+            advanceCompetitionIntro();
+        } else if (gameState == GameState.JUDGE_RESULTS) {
+            advanceJudgeResultsCutscene();
+        } else if (gameState == GameState.COMPETITION_RESULT) {
+            closeCompetitionResult();
+        }
+    }
+
     private void tryInteract() {
-        if (gameState != GameState.PLAYING || nearbyObject.isEmpty()) {
-            if (gameState == GameState.PLAYING && tryWorkInteraction()) {
+        if (!isExplorationState() || nearbyObject.isEmpty()) {
+            if (isExplorationState() && tryWorkInteraction()) {
                 return;
             }
             return;
@@ -490,7 +624,7 @@ public final class GameController {
         GymObject gymObject = nearbyObject.get();
         if (gymObject instanceof TrainingMachine trainingMachine) {
             if (isTooTiredForMinigame()) {
-                statusMessage = "Усталость 100. Вы можете только медленно ходить, отдыхать или спать. Тренировки недоступны.";
+                statusMessage = "РЈСЃС‚Р°Р»РѕСЃС‚СЊ 100. Р’С‹ РјРѕР¶РµС‚Рµ С‚РѕР»СЊРєРѕ РјРµРґР»РµРЅРЅРѕ С…РѕРґРёС‚СЊ, РѕС‚РґС‹С…Р°С‚СЊ РёР»Рё СЃРїР°С‚СЊ. РўСЂРµРЅРёСЂРѕРІРєРё РЅРµРґРѕСЃС‚СѓРїРЅС‹.";
                 refreshUi();
                 return;
             }
@@ -523,7 +657,7 @@ public final class GameController {
     private void openShop() {
         inputState.clear();
         gameState = GameState.SHOP;
-        statusMessage = "Магазин открыт.";
+        statusMessage = "РњР°РіР°Р·РёРЅ РѕС‚РєСЂС‹С‚.";
         view.showShop(
                 player,
                 supplementType -> {
@@ -542,26 +676,26 @@ public final class GameController {
 
     private void closeShop() {
         view.hideOverlay();
-        gameState = GameState.PLAYING;
-        statusMessage = "Вы закрыли магазин.";
+        gameState = explorationStateForCurrentLocation();
+        statusMessage = "Р’С‹ Р·Р°РєСЂС‹Р»Рё РјР°РіР°Р·РёРЅ.";
         refreshUi();
         view.requestGameFocus();
     }
 
     private void openLocationMenu() {
         if (locationManager.currentLocation() == LocationId.WORK && workShiftState.workerDressed()) {
-            statusMessage = "Сначала закончите смену и переоденьтесь в обычную одежду.";
+            statusMessage = "РЎРЅР°С‡Р°Р»Р° Р·Р°РєРѕРЅС‡РёС‚Рµ СЃРјРµРЅСѓ Рё РїРµСЂРµРѕРґРµРЅСЊС‚РµСЃСЊ РІ РѕР±С‹С‡РЅСѓСЋ РѕРґРµР¶РґСѓ.";
             refreshUi();
             return;
         }
 
         inputState.clear();
         gameState = GameState.DIALOGUE;
-        statusMessage = "Выберите локацию для перехода.";
+        statusMessage = "Р’С‹Р±РµСЂРёС‚Рµ Р»РѕРєР°С†РёСЋ РґР»СЏ РїРµСЂРµС…РѕРґР°.";
         view.showLocationMenu(
                 locationManager.currentLocation(),
                 locationManager.availableDestinations(),
-                this::travelToLocation,
+                this::handleLocationSelection,
                 this::closeLocationMenu
         );
         refreshUi();
@@ -573,9 +707,9 @@ public final class GameController {
         }
 
         view.hideOverlay();
-        gameState = GameState.PLAYING;
+        gameState = explorationStateForCurrentLocation();
         nearbyObject = interactionService.findNearbyObject(player, currentMap());
-        statusMessage = "Переход отменён.";
+        statusMessage = "РџРµСЂРµС…РѕРґ РѕС‚РјРµРЅС‘РЅ.";
         refreshUi();
         view.requestGameFocus();
     }
@@ -586,6 +720,7 @@ public final class GameController {
         activeTrainingSession = Optional.empty();
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
+        clearCompetitionFlow();
         clearCoachSpeech();
         view.hideOverlay();
 
@@ -594,40 +729,227 @@ public final class GameController {
         if (locationId != LocationId.WORK) {
             workShiftState.reset();
         }
-        gameState = GameState.PLAYING;
+        gameState = explorationStateFor(locationId);
         nearbyObject = Optional.empty();
-        statusMessage = "Вы перешли в локацию: " + locationId.displayName() + ".";
+        statusMessage = "Р’С‹ РїРµСЂРµС€Р»Рё РІ Р»РѕРєР°С†РёСЋ: " + locationId.displayName() + ".";
         refreshUi();
         view.requestGameFocus();
+    }
+
+    private void handleLocationSelection(LocationId locationId) {
+        if (locationId == LocationId.STAGE) {
+            tryOpenCompetitionStage();
+            return;
+        }
+
+        travelToLocation(locationId);
+    }
+
+    private void tryOpenCompetitionStage() {
+        Optional<PlayerFormDefinition> naturalStageRequirement = player.profile().strongestNaturalFormDefinition();
+        if (naturalStageRequirement.isEmpty() || !naturalStageRequirement.get().isUnlockedFor(player)) {
+            statusMessage = "РќР° СЃС†РµРЅСѓ РµС‰С‘ СЂР°РЅРѕ. РЎРЅР°С‡Р°Р»Р° РґРѕРІРµРґРё РїРµСЂСЃРѕРЅР°Р¶Р° РґРѕ РµРіРѕ РїРѕСЃР»РµРґРЅРµР№ РЅР°С‚СѓСЂР°Р»СЊРЅРѕР№ С„РѕСЂРјС‹.";
+            view.showStackedMessageDialog(
+                    "РџРѕРєР° Р Р°РЅРѕ",
+                    "Р”Р»СЏ РІС‹С…РѕРґР° РЅР° СЃС†РµРЅСѓ РїРµСЂСЃРѕРЅР°Р¶ РґРѕР»Р¶РµРЅ РґРѕС‚СЏРЅСѓС‚СЊСЃСЏ РґРѕ СЃРІРѕРµР№ РїРѕСЃР»РµРґРЅРµР№ РЅР°С‚СѓСЂР°Р»СЊРЅРѕР№ С„РѕСЂРјС‹. "
+                            + "РџРѕРєР° С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРє РЅРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ.",
+                    "РџРѕРЅСЏР»",
+                    () -> {
+                        statusMessage = "Р’С‹Р±РµСЂРёС‚Рµ Р»РѕРєР°С†РёСЋ РґР»СЏ РїРµСЂРµС…РѕРґР°.";
+                        refreshUi();
+                    }
+            );
+            refreshUi();
+            return;
+        }
+
+        statusMessage = "Р¤РѕСЂРјР° РїРѕРґС…РѕРґРёС‚. РўС‹ СѓРІРµСЂРµРЅ, С‡С‚Рѕ С…РѕС‡РµС€СЊ РІС‹Р№С‚Рё РЅР° СЃС†РµРЅСѓ?";
+        view.showConfirmationDialog(
+                "Р’С‹С…РѕРґ РќР° РЎС†РµРЅСѓ",
+                "РџРµСЂСЃРѕРЅР°Р¶ СѓР¶Рµ РґРѕС‚СЏРіРёРІР°РµС‚ РґРѕ РїРѕСЃР»РµРґРЅРµР№ РЅР°С‚СѓСЂР°Р»СЊРЅРѕР№ С„РѕСЂРјС‹. РўРѕС‡РЅРѕ РёРґС‘Рј РЅР° СЃС†РµРЅСѓ СЃРѕСЂРµРІРЅРѕРІР°РЅРёР№?",
+                "Р”Р°, РІС‹Р№С‚Рё",
+                "РќРµС‚, РЅР°Р·Р°Рґ",
+                this::confirmCompetitionStageTravel,
+                this::openLocationMenu
+        );
+        refreshUi();
+    }
+
+    private void confirmCompetitionStageTravel() {
+        showQuestNotifications(dailyQuestManager.onStage(player));
+        travelToLocation(LocationId.STAGE);
+        startCompetitionIntro();
+    }
+
+    private void startCompetitionIntro() {
+        inputState.clear();
+        nearbyObject = Optional.empty();
+        activePosingMinigame = Optional.empty();
+        activeJudgeResultsCutscene = Optional.empty();
+        activeCompetitionResultScreen = Optional.empty();
+        latestCompetitionPerformance = Optional.empty();
+        activeCompetitionIntro = Optional.of(new CompetitionIntroCutscene());
+        gameState = GameState.COMPETITION_INTRO;
+        statusMessage = "";
+        refreshUi();
+        view.requestGameFocus();
+    }
+
+    private void finishCompetitionIntro() {
+        activeCompetitionIntro = Optional.empty();
+        startPosingMinigame();
+    }
+
+    private void startPosingMinigame() {
+        inputState.clear();
+        nearbyObject = Optional.empty();
+        PosingMinigame minigame = new PosingMinigame(poseAssetLoader);
+        minigame.start(
+                player,
+                view.getGraphicsContext().getCanvas().getWidth(),
+                view.getGraphicsContext().getCanvas().getHeight()
+        );
+        activePosingMinigame = Optional.of(minigame);
+        gameState = GameState.POSING_MINIGAME;
+        statusMessage = "";
+        refreshUi();
+        view.requestGameFocus();
+    }
+
+    private void finishPosingMinigame() {
+        if (activePosingMinigame.isEmpty()) {
+            return;
+        }
+
+        PerformanceResult result = activePosingMinigame.get().getResult();
+        activePosingMinigame = Optional.empty();
+        latestCompetitionPerformance = Optional.of(result);
+        startJudgeResultsCutscene(result);
+    }
+
+    private void startJudgeResultsCutscene(PerformanceResult result) {
+        inputState.clear();
+        nearbyObject = Optional.empty();
+        activeJudgeResultsCutscene = Optional.of(new JudgeResultsCutscene(result));
+        gameState = GameState.JUDGE_RESULTS;
+        statusMessage = "";
+        refreshUi();
+        view.requestGameFocus();
+    }
+
+    private void advanceJudgeResultsCutscene() {
+        if (activeJudgeResultsCutscene.isEmpty()) {
+            return;
+        }
+
+        JudgeResultsCutscene cutscene = activeJudgeResultsCutscene.get();
+        cutscene.advance();
+        if (cutscene.isFinished()) {
+            finishJudgeResultsCutscene();
+            return;
+        }
+
+        refreshUi();
+    }
+
+    private void skipJudgeResultsCutscene() {
+        if (activeJudgeResultsCutscene.isEmpty()) {
+            return;
+        }
+
+        activeJudgeResultsCutscene.get().skip();
+        finishJudgeResultsCutscene();
+    }
+
+    private void finishJudgeResultsCutscene() {
+        activeJudgeResultsCutscene = Optional.empty();
+        PerformanceResult result = latestCompetitionPerformance.orElseGet(() -> new PerformanceResult(0, 0, 0, 0, 0, 0, 0, 0, false));
+        activeCompetitionResultScreen = Optional.of(new CompetitionResultScreen(player.profile().displayName(), result));
+        gameState = GameState.COMPETITION_RESULT;
+        statusMessage = "";
+        refreshUi();
+        view.requestGameFocus();
+    }
+
+    private void closeCompetitionResult() {
+        activeCompetitionResultScreen = Optional.empty();
+        gameState = GameState.COMPETITION;
+        nearbyObject = interactionService.findNearbyObject(player, currentMap());
+        PerformanceResult result = latestCompetitionPerformance.orElse(null);
+        statusMessage = result == null
+                ? "РЎРѕСЂРµРІРЅРѕРІР°РЅРёРµ Р·Р°РІРµСЂС€РµРЅРѕ."
+                : "РЎРѕСЂРµРІРЅРѕРІР°РЅРёРµ Р·Р°РІРµСЂС€РµРЅРѕ. РС‚РѕРіРѕРІС‹Р№ Р±Р°Р»Р»: " + result.totalScore() + "/10.";
+        refreshUi();
+        view.requestGameFocus();
+    }
+
+    private void advanceCompetitionIntro() {
+        if (activeCompetitionIntro.isEmpty()) {
+            return;
+        }
+
+        CompetitionIntroCutscene cutscene = activeCompetitionIntro.get();
+        cutscene.advance();
+        if (cutscene.isFinished()) {
+            finishCompetitionIntro();
+            return;
+        }
+
+        refreshUi();
+    }
+
+    private void skipCompetitionIntro() {
+        if (activeCompetitionIntro.isEmpty()) {
+            return;
+        }
+
+        activeCompetitionIntro.get().skip();
+        finishCompetitionIntro();
+    }
+
+    private void handlePosingMinigameKeyPressed(KeyCode keyCode) {
+        if (activePosingMinigame.isEmpty()) {
+            return;
+        }
+
+        boolean consumed = activePosingMinigame.get().handleKeyPressed(keyCode);
+        if (activePosingMinigame.get().isFinished()) {
+            finishPosingMinigame();
+            return;
+        }
+
+        if (consumed) {
+            refreshUi();
+        }
     }
 
     private void talkToCoach() {
         coachSpeechText = coachDialoguePool.nextPhrase();
         coachSpeechTimeLeft = COACH_SPEECH_DURATION_SECONDS;
-        statusMessage = "Тренер делится советом.";
+        statusMessage = "РўСЂРµРЅРµСЂ РґРµР»РёС‚СЃСЏ СЃРѕРІРµС‚РѕРј.";
         refreshUi();
     }
 
     private void sleepAtHome() {
         // Form unlocks are checked only after a real sleep at home.
-        advanceDayWithFatigueRecovery(player.stats().fatigue(), "Вы выспались дома.");
+        advanceDayWithFatigueRecovery(player.stats().fatigue(), "Р’С‹ РІС‹СЃРїР°Р»РёСЃСЊ РґРѕРјР°.");
         if (gameState == GameState.LOSE) {
             return;
         }
 
         Optional<PlayerForm> unlockedForm = player.unlockFormAfterSleep();
-        unlockedForm.ifPresent(form -> statusMessage += " Открыта новая форма: " + form.displayName() + ".");
+        unlockedForm.ifPresent(form -> statusMessage += " РћС‚РєСЂС‹С‚Р° РЅРѕРІР°СЏ С„РѕСЂРјР°: " + form.displayName() + ".");
         refreshUi();
     }
 
     private void rest() {
-        advanceDayWithFatigueRecovery(35, "Вы отдохнули.");
+        advanceDayWithFatigueRecovery(35, "Р’С‹ РѕС‚РґРѕС…РЅСѓР»Рё.");
     }
 
     private void advanceDayWithFatigueRecovery(int fatigueRecovery, String actionText) {
         if (calendarState.isLastDay()) {
             gameState = GameState.LOSE;
-            statusMessage = "Дни подготовки закончились. Вы не успели выйти на сцену.";
+            statusMessage = "Р”РЅРё РїРѕРґРіРѕС‚РѕРІРєРё Р·Р°РєРѕРЅС‡РёР»РёСЃСЊ. Р’С‹ РЅРµ СѓСЃРїРµР»Рё РІС‹Р№С‚Рё РЅР° СЃС†РµРЅСѓ.";
             refreshUi();
             return;
         }
@@ -641,8 +963,8 @@ public final class GameController {
         calendarState.nextDay();
         dailyQuestManager.startNewDay(player, calendarState.currentDay());
 
-        statusMessage = actionText + " Усталость -" + restored
-                + ". Наступил день " + calendarState.currentDay()
+        statusMessage = actionText + " РЈСЃС‚Р°Р»РѕСЃС‚СЊ -" + restored
+                + ". РќР°СЃС‚СѓРїРёР» РґРµРЅСЊ " + calendarState.currentDay()
                 + "/" + calendarState.maxDays() + ".";
         refreshUi();
     }
@@ -654,12 +976,12 @@ public final class GameController {
 
         if (form >= 100 && fatigue < 80) {
             gameState = GameState.WIN;
-            statusMessage = "Победа! Вы вышли на сцену. Форма: "
-                    + form + ", усталость: " + fatigue + ". Enter - начать заново.";
+            statusMessage = "РџРѕР±РµРґР°! Р’С‹ РІС‹С€Р»Рё РЅР° СЃС†РµРЅСѓ. Р¤РѕСЂРјР°: "
+                    + form + ", СѓСЃС‚Р°Р»РѕСЃС‚СЊ: " + fatigue + ". Enter - РЅР°С‡Р°С‚СЊ Р·Р°РЅРѕРІРѕ.";
         } else {
             gameState = GameState.LOSE;
-            statusMessage = "Поражение. Вы вышли на сцену слишком рано. Форма: "
-                    + form + ", усталость: " + fatigue + ". Enter - начать заново.";
+            statusMessage = "РџРѕСЂР°Р¶РµРЅРёРµ. Р’С‹ РІС‹С€Р»Рё РЅР° СЃС†РµРЅСѓ СЃР»РёС€РєРѕРј СЂР°РЅРѕ. Р¤РѕСЂРјР°: "
+                    + form + ", СѓСЃС‚Р°Р»РѕСЃС‚СЊ: " + fatigue + ". Enter - РЅР°С‡Р°С‚СЊ Р·Р°РЅРѕРІРѕ.";
         }
 
         inputState.clear();
@@ -667,7 +989,7 @@ public final class GameController {
     }
 
     private void startWork() {
-        statusMessage = "Сначала начните смену в зоне под второй большой полкой.";
+        statusMessage = "РЎРЅР°С‡Р°Р»Р° РЅР°С‡РЅРёС‚Рµ СЃРјРµРЅСѓ РІ Р·РѕРЅРµ РїРѕРґ РІС‚РѕСЂРѕР№ Р±РѕР»СЊС€РѕР№ РїРѕР»РєРѕР№.";
         refreshUi();
     }
 
@@ -678,17 +1000,17 @@ public final class GameController {
 
         if (workShiftState.isNearShiftZone(player)) {
             if (workShiftState.carryingBox()) {
-                statusMessage = "Сначала сдайте коробку в отгрузку, потом вернитесь закончить смену.";
+                statusMessage = "РЎРЅР°С‡Р°Р»Р° СЃРґР°Р№С‚Рµ РєРѕСЂРѕР±РєСѓ РІ РѕС‚РіСЂСѓР·РєСѓ, РїРѕС‚РѕРј РІРµСЂРЅРёС‚РµСЃСЊ Р·Р°РєРѕРЅС‡РёС‚СЊ СЃРјРµРЅСѓ.";
             } else if (workShiftState.workerDressed()) {
                 workShiftState.endShift(player);
                 startClothesChangeFade();
-                statusMessage = "Смена закончена, вы переоделись обратно.";
+                statusMessage = "РЎРјРµРЅР° Р·Р°РєРѕРЅС‡РµРЅР°, РІС‹ РїРµСЂРµРѕРґРµР»РёСЃСЊ РѕР±СЂР°С‚РЅРѕ.";
             } else if (workShiftState.completed()) {
-                statusMessage = "Складская смена уже выполнена: 10/10 коробок, награда получена.";
+                statusMessage = "РЎРєР»Р°РґСЃРєР°СЏ СЃРјРµРЅР° СѓР¶Рµ РІС‹РїРѕР»РЅРµРЅР°: 10/10 РєРѕСЂРѕР±РѕРє, РЅР°РіСЂР°РґР° РїРѕР»СѓС‡РµРЅР°.";
             } else {
                 workShiftState.start();
                 startClothesChangeFade();
-                statusMessage = "Вы переоделись в рабочую форму. Возьмите коробку в приемке и отнесите 10 коробок в отгрузку.";
+                statusMessage = "Р’С‹ РїРµСЂРµРѕРґРµР»РёСЃСЊ РІ СЂР°Р±РѕС‡СѓСЋ С„РѕСЂРјСѓ. Р’РѕР·СЊРјРёС‚Рµ РєРѕСЂРѕР±РєСѓ РІ РїСЂРёРµРјРєРµ Рё РѕС‚РЅРµСЃРёС‚Рµ 10 РєРѕСЂРѕР±РѕРє РІ РѕС‚РіСЂСѓР·РєСѓ.";
             }
             refreshUi();
             return true;
@@ -699,7 +1021,7 @@ public final class GameController {
         }
 
         if (workShiftState.takeBox(player)) {
-            statusMessage = "Коробка взята. Несите ее в зеленую зону отгрузки, обходя полки.";
+            statusMessage = "РљРѕСЂРѕР±РєР° РІР·СЏС‚Р°. РќРµСЃРёС‚Рµ РµРµ РІ Р·РµР»РµРЅСѓСЋ Р·РѕРЅСѓ РѕС‚РіСЂСѓР·РєРё, РѕР±С…РѕРґСЏ РїРѕР»РєРё.";
             refreshUi();
             return true;
         }
@@ -715,11 +1037,11 @@ public final class GameController {
                     TrainingGrade.EXCELLENT,
                     WorkShiftState.REWARD_MONEY
             ));
-            statusMessage = "Складская смена завершена: 10/10 коробок. Деньги +"
+            statusMessage = "РЎРєР»Р°РґСЃРєР°СЏ СЃРјРµРЅР° Р·Р°РІРµСЂС€РµРЅР°: 10/10 РєРѕСЂРѕР±РѕРє. Р”РµРЅСЊРіРё +"
                     + WorkShiftState.REWARD_MONEY + ".";
         } else {
-            statusMessage = "Коробка доставлена: " + workShiftState.deliveredBoxes()
-                    + "/" + WorkShiftState.TARGET_BOXES + ". Возвращайтесь к приемке.";
+            statusMessage = "РљРѕСЂРѕР±РєР° РґРѕСЃС‚Р°РІР»РµРЅР°: " + workShiftState.deliveredBoxes()
+                    + "/" + WorkShiftState.TARGET_BOXES + ". Р’РѕР·РІСЂР°С‰Р°Р№С‚РµСЃСЊ Рє РїСЂРёРµРјРєРµ.";
         }
 
         refreshUi();
@@ -733,7 +1055,7 @@ public final class GameController {
         activeTrainingSession = Optional.empty();
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
-        statusMessage = "Выберите вес для тренировки.";
+        statusMessage = "Р’С‹Р±РµСЂРёС‚Рµ РІРµСЃ РґР»СЏ С‚СЂРµРЅРёСЂРѕРІРєРё.";
         view.showTrainingSetup(
                 machine,
                 trainingService.workingLoadLabel(player, machine),
@@ -741,7 +1063,7 @@ public final class GameController {
                 weight -> startTraining(machine, weight),
                 () -> {
                     gameState = GameState.PLAYING;
-                    statusMessage = "Тренировка отменена.";
+                    statusMessage = "РўСЂРµРЅРёСЂРѕРІРєР° РѕС‚РјРµРЅРµРЅР°.";
                     activeTrainingStartSnapshot = Optional.empty();
                     view.hideOverlay();
                     refreshUi();
@@ -765,7 +1087,7 @@ public final class GameController {
         }
 
         Node minigame = createMinigame(session);
-        statusMessage = "Тренировка началась: " + machine.name() + ", нагрузка: " + session.weightLabel() + ".";
+        statusMessage = "РўСЂРµРЅРёСЂРѕРІРєР° РЅР°С‡Р°Р»Р°СЃСЊ: " + machine.name() + ", РЅР°РіСЂСѓР·РєР°: " + session.weightLabel() + ".";
         view.showOverlay(minigame);
         refreshUi();
         minigame.requestFocus();
@@ -798,7 +1120,7 @@ public final class GameController {
         view.hideOverlay();
 
         if (player.stats().fatigue() >= 100) {
-            statusMessage += " Усталость достигла 100: дальше тренироваться нельзя, нужно восстановиться.";
+            statusMessage += " РЈСЃС‚Р°Р»РѕСЃС‚СЊ РґРѕСЃС‚РёРіР»Р° 100: РґР°Р»СЊС€Рµ С‚СЂРµРЅРёСЂРѕРІР°С‚СЊСЃСЏ РЅРµР»СЊР·СЏ, РЅСѓР¶РЅРѕ РІРѕСЃСЃС‚Р°РЅРѕРІРёС‚СЊСЃСЏ.";
         }
 
         openTrainingResult(result.grade() != TrainingGrade.FAIL, result.grade(), outcome);
@@ -808,20 +1130,27 @@ public final class GameController {
     }
 
     private String buildPrompt() {
+        if (gameState == GameState.COMPETITION_INTRO
+                || gameState == GameState.POSING_MINIGAME
+                || gameState == GameState.JUDGE_RESULTS
+                || gameState == GameState.COMPETITION_RESULT) {
+            return "";
+        }
+
         if (gameState == GameState.RESULT && pendingSuccessResult.isPresent()) {
-            return "Space или Esc - закрыть окно результата.";
+            return "Space РёР»Рё Esc - Р·Р°РєСЂС‹С‚СЊ РѕРєРЅРѕ СЂРµР·СѓР»СЊС‚Р°С‚Р°.";
         }
 
         if (gameState == GameState.MINIGAME && activeSkillCheck.isPresent()) {
             SkillCheckSession session = activeSkillCheck.get();
             if (session.isSequenceMode()) {
-                return "Нажимайте буквы из очереди. Esc - отмена подхода.";
+                return "РќР°Р¶РёРјР°Р№С‚Рµ Р±СѓРєРІС‹ РёР· РѕС‡РµСЂРµРґРё. Esc - РѕС‚РјРµРЅР° РїРѕРґС…РѕРґР°.";
             }
-            return "Нажмите показанную клавишу в зелёной зоне. Esc - отмена подхода.";
+            return "РќР°Р¶РјРёС‚Рµ РїРѕРєР°Р·Р°РЅРЅСѓСЋ РєР»Р°РІРёС€Сѓ РІ Р·РµР»С‘РЅРѕР№ Р·РѕРЅРµ. Esc - РѕС‚РјРµРЅР° РїРѕРґС…РѕРґР°.";
         }
 
         if (gameState == GameState.DIALOGUE) {
-            return "Выберите локацию мышью или нажмите Esc для отмены.";
+            return "Р’С‹Р±РµСЂРёС‚Рµ Р»РѕРєР°С†РёСЋ РјС‹С€СЊСЋ РёР»Рё РЅР°Р¶РјРёС‚Рµ Esc РґР»СЏ РѕС‚РјРµРЅС‹.";
         }
 
         if (gameState == GameState.PLAYING && locationManager.currentLocation() == LocationId.WORK) {
@@ -854,7 +1183,7 @@ public final class GameController {
         if (activeSkillCheck.isEmpty()) {
             if (keyCode == KeyCode.ESCAPE) {
                 gameState = GameState.PLAYING;
-                statusMessage = "Действие отменено.";
+                statusMessage = "Р”РµР№СЃС‚РІРёРµ РѕС‚РјРµРЅРµРЅРѕ.";
                 activeTrainingStartSnapshot = Optional.empty();
                 view.hideOverlay();
                 refreshUi();
@@ -907,7 +1236,7 @@ public final class GameController {
         SkillCheckSession session = skillCheckService.startSession(trainingSession, player.stats().strength());
         activeSkillCheck = Optional.of(session);
         gameState = GameState.MINIGAME;
-        statusMessage = buildSkillCheckStartMessage(session) + " Нагрузка: " + trainingSession.weightLabel() + ".";
+        statusMessage = buildSkillCheckStartMessage(session) + " РќР°РіСЂСѓР·РєР°: " + trainingSession.weightLabel() + ".";
         refreshUi();
     }
 
@@ -983,7 +1312,7 @@ public final class GameController {
         );
 
         if (player.stats().fatigue() >= 100) {
-            statusMessage = outcome.message() + " Усталость достигла 100: тренировки заблокированы до восстановления.";
+            statusMessage = outcome.message() + " РЈСЃС‚Р°Р»РѕСЃС‚СЊ РґРѕСЃС‚РёРіР»Р° 100: С‚СЂРµРЅРёСЂРѕРІРєРё Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅС‹ РґРѕ РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ.";
             displayResult = new SkillCheckResult(
                     grade != TrainingGrade.FAIL,
                     grade,
@@ -1046,26 +1375,26 @@ public final class GameController {
     private String buildSkillCheckStartMessage(SkillCheckSession session) {
         if (session.isSequenceMode()) {
             return session.machine().name()
-                    + ": набирайте символы по порядку. Верные клавиши заполняют шкалу, ошибки срезают прогресс.";
+                    + ": РЅР°Р±РёСЂР°Р№С‚Рµ СЃРёРјРІРѕР»С‹ РїРѕ РїРѕСЂСЏРґРєСѓ. Р’РµСЂРЅС‹Рµ РєР»Р°РІРёС€Рё Р·Р°РїРѕР»РЅСЏСЋС‚ С€РєР°Р»Сѓ, РѕС€РёР±РєРё СЃСЂРµР·Р°СЋС‚ РїСЂРѕРіСЂРµСЃСЃ.";
         }
 
         if (session.requiresMultipleHits()) {
             if (session.machine().machineType() == MachineType.TREADMILL) {
                 return session.machine().name()
-                        + ": нажимайте показанные клавиши в зелёной зоне. Цель: "
+                        + ": РЅР°Р¶РёРјР°Р№С‚Рµ РїРѕРєР°Р·Р°РЅРЅС‹Рµ РєР»Р°РІРёС€Рё РІ Р·РµР»С‘РЅРѕР№ Р·РѕРЅРµ. Р¦РµР»СЊ: "
                         + session.requiredHits()
-                        + " попаданий из "
+                        + " РїРѕРїР°РґР°РЅРёР№ РёР· "
                         + session.maxAttempts()
-                        + " попыток.";
+                        + " РїРѕРїС‹С‚РѕРє.";
             }
 
             return session.machine().name()
-                    + ": попадите в зелёную зону "
+                    + ": РїРѕРїР°РґРёС‚Рµ РІ Р·РµР»С‘РЅСѓСЋ Р·РѕРЅСѓ "
                     + session.requiredHits()
-                    + " раз подряд.";
+                    + " СЂР°Р· РїРѕРґСЂСЏРґ.";
         }
 
-        return session.machine().name() + ": остановите маркер в зелёной зоне, чтобы засчитать подход.";
+        return session.machine().name() + ": РѕСЃС‚Р°РЅРѕРІРёС‚Рµ РјР°СЂРєРµСЂ РІ Р·РµР»С‘РЅРѕР№ Р·РѕРЅРµ, С‡С‚РѕР±С‹ Р·Р°СЃС‡РёС‚Р°С‚СЊ РїРѕРґС…РѕРґ.";
     }
 
     private void cancelSkillCheck() {
@@ -1078,14 +1407,14 @@ public final class GameController {
         activeTrainingStartSnapshot = Optional.empty();
         gameState = GameState.PLAYING;
         nearbyObject = interactionService.findNearbyObject(player, currentMap());
-        statusMessage = "Подход отменён. Можно попробовать ещё раз.";
+        statusMessage = "РџРѕРґС…РѕРґ РѕС‚РјРµРЅС‘РЅ. РњРѕР¶РЅРѕ РїРѕРїСЂРѕР±РѕРІР°С‚СЊ РµС‰С‘ СЂР°Р·.";
         refreshUi();
     }
 
     private void openPauseMenu() {
         inputState.clear();
         gameState = GameState.PAUSE;
-        statusMessage = "Пауза. Можно сохраниться, вернуться к выбору персонажа или продолжить.";
+        statusMessage = "РџР°СѓР·Р°. РњРѕР¶РЅРѕ СЃРѕС…СЂР°РЅРёС‚СЊСЃСЏ, РІРµСЂРЅСѓС‚СЊСЃСЏ Рє РІС‹Р±РѕСЂСѓ РїРµСЂСЃРѕРЅР°Р¶Р° РёР»Рё РїСЂРѕРґРѕР»Р¶РёС‚СЊ.";
         view.showPauseMenu(
                 this::saveCurrentRunFromPause,
                 this::returnToMainMenu,
@@ -1101,9 +1430,10 @@ public final class GameController {
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
         nearbyObject = Optional.empty();
+        clearCompetitionFlow();
         clearCoachSpeech();
         gameState = GameState.MENU;
-        statusMessage = "Вы вернулись к выбору персонажа. Сохранение выполняется только по кнопке в паузе.";
+        statusMessage = "Р’С‹ РІРµСЂРЅСѓР»РёСЃСЊ Рє РІС‹Р±РѕСЂСѓ РїРµСЂСЃРѕРЅР°Р¶Р°. РЎРѕС…СЂР°РЅРµРЅРёРµ РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ С‚РѕР»СЊРєРѕ РїРѕ РєРЅРѕРїРєРµ РІ РїР°СѓР·Рµ.";
         view.hideOverlay();
         view.hideTutorial();
         refreshContinueButton();
@@ -1112,9 +1442,9 @@ public final class GameController {
 
     private void closePauseMenu() {
         inputState.clear();
-        gameState = GameState.PLAYING;
+        gameState = explorationStateForCurrentLocation();
         nearbyObject = interactionService.findNearbyObject(player, currentMap());
-        statusMessage = "Игра продолжена.";
+        statusMessage = "РРіСЂР° РїСЂРѕРґРѕР»Р¶РµРЅР°.";
         view.hideOverlay();
         refreshUi();
         view.requestGameFocus();
@@ -1171,6 +1501,26 @@ public final class GameController {
     private void clearCoachSpeech() {
         coachSpeechText = "";
         coachSpeechTimeLeft = 0.0;
+    }
+
+    private boolean isExplorationState() {
+        return gameState == GameState.PLAYING || gameState == GameState.COMPETITION;
+    }
+
+    private void clearCompetitionFlow() {
+        activeCompetitionIntro = Optional.empty();
+        activePosingMinigame = Optional.empty();
+        activeJudgeResultsCutscene = Optional.empty();
+        activeCompetitionResultScreen = Optional.empty();
+        latestCompetitionPerformance = Optional.empty();
+    }
+
+    private GameState explorationStateForCurrentLocation() {
+        return explorationStateFor(locationManager.currentLocation());
+    }
+
+    private GameState explorationStateFor(LocationId locationId) {
+        return locationId == LocationId.STAGE ? GameState.COMPETITION : GameState.PLAYING;
     }
 
     private GameMap currentMap() {

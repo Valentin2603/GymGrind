@@ -54,7 +54,7 @@ final class PlayerFormProgressionTest {
     void darkDrunSteroidFormStillRequiresRecoveryShot() {
         Player player = Player.createDefault(GameMap.createHomeLayout());
         player.applyProfile(PlayerProfiles.findById("dark_drun"), GameMap.createHomeLayout());
-        player.stats().restoreValues(320, 390, 215, 0, 300, 14.0);
+        player.stats().restoreValues(325, 395, 200, 0, 300, 18.0);
 
         Optional<PlayerForm> firstUnlock = player.unlockFormAfterSleep();
         assertEquals(Optional.of(PlayerForm.THIRD), firstUnlock);

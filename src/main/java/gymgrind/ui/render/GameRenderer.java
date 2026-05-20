@@ -1664,6 +1664,10 @@ public final class GameRenderer {
         return debugCollisions;
     }
 
+    public boolean debugCollisionsEnabled() {
+        return debugCollisions;
+    }
+
     private void drawDebugCollisions(GraphicsContext graphicsContext, GameMap gameMap, Player player) {
         if (!debugCollisions) {
             return;
