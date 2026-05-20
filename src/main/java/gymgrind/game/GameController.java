@@ -1,5 +1,6 @@
 package gymgrind.game;
 
+import gymgrind.achievements.AchievementManager;
 import gymgrind.gym.CoachDialoguePool;
 import gymgrind.gym.GameMap;
 import gymgrind.gym.InteractionService;
@@ -45,6 +46,7 @@ import javafx.stage.Stage;
 
 import java.util.Optional;
 import java.util.List;
+import java.util.Map;
 
 public final class GameController {
 
@@ -72,6 +74,7 @@ public final class GameController {
     private final WorkShiftState workShiftState;
 
     private final DailyQuestManager dailyQuestManager;
+    private final AchievementManager achievementManager;
 
 
     private GameState gameState;
@@ -104,6 +107,7 @@ public final class GameController {
         this.workShiftState = new WorkShiftState();
 
         this.dailyQuestManager = new DailyQuestManager();
+        this.achievementManager = new AchievementManager();
 
         this.gameState = GameState.MENU;
         this.nearbyObject = Optional.empty();
@@ -167,6 +171,7 @@ public final class GameController {
         workShiftState.reset();
 
         dailyQuestManager.startNewDay(player, calendarState.currentDay());
+        achievementManager.reset();
 
         view.hideOverlay();
         view.hideTutorial();
@@ -222,6 +227,7 @@ public final class GameController {
         if (!dailyQuestManager.restore(player, saveData.get().dailyQuests())) {
             dailyQuestManager.startNewDay(player, calendarState.currentDay());
         }
+        achievementManager.restore(saveData.get().completedAchievements());
 
         view.hideOverlay();
         statusMessage = "Сохранение загружено. День " + calendarState.currentDay()
@@ -312,6 +318,7 @@ public final class GameController {
                 player.activeSupplements().activeTypes(),
                 player.currentForm(),
                 player.purchasedSupplements(),
+                achievementManager.completedAchievements(),
                 dailyQuestManager.saveData()
         );
     }
@@ -372,6 +379,20 @@ public final class GameController {
         for (DailyQuestNotification notification : notifications) {
             view.showDailyQuestCompletion(notification);
         }
+    }
+
+    private void checkWorkingLoadAchievements() {
+        showQuestNotifications(achievementManager.checkWorkingLoads(player, currentWorkingLoads()));
+    }
+
+    private Map<MachineType, Integer> currentWorkingLoads() {
+        Map<MachineType, Integer> workingLoads = AchievementManager.emptyWorkingLoads();
+        for (GymObject object : currentMap().objects()) {
+            if (object instanceof TrainingMachine machine) {
+                workingLoads.put(machine.machineType(), trainingService.workingLoadValue(player, machine));
+            }
+        }
+        return workingLoads;
     }
 
     private void handleKeyPressed(KeyCode keyCode) {
@@ -605,6 +626,7 @@ public final class GameController {
         int restored = fatigueBefore - player.stats().fatigue();
         showQuestNotifications(dailyQuestManager.onRest(player, restored));
         showQuestNotifications(dailyQuestManager.onDayEnd(player));
+        player.activeSupplements().clearDayLongEffects();
         calendarState.nextDay();
         dailyQuestManager.startNewDay(player, calendarState.currentDay());
 
@@ -746,6 +768,7 @@ public final class GameController {
                 startSnapshot,
                 trainingService.workingLoadValue(player, session.machine())
         ));
+        checkWorkingLoadAchievements();
         statusMessage = outcome.message();
         view.hideOverlay();
 
@@ -922,6 +945,7 @@ public final class GameController {
                 startSnapshot,
                 trainingService.workingLoadValue(player, trainingSession.machine())
         ));
+        checkWorkingLoadAchievements();
         SkillCheckResult displayResult = new SkillCheckResult(
                 grade != TrainingGrade.FAIL,
                 grade,

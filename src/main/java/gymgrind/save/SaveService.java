@@ -1,5 +1,6 @@
 package gymgrind.save;
 
+import gymgrind.achievements.AchievementType;
 import gymgrind.daily.DailyQuestSaveData;
 import gymgrind.daily.DailyQuestType;
 import gymgrind.game.LocationId;
@@ -60,6 +61,7 @@ public final class SaveService {
         properties.setProperty("activeSupplements", encodeSupplements(data.activeSupplements()));
         properties.setProperty("currentForm", data.currentForm().name());
         properties.setProperty("purchasedSupplements", encodeSupplements(data.purchasedSupplements()));
+        properties.setProperty("completedAchievements", encodeAchievements(data.completedAchievements()));
         writeDailyQuestData(properties, data.dailyQuests());
 
         try {
@@ -96,6 +98,7 @@ public final class SaveService {
                     decodeSupplements(properties.getProperty("activeSupplements", "")),
                     PlayerForm.valueOf(properties.getProperty("currentForm", PlayerForm.BASE.name())),
                     decodeSupplements(properties.getProperty("purchasedSupplements", "")),
+                    decodeAchievements(properties.getProperty("completedAchievements", "")),
                     readDailyQuestData(properties)
             ));
         } catch (IOException | IllegalArgumentException exception) {
@@ -106,6 +109,12 @@ public final class SaveService {
     private String encodeSupplements(Set<SupplementType> supplements) {
         return supplements.stream()
                 .map(SupplementType::name)
+                .collect(Collectors.joining(","));
+    }
+
+    private String encodeAchievements(Set<AchievementType> achievements) {
+        return achievements.stream()
+                .map(AchievementType::name)
                 .collect(Collectors.joining(","));
     }
 
@@ -262,6 +271,18 @@ public final class SaveService {
                 .map(String::trim)
                 .filter(token -> !token.isBlank())
                 .map(SupplementType::valueOf)
+                .forEach(result::add);
+        return result;
+    }
+
+    private Set<AchievementType> decodeAchievements(String value) {
+        EnumSet<AchievementType> result = EnumSet.noneOf(AchievementType.class);
+        if (value == null || value.isBlank()) {
+            return result;
+        }
+
+        splitValues(value).stream()
+                .map(AchievementType::valueOf)
                 .forEach(result::add);
         return result;
     }

@@ -1,10 +1,10 @@
 package gymgrind.training;
 
 public enum FatigueProfile {
-    NORMAL("Обычная", 1.00, 1.00, 0),
-    TIRED("Быстрее", 1.25, 1.00, 1),
-    EXHAUSTED("Уже тяжело", 1.35, 0.70, 1),
-    DANGER("Почти провал", 1.65, 0.50, 2);
+    NORMAL("Обычная", 1.12, 0.94, 0),
+    TIRED("Быстрее", 1.32, 0.88, 1),
+    EXHAUSTED("Уже тяжело", 1.48, 0.66, 1),
+    DANGER("Почти провал", 1.78, 0.46, 2);
 
     private final String label;
     private final double speedMultiplier;

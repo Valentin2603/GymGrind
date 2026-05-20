@@ -1390,6 +1390,63 @@ public final class GameRenderer {
         graphicsContext.restore();
     }
 
+    private void drawResultGradeAnimation(GraphicsContext graphicsContext,
+                                          TrainingGrade grade,
+                                          double panelLeft,
+                                          double panelTop,
+                                          double panelWidth,
+                                          double panelHeight,
+                                          double pulse) {
+        Color color = gradeColor(grade);
+        double centerX = panelLeft + panelWidth / 2.0;
+        double centerY = panelTop + panelHeight / 2.0;
+        graphicsContext.save();
+        switch (grade) {
+            case EXCELLENT -> {
+                graphicsContext.setStroke(Color.web("#67E8F9", 0.42 + pulse * 0.24));
+                graphicsContext.setLineWidth(4);
+                for (int index = 0; index < 4; index++) {
+                    double radius = 230 + index * 26 + pulse * 18;
+                    graphicsContext.strokeOval(centerX - radius / 2, centerY - radius / 2, radius, radius);
+                }
+                graphicsContext.setFill(Color.web("#F8D66D", 0.72));
+                for (int index = 0; index < 10; index++) {
+                    double angle = index * Math.PI * 0.2 + pulse;
+                    double x = centerX + Math.cos(angle) * (290 + pulse * 20);
+                    double y = centerY + Math.sin(angle) * (170 + pulse * 12);
+                    graphicsContext.fillOval(x - 4, y - 4, 8, 8);
+                }
+            }
+            case GOOD -> {
+                graphicsContext.setStroke(Color.web("#22C55E", 0.34 + pulse * 0.20));
+                graphicsContext.setLineWidth(5);
+                graphicsContext.strokeRoundRect(panelLeft - 18 - pulse * 8, panelTop - 18 - pulse * 8,
+                        panelWidth + 36 + pulse * 16, panelHeight + 36 + pulse * 16, 34, 34);
+            }
+            case NORMAL -> {
+                graphicsContext.setFill(Color.web("#F8D66D", 0.18 + pulse * 0.16));
+                graphicsContext.fillRoundRect(panelLeft - 20, panelTop + panelHeight - 34,
+                        panelWidth + 40, 20 + pulse * 8, 20, 20);
+            }
+            case WEAK -> {
+                graphicsContext.setFill(Color.web("#FB923C", 0.18 + pulse * 0.18));
+                for (int index = 0; index < 5; index++) {
+                    graphicsContext.fillOval(panelLeft + 80 + index * 118, panelTop - 20 + pulse * 10,
+                            18 + pulse * 8, 18 + pulse * 8);
+                }
+            }
+            case FAIL -> {
+                graphicsContext.setStroke(Color.web("#F87171", 0.34 + pulse * 0.22));
+                graphicsContext.setLineWidth(5);
+                graphicsContext.strokeLine(panelLeft - 28, panelTop + 18, panelLeft + panelWidth + 28, panelTop + panelHeight - 18);
+                graphicsContext.strokeLine(panelLeft + 24, panelTop + panelHeight + 22, panelLeft + panelWidth - 24, panelTop - 22);
+            }
+        }
+        graphicsContext.setFill(color.deriveColor(0, 1, 1, 0.12 + pulse * 0.10));
+        graphicsContext.fillRoundRect(panelLeft - 10, panelTop - 10, panelWidth + 20, panelHeight + 20, 32, 32);
+        graphicsContext.restore();
+    }
+
     private void drawSequenceSkillCheckOverlay(GraphicsContext graphicsContext, SkillCheckSession session) {
         double canvasWidth = graphicsContext.getCanvas().getWidth();
         double canvasHeight = graphicsContext.getCanvas().getHeight();
@@ -1452,6 +1509,7 @@ public final class GameRenderer {
         graphicsContext.save();
         graphicsContext.setFill(OVERLAY_BACKDROP);
         graphicsContext.fillRect(0, 0, canvasWidth, canvasHeight);
+        drawResultGradeAnimation(graphicsContext, result.grade(), panelLeft, panelTop, panelWidth, panelHeight, pulse);
         graphicsContext.setFill(OVERLAY_PANEL);
         graphicsContext.fillRoundRect(panelLeft, panelTop, panelWidth, panelHeight, 24, 24);
         graphicsContext.setStroke(gradeColor);
@@ -1634,8 +1692,10 @@ public final class GameRenderer {
 
     private Color gradeColor(TrainingGrade grade) {
         return switch (grade) {
-            case EXCELLENT -> SUCCESS_ZONE;
+            case EXCELLENT -> Color.web("#67E8F9");
+            case GOOD -> SUCCESS_ZONE;
             case NORMAL -> HIGHLIGHT;
+            case WEAK -> Color.web("#FB923C");
             case FAIL -> Color.web("#F87171");
         };
     }

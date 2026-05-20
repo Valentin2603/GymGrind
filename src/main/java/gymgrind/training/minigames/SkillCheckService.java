@@ -21,7 +21,7 @@ public final class SkillCheckService {
 
     private static final int SQUAT_PROMPT_LENGTH = 14;
     private static final double SQUAT_START_BAR_PROGRESS = 0.28;
-    private static final double SQUAT_DRAIN_PER_SECOND = 0.15;
+    private static final double SQUAT_DRAIN_PER_SECOND = 0.195;
     private static final double SQUAT_CORRECT_GAIN = 0.128;
     private static final double SQUAT_WRONG_PENALTY = 0.27;
     private static final char[] SQUAT_SYMBOLS = "QWERTYUIOPASDFGHJKLZXCVBNM1234567890".toCharArray();
@@ -236,10 +236,14 @@ public final class SkillCheckService {
         int attempts = session.timingAttempts();
         int misses = session.missedAttempts();
         TrainingGrade grade;
-        if (hits >= session.requiredHits() + 2 && misses <= 2) {
+        if (hits >= session.requiredHits() + 2 && misses <= 1) {
             grade = TrainingGrade.EXCELLENT;
-        } else if (hits >= Math.max(5, session.requiredHits() - 1)) {
+        } else if (hits >= session.requiredHits() && misses <= 3) {
+            grade = TrainingGrade.GOOD;
+        } else if (hits >= Math.max(5, session.requiredHits() - 2)) {
             grade = TrainingGrade.NORMAL;
+        } else if (hits >= Math.max(3, session.requiredHits() - 4)) {
+            grade = TrainingGrade.WEAK;
         } else {
             grade = TrainingGrade.FAIL;
         }
@@ -247,17 +251,23 @@ public final class SkillCheckService {
         boolean success = grade != TrainingGrade.FAIL;
         int stamina = switch (grade) {
             case EXCELLENT -> 5;
+            case GOOD -> 4;
             case NORMAL -> 3;
+            case WEAK -> 2;
             case FAIL -> 1;
         };
         int fatigue = switch (grade) {
             case EXCELLENT -> 7;
+            case GOOD -> 8;
             case NORMAL -> 8;
+            case WEAK -> 9;
             case FAIL -> 10;
         };
         double bodyFat = switch (grade) {
             case EXCELLENT -> -3.0;
+            case GOOD -> -2.4;
             case NORMAL -> -2.0;
+            case WEAK -> -1.4;
             case FAIL -> -1.0;
         };
 
@@ -332,12 +342,18 @@ public final class SkillCheckService {
     private SkillCheckSession startTimingSession(TrainingSession trainingSession, int strength) {
         TrainingMachine machine = trainingSession.machine();
         TrainingTuning tuning = trainingSession.tuning();
+        double statZoneBonus = machine.machineType() == MachineType.TREADMILL
+                ? tuning.staminaBonus() * 0.08
+                : tuning.strengthBonus() * 0.10 + tuning.muscleBonus() * 0.08 + tuning.staminaBonus() * 0.01;
+        double statSpeedBonus = machine.machineType() == MachineType.TREADMILL
+                ? tuning.staminaBonus() * 0.14
+                : tuning.strengthBonus() * 0.18 + tuning.muscleBonus() * 0.12 + tuning.staminaBonus() * 0.01;
         double successZoneWidth = clamp(
-                successZoneWidthFor(machine.machineType()) * tuning.zoneMultiplier() * (1.0 + tuning.staminaBonus() * 0.10 - tuning.bodyFatLoad() * 0.04),
+                successZoneWidthFor(machine.machineType()) * tuning.zoneMultiplier() * (1.0 + statZoneBonus - tuning.bodyFatLoad() * 0.04),
                 machine.machineType() == MachineType.TREADMILL ? 0.10 : 0.08,
                 machine.machineType() == MachineType.TREADMILL ? 0.28 : 0.24
         );
-        double markerSpeedMultiplier = tuning.speedMultiplier() * (1.0 - tuning.staminaBonus() * 0.16 + tuning.bodyFatLoad() * 0.05);
+        double markerSpeedMultiplier = tuning.speedMultiplier() * clamp(1.0 - statSpeedBonus + tuning.bodyFatLoad() * 0.05, 0.76, 1.08);
         return SkillCheckSession.timingZone(
                 machine,
                 randomMarkerProgress(),
@@ -431,32 +447,41 @@ public final class SkillCheckService {
     private TrainingGrade sequenceGrade(SkillCheckSession session) {
         int inputs = Math.max(1, session.sequenceInputs());
         double accuracy = session.sequenceCorrectInputs() / (double) inputs;
-        if (session.sequenceWrongInputs() <= 1 && accuracy >= 0.86) {
+        if (session.sequenceWrongInputs() == 0 && accuracy >= 0.94 && session.barProgress() >= 0.72) {
             return TrainingGrade.EXCELLENT;
         }
-        return TrainingGrade.NORMAL;
+        if (session.sequenceWrongInputs() <= 2 && accuracy >= 0.84 && session.barProgress() >= 0.55) {
+            return TrainingGrade.GOOD;
+        }
+        if (accuracy >= 0.68) {
+            return TrainingGrade.NORMAL;
+        }
+        return TrainingGrade.WEAK;
     }
 
     private double squatBodyPenalty(TrainingTuning tuning) {
         return 1.0
-                - tuning.muscleBonus() * 0.05
-                - tuning.staminaBonus() * 0.05
-                + tuning.bodyFatLoad() * 0.14;
+                - tuning.strengthBonus() * 0.09
+                - tuning.muscleBonus() * 0.18
+                - tuning.staminaBonus() * 0.01
+                + tuning.bodyFatLoad() * 0.08;
     }
 
     private double squatControlBonus(TrainingTuning tuning) {
         return clamp(
-                1.0 + tuning.strengthBonus() * 0.05 + tuning.staminaBonus() * 0.03 - tuning.bodyFatLoad() * 0.06,
+                1.0 + tuning.strengthBonus() * 0.16 + tuning.muscleBonus() * 0.12
+                        + tuning.staminaBonus() * 0.01 - tuning.bodyFatLoad() * 0.04,
                 0.84,
-                1.08
+                1.18
         );
     }
 
     private double squatMistakePenalty(TrainingTuning tuning) {
         return clamp(
-                1.0 - tuning.strengthBonus() * 0.04 - tuning.staminaBonus() * 0.03 + tuning.bodyFatLoad() * 0.16,
-                0.88,
-                1.22
+                1.0 - tuning.strengthBonus() * 0.12 - tuning.muscleBonus() * 0.10
+                        - tuning.staminaBonus() * 0.01 + tuning.bodyFatLoad() * 0.10,
+                0.78,
+                1.16
         );
     }
 
