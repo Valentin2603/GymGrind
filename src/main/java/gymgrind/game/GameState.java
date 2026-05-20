@@ -5,6 +5,8 @@ public enum GameState {
     PLAYING("Игра"),
     PAUSE("Пауза"),
     MINIGAME("Мини-игра"),
+    COMPETITION_INTRO("Заставка"),
+    COMPETITION("Соревнование"),
     RESULT("Результат"),
     SHOP("Магазин"),
     DIALOGUE("Диалог"),
