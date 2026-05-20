@@ -12,9 +12,12 @@ public final class TrainingService {
     private static final double WORKING_LOAD_CURVE_SCALE = 230.0;
     private static final int MIN_WORKING_LOAD = 30;
     private static final int MAX_WORKING_LOAD = 170;
-    private static final int MAX_SELECTED_LOAD = 200;
-    private static final int SHOT_MAX_WORKING_LOAD = 230;
-    private static final int SHOT_MAX_SELECTED_LOAD = 270;
+    private static final int TAMIK_MAX_WORKING_LOAD = 145;
+    private static final int DRUN_MAX_WORKING_LOAD = 180;
+    private static final int POPKA_MAX_WORKING_LOAD = 220;
+    private static final int TAMIK_SHOT_MAX_WORKING_LOAD = 235;
+    private static final int DRUN_SHOT_MAX_WORKING_LOAD = 260;
+    private static final int POPKA_SHOT_MAX_WORKING_LOAD = 310;
 
     private final SupplementService supplementService;
 
@@ -133,7 +136,7 @@ public final class TrainingService {
         return switch (machineType) {
             case BENCH_PRESS -> new TrainingReward(6, 4, 0, 8, 0);
             case SQUAT_RACK -> new TrainingReward(5, 6, 1, 9, 0);
-            case TREADMILL -> new TrainingReward(0, 0, 7, 7, -2);
+            case TREADMILL -> new TrainingReward(0, 0, 7, 7, -4);
             case DEADLIFT_PLATFORM -> new TrainingReward(8, 3, 0, 11, 0);
         };
     }
@@ -229,11 +232,17 @@ public final class TrainingService {
     }
 
     private int maxWorkingLoad(Player player) {
-        return player.hasPurchasedSupplement(SupplementType.RECOVERY_SHOT) ? SHOT_MAX_WORKING_LOAD : MAX_WORKING_LOAD;
+        boolean recoveryShotPurchased = player.hasPurchasedSupplement(SupplementType.RECOVERY_SHOT);
+        return switch (player.profile().id()) {
+            case "street_rookie" -> recoveryShotPurchased ? TAMIK_SHOT_MAX_WORKING_LOAD : TAMIK_MAX_WORKING_LOAD;
+            case "dark_drun" -> recoveryShotPurchased ? DRUN_SHOT_MAX_WORKING_LOAD : DRUN_MAX_WORKING_LOAD;
+            case "fatty_popka" -> recoveryShotPurchased ? POPKA_SHOT_MAX_WORKING_LOAD : POPKA_MAX_WORKING_LOAD;
+            default -> recoveryShotPurchased ? DRUN_SHOT_MAX_WORKING_LOAD : MAX_WORKING_LOAD;
+        };
     }
 
     private int maxSelectedLoad(Player player) {
-        return player.hasPurchasedSupplement(SupplementType.RECOVERY_SHOT) ? SHOT_MAX_SELECTED_LOAD : MAX_SELECTED_LOAD;
+        return (int) Math.round(maxWorkingLoad(player) * TrainingWeight.HEAVY.loadMultiplier());
     }
 
     private String loadUnit(MachineType machineType) {

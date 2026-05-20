@@ -14,7 +14,6 @@ import gymgrind.gym.objects.ZoneType;
 import gymgrind.player.MovementService;
 import gymgrind.player.Player;
 import gymgrind.player.PlayerForm;
-import gymgrind.player.PlayerFormDefinition;
 import gymgrind.player.PlayerProfile;
 import gymgrind.player.PlayerProfiles;
 import gymgrind.player.Stats;
@@ -84,7 +83,6 @@ public final class GameController {
     private Optional<TrainingSession> activeTrainingSession;
     private Optional<DailyQuestSnapshot> activeTrainingStartSnapshot;
     private Optional<SkillCheckResult> pendingSuccessResult;
-    private Optional<CompetitionIntroCutscene> activeCompetitionIntro;
     private String statusMessage;
     private String coachSpeechText;
     private double coachSpeechTimeLeft;
@@ -117,7 +115,6 @@ public final class GameController {
         this.activeTrainingSession = Optional.empty();
         this.activeTrainingStartSnapshot = Optional.empty();
         this.pendingSuccessResult = Optional.empty();
-        this.activeCompetitionIntro = Optional.empty();
         this.coachSpeechText = "";
         this.coachSpeechTimeLeft = 0.0;
         this.statusMessage = "Нажмите «Начать», чтобы начать день в комнате игрока.";
@@ -128,7 +125,6 @@ public final class GameController {
 
         scene.setOnKeyPressed(event -> handleKeyPressed(event.getCode()));
         scene.setOnKeyReleased(event -> handleKeyReleased(event.getCode()));
-        scene.setOnMousePressed(event -> handleMousePressed());
 
         view.setOnStart(this::showTutorialBeforeStart);
         view.setOnContinue(this::loadSavedRun);
@@ -170,7 +166,6 @@ public final class GameController {
         activeTrainingSession = Optional.empty();
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
-        activeCompetitionIntro = Optional.empty();
         clearCoachSpeech();
 
         workShiftState.reset();
@@ -218,14 +213,13 @@ public final class GameController {
         }
 
         applySaveData(saveData.get());
-        gameState = explorationStateForCurrentLocation();
+        gameState = GameState.PLAYING;
         inputState.clear();
         nearbyObject = Optional.empty();
         activeSkillCheck = Optional.empty();
         activeTrainingSession = Optional.empty();
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
-        activeCompetitionIntro = Optional.empty();
         clearCoachSpeech();
 
         workShiftState.reset();
@@ -333,20 +327,9 @@ public final class GameController {
         updateCoachSpeech(deltaSeconds);
 
         switch (gameState) {
-            case PLAYING, COMPETITION -> {
+            case PLAYING -> {
                 movementService.movePlayer(player, inputState, currentMap(), deltaSeconds);
                 nearbyObject = interactionService.findNearbyObject(player, currentMap());
-            }
-            case COMPETITION_INTRO -> {
-                nearbyObject = Optional.empty();
-                if (activeCompetitionIntro.isPresent()) {
-                    CompetitionIntroCutscene cutscene = activeCompetitionIntro.get();
-                    cutscene.update(deltaSeconds);
-                    if (cutscene.isFinished()) {
-                        finishCompetitionIntro();
-                        return;
-                    }
-                }
             }
             case MINIGAME -> {
                 nearbyObject = Optional.empty();
@@ -367,15 +350,6 @@ public final class GameController {
     }
 
     private void render() {
-        if (gameState == GameState.COMPETITION_INTRO && activeCompetitionIntro.isPresent()) {
-            activeCompetitionIntro.get().render(
-                    view.getGraphicsContext(),
-                    view.getGraphicsContext().getCanvas().getWidth(),
-                    view.getGraphicsContext().getCanvas().getHeight()
-            );
-            return;
-        }
-
         renderer.render(
                 view.getGraphicsContext(),
                 currentMap(),
@@ -431,15 +405,6 @@ public final class GameController {
             return;
         }
 
-        if (gameState == GameState.COMPETITION_INTRO) {
-            if (keyCode == KeyCode.ENTER) {
-                skipCompetitionIntro();
-            } else if (keyCode == KeyCode.SPACE) {
-                advanceCompetitionIntro();
-            }
-            return;
-        }
-
         if (gameState == GameState.PAUSE) {
             if (keyCode == KeyCode.ESCAPE) {
                 closePauseMenu();
@@ -481,7 +446,7 @@ public final class GameController {
                 }
             }
             case ESCAPE -> {
-                if (isExplorationState()) {
+                if (gameState == GameState.PLAYING) {
                     openPauseMenu();
                 }
             }
@@ -491,10 +456,7 @@ public final class GameController {
     }
 
     private void handleKeyReleased(KeyCode keyCode) {
-        if (gameState == GameState.MINIGAME
-                || gameState == GameState.RESULT
-                || gameState == GameState.DIALOGUE
-                || gameState == GameState.COMPETITION_INTRO) {
+        if (gameState == GameState.MINIGAME || gameState == GameState.RESULT || gameState == GameState.DIALOGUE) {
             return;
         }
 
@@ -508,15 +470,9 @@ public final class GameController {
         }
     }
 
-    private void handleMousePressed() {
-        if (gameState == GameState.COMPETITION_INTRO) {
-            advanceCompetitionIntro();
-        }
-    }
-
     private void tryInteract() {
-        if (!isExplorationState() || nearbyObject.isEmpty()) {
-            if (isExplorationState() && tryWorkInteraction()) {
+        if (gameState != GameState.PLAYING || nearbyObject.isEmpty()) {
+            if (gameState == GameState.PLAYING && tryWorkInteraction()) {
                 return;
             }
             return;
@@ -594,7 +550,7 @@ public final class GameController {
         view.showLocationMenu(
                 locationManager.currentLocation(),
                 locationManager.availableDestinations(),
-                this::handleLocationSelection,
+                this::travelToLocation,
                 this::closeLocationMenu
         );
         refreshUi();
@@ -606,7 +562,7 @@ public final class GameController {
         }
 
         view.hideOverlay();
-        gameState = explorationStateForCurrentLocation();
+        gameState = GameState.PLAYING;
         nearbyObject = interactionService.findNearbyObject(player, currentMap());
         statusMessage = "Переход отменён.";
         refreshUi();
@@ -619,7 +575,6 @@ public final class GameController {
         activeTrainingSession = Optional.empty();
         activeTrainingStartSnapshot = Optional.empty();
         pendingSuccessResult = Optional.empty();
-        activeCompetitionIntro = Optional.empty();
         clearCoachSpeech();
         view.hideOverlay();
 
@@ -628,99 +583,11 @@ public final class GameController {
         if (locationId != LocationId.WORK) {
             workShiftState.reset();
         }
-        gameState = explorationStateFor(locationId);
+        gameState = GameState.PLAYING;
         nearbyObject = Optional.empty();
         statusMessage = "Вы перешли в локацию: " + locationId.displayName() + ".";
         refreshUi();
         view.requestGameFocus();
-    }
-
-    private void handleLocationSelection(LocationId locationId) {
-        if (locationId == LocationId.STAGE) {
-            tryOpenCompetitionStage();
-            return;
-        }
-
-        travelToLocation(locationId);
-    }
-
-    private void tryOpenCompetitionStage() {
-        Optional<PlayerFormDefinition> naturalStageRequirement = player.profile().strongestNaturalFormDefinition();
-        if (naturalStageRequirement.isEmpty() || !naturalStageRequirement.get().isUnlockedFor(player)) {
-            statusMessage = "На сцену ещё рано. Сначала доведи персонажа до его последней натуральной формы.";
-            view.showStackedMessageDialog(
-                    "Пока Рано",
-                    "Для выхода на сцену персонаж должен дотянуться до своей последней натуральной формы. "
-                            + "Пока характеристик недостаточно.",
-                    "Понял",
-                    () -> {
-                        statusMessage = "Выберите локацию для перехода.";
-                        refreshUi();
-                    }
-            );
-            refreshUi();
-            return;
-        }
-
-        statusMessage = "Форма подходит. Ты уверен, что хочешь выйти на сцену?";
-        view.showConfirmationDialog(
-                "Выход На Сцену",
-                "Персонаж уже дотягивает до последней натуральной формы. Точно идём на сцену соревнований?",
-                "Да, выйти",
-                "Нет, назад",
-                this::confirmCompetitionStageTravel,
-                this::openLocationMenu
-        );
-        refreshUi();
-    }
-
-    private void confirmCompetitionStageTravel() {
-        showQuestNotifications(dailyQuestManager.onStage(player));
-        travelToLocation(LocationId.STAGE);
-        startCompetitionIntro();
-    }
-
-    private void startCompetitionIntro() {
-        inputState.clear();
-        nearbyObject = Optional.empty();
-        activeCompetitionIntro = Optional.of(new CompetitionIntroCutscene());
-        gameState = GameState.COMPETITION_INTRO;
-        statusMessage = "";
-        refreshUi();
-        view.requestGameFocus();
-    }
-
-    private void finishCompetitionIntro() {
-        activeCompetitionIntro = Optional.empty();
-        gameState = GameState.COMPETITION;
-        nearbyObject = interactionService.findNearbyObject(player, currentMap());
-        statusMessage = "Соревнования начинаются!";
-        refreshUi();
-        view.requestGameFocus();
-    }
-
-    private void advanceCompetitionIntro() {
-        if (activeCompetitionIntro.isEmpty()) {
-            return;
-        }
-
-        CompetitionIntroCutscene cutscene = activeCompetitionIntro.get();
-        cutscene.advance();
-        if (cutscene.isFinished()) {
-            finishCompetitionIntro();
-            return;
-        }
-
-        refreshUi();
-    }
-
-    private void skipCompetitionIntro() {
-        if (activeCompetitionIntro.isEmpty()) {
-            return;
-        }
-
-        activeCompetitionIntro.get().skip();
-        finishCompetitionIntro();
     }
 
     private void talkToCoach() {
@@ -916,10 +783,6 @@ public final class GameController {
     }
 
     private String buildPrompt() {
-        if (gameState == GameState.COMPETITION_INTRO) {
-            return "";
-        }
-
         if (gameState == GameState.RESULT && pendingSuccessResult.isPresent()) {
             return "Space или Esc - закрыть окно результата.";
         }
@@ -936,7 +799,7 @@ public final class GameController {
             return "Выберите локацию мышью или нажмите Esc для отмены.";
         }
 
-        if (isExplorationState() && locationManager.currentLocation() == LocationId.WORK) {
+        if (gameState == GameState.PLAYING && locationManager.currentLocation() == LocationId.WORK) {
             return workShiftState.prompt(player);
         }
 
@@ -1224,7 +1087,7 @@ public final class GameController {
 
     private void closePauseMenu() {
         inputState.clear();
-        gameState = explorationStateForCurrentLocation();
+        gameState = GameState.PLAYING;
         nearbyObject = interactionService.findNearbyObject(player, currentMap());
         statusMessage = "Игра продолжена.";
         view.hideOverlay();
@@ -1264,18 +1127,6 @@ public final class GameController {
     private void clearCoachSpeech() {
         coachSpeechText = "";
         coachSpeechTimeLeft = 0.0;
-    }
-
-    private boolean isExplorationState() {
-        return gameState == GameState.PLAYING || gameState == GameState.COMPETITION;
-    }
-
-    private GameState explorationStateForCurrentLocation() {
-        return explorationStateFor(locationManager.currentLocation());
-    }
-
-    private GameState explorationStateFor(LocationId locationId) {
-        return locationId == LocationId.STAGE ? GameState.COMPETITION : GameState.PLAYING;
     }
 
     private GameMap currentMap() {

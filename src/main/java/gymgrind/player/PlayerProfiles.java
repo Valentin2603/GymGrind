@@ -27,28 +27,28 @@ public final class PlayerProfiles {
                     new PlayerFormDefinition(
                             PlayerForm.SECOND,
                             "tamik_second",
-                            150,
-                            180,
-                            220,
-                            10.6,
+                            128,
+                            155,
+                            205,
+                            10.9,
                             null
                     ),
                     new PlayerFormDefinition(
                             PlayerForm.THIRD,
                             "tamik_third",
+                            165,
                             205,
-                            245,
-                            238,
-                            9.6,
+                            222,
+                            10.2,
                             null
                     ),
                     new PlayerFormDefinition(
                             PlayerForm.FOURTH_STEROIDS,
                             "tamik_fourth_steroids",
+                            215,
                             270,
-                            320,
-                            255,
-                            9.2,
+                            238,
+                            9.6,
                             SupplementType.RECOVERY_SHOT
                     )
             )
@@ -73,28 +73,28 @@ public final class PlayerProfiles {
                     new PlayerFormDefinition(
                             PlayerForm.SECOND,
                             "dark_drun_second",
-                            245,
-                            295,
-                            160,
-                            21.0,
+                            232,
+                            270,
+                            132,
+                            27.0,
                             null
                     ),
                     new PlayerFormDefinition(
                             PlayerForm.THIRD,
                             "dark_drun_third",
-                            280,
-                            335,
-                            190,
-                            17.0,
+                            260,
+                            310,
+                            158,
+                            23.0,
                             null
                     ),
                     new PlayerFormDefinition(
                             PlayerForm.FOURTH_STEROIDS,
                             "dark_drun_fourth_steroids",
-                            320,
-                            390,
-                            215,
-                            14.0,
+                            325,
+                            395,
+                            200,
+                            18.0,
                             SupplementType.RECOVERY_SHOT
                     )
             )
@@ -119,37 +119,37 @@ public final class PlayerProfiles {
                     new PlayerFormDefinition(
                             PlayerForm.SECOND,
                             "fatty_popka_second",
-                            305,
-                            350,
-                            120,
-                            38.0,
+                            300,
+                            340,
+                            110,
+                            43.0,
                             null
                     ),
                     new PlayerFormDefinition(
                             PlayerForm.THIRD,
                             "fatty_popka_third",
-                            335,
-                            390,
-                            155,
-                            27.0,
+                            325,
+                            375,
+                            140,
+                            34.0,
                             null
                     ),
                     new PlayerFormDefinition(
                             PlayerForm.FOURTH,
                             "fatty_popka_fourth",
-                            370,
-                            430,
-                            185,
-                            19.0,
+                            355,
+                            415,
+                            170,
+                            25.0,
                             null
                     ),
                     new PlayerFormDefinition(
                             PlayerForm.FOURTH_STEROIDS,
                             "fatty_popka_fourth_steroids",
-                            415,
-                            480,
-                            210,
-                            14.5,
+                            395,
+                            465,
+                            195,
+                            19.0,
                             SupplementType.RECOVERY_SHOT
                     )
             )

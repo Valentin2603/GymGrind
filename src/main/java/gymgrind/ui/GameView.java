@@ -60,6 +60,10 @@ public final class GameView extends StackPane {
     private static final double SHOP_CLOSE_Y = shopScale(420);
     private static final double SHOP_CLOSE_WIDTH = shopScale(82);
     private static final double SHOP_CLOSE_HEIGHT = shopScale(82);
+    private static final double SHOP_PRICE_TAG_X_OFFSET = shopScale(44);
+    private static final double SHOP_PRICE_TAG_Y_OFFSET = shopScale(202);
+    private static final double SHOP_PRICE_TAG_WIDTH = shopScale(148);
+    private static final double SHOP_PRICE_TAG_HEIGHT = shopScale(46);
 
     private static final List<ShopSlot> SHOP_SLOTS = List.of(
             new ShopSlot(SupplementType.CREATINE, 108, 554, 236, 270),
@@ -456,6 +460,9 @@ public final class GameView extends StackPane {
         panel.getChildren().addAll(background, moneyMask, moneyLabel, closeHover);
 
         for (ShopSlot shopSlot : SHOP_SLOTS) {
+            StackPane priceTag = createShopPriceTag(shopSlot);
+            panel.getChildren().add(priceTag);
+
             double iconX = shopScale(shopSlot.x() + 46);
             double iconY = shopScale(shopSlot.y() + 64);
             double iconWidth = shopScale(150);
@@ -687,6 +694,28 @@ public final class GameView extends StackPane {
                 + "-fx-background-radius: 12;"
                 + "-fx-padding: 10 16 10 16;");
         return button;
+    }
+
+    private StackPane createShopPriceTag(ShopSlot shopSlot) {
+        StackPane priceTag = new StackPane();
+        priceTag.setLayoutX(shopScale(shopSlot.x()) + SHOP_PRICE_TAG_X_OFFSET);
+        priceTag.setLayoutY(shopScale(shopSlot.y()) + SHOP_PRICE_TAG_Y_OFFSET);
+        priceTag.setPrefSize(SHOP_PRICE_TAG_WIDTH, SHOP_PRICE_TAG_HEIGHT);
+        priceTag.setMinSize(SHOP_PRICE_TAG_WIDTH, SHOP_PRICE_TAG_HEIGHT);
+        priceTag.setMaxSize(SHOP_PRICE_TAG_WIDTH, SHOP_PRICE_TAG_HEIGHT);
+        priceTag.setMouseTransparent(true);
+        priceTag.setStyle("-fx-background-color: rgba(9, 11, 14, 0.96);"
+                + "-fx-background-radius: 10;"
+                + "-fx-border-color: rgba(246, 185, 77, 0.68);"
+                + "-fx-border-radius: 10;"
+                + "-fx-border-width: 1.2;");
+
+        Label price = new Label(shopSlot.type().price() + " $");
+        price.setFont(Font.font("Consolas", FontWeight.BLACK, 18));
+        price.setStyle("-fx-text-fill: #F8E5CC;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.85), 3, 0.8, 0, 1);");
+        priceTag.getChildren().add(price);
+        return priceTag;
     }
 
     private Button createTransparentHotspot(double x, double y, double width, double height) {

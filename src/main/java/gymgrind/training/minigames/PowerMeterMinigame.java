@@ -105,7 +105,7 @@ public final class PowerMeterMinigame extends VBox {
         if (isInZone()) {
             score += 12 * deltaSeconds;
         } else {
-            score -= 36 * deltaSeconds * session.tuning().speedMultiplier();
+            score -= 46.8 * deltaSeconds * session.tuning().speedMultiplier();
             flashSeconds = Math.max(flashSeconds, 0.08);
         }
         score = clamp(score, 0, 100);

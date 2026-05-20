@@ -264,11 +264,11 @@ public final class SkillCheckService {
             case FAIL -> 10;
         };
         double bodyFat = switch (grade) {
-            case EXCELLENT -> -3.0;
-            case GOOD -> -2.4;
-            case NORMAL -> -2.0;
-            case WEAK -> -1.4;
-            case FAIL -> -1.0;
+            case EXCELLENT -> -6.0;
+            case GOOD -> -4.8;
+            case NORMAL -> -4.0;
+            case WEAK -> -2.8;
+            case FAIL -> -2.0;
         };
 
         return new SkillCheckResult(
