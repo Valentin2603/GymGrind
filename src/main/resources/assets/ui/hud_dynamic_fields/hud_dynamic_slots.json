@@ -1,0 +1,58 @@
+{
+  "canvas": {
+    "width": 760,
+    "height": 410
+  },
+  "text_slots": {
+    "day": {
+      "x": 506,
+      "y": 84,
+      "width": 118,
+      "height": 64,
+      "font_size_recommended": 52,
+      "align": "left",
+      "example": "05"
+    },
+    "money": {
+      "x": 506,
+      "y": 188,
+      "width": 118,
+      "height": 64,
+      "font_size_recommended": 52,
+      "align": "left",
+      "example": "1250 ₽"
+    },
+    "energy": {
+      "x": 506,
+      "y": 292,
+      "width": 118,
+      "height": 64,
+      "font_size_recommended": 52,
+      "align": "left",
+      "example": "80"
+    }
+  },
+  "files": {
+    "main_template": "hud_template_empty_values.png",
+    "blank_panel": "hud_panel_blank_all_fields.png",
+    "example": "example_rendered_values.png",
+    "rows": {
+      "day": "row_day_with_label_empty_value.png",
+      "money": "row_money_with_label_empty_value.png",
+      "energy": "row_energy_with_label_empty_value.png"
+    },
+    "value_fields": {
+      "day": "value_field_day.png",
+      "money": "value_field_money.png",
+      "energy": "value_field_energy.png"
+    }
+  },
+  "java_hint": {
+    "draw_order": [
+      "draw hud_template_empty_values.png",
+      "draw dynamic text at text_slots.day / money / energy"
+    ],
+    "recommended_color": "Color.WHITE",
+    "font": "monospaced bold, about 52px for 760x410 asset"
+  }
+}
