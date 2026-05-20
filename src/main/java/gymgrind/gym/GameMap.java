@@ -178,6 +178,11 @@ public final class GameMap {
                 DEFAULT_WIDTH - 88,
                 DEFAULT_HEIGHT - 146,
                 List.of(
+                        new CollisionRect(40, 90, 1200, 116),
+                        new CollisionRect(40, 90, 44, 590),
+                        new CollisionRect(1196, 90, 44, 590),
+                        new CollisionRect(40, 650, 490, 30),
+                        new CollisionRect(750, 650, 490, 30),
                         new CollisionRect(76, 156, 80, 150),
                         new CollisionRect(916, 152, 260, 112),
                         new CollisionRect(116, 246, 104, 106),
@@ -254,11 +259,20 @@ public final class GameMap {
                 DEFAULT_WIDTH,
                 DEFAULT_HEIGHT,
                 List.of(
-                        new CollisionRect(92, 366, 54, 156),
+                        new CollisionRect(40, 90, 1200, 130),
+                        new CollisionRect(40, 90, 18, 590),
+                        new CollisionRect(1222, 90, 18, 590),
+                        new CollisionRect(40, 660, 490, 20),
+                        new CollisionRect(750, 660, 490, 20),
+                        new CollisionRect(78, 132, 176, 128),
+                        new CollisionRect(656, 158, 118, 105),
+                        new CollisionRect(72, 506, 150, 115),
+                        new CollisionRect(932, 436, 145, 121),
+                        new CollisionRect(76, 300, 70, 190),
+                        new CollisionRect(1144, 216, 74, 184),
                         new CollisionRect(265, 155, 130, 330),
                         new CollisionRect(510, 90, 120, 285),
-                        new CollisionRect(745, 255, 130, 300),
-                        new CollisionRect(1194, 228, 44, 142)
+                        new CollisionRect(745, 305, 130, 250)
                 ),
                 List.of(
                         new InteractiveZone(
@@ -289,9 +303,9 @@ public final class GameMap {
                         new WarehouseProp(
                                 "Полки",
                                 "Товары",
-                                new Position(745, 255),
+                                new Position(745, 305),
                                 130,
-                                300,
+                                250,
                                 Color.web("#8B5A2B")
                         ),
                         new InteractiveZone(

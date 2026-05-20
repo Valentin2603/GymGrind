@@ -51,6 +51,7 @@ public final class GameController {
     private static final double WINDOW_HEIGHT = 720;
     private static final double ACTIVITY_STAMINA_COST_MULTIPLIER = 1.3;
     private static final double COACH_SPEECH_DURATION_SECONDS = 9.0;
+    private static final double CLOTHES_CHANGE_FADE_SECONDS = 0.95;
     private static final boolean SHOW_COACH_SPEECH = false;
 
     private final Stage stage;
@@ -82,6 +83,7 @@ public final class GameController {
     private String statusMessage;
     private String coachSpeechText;
     private double coachSpeechTimeLeft;
+    private double clothesChangeFadeTimeLeft;
     private AnimationTimer gameLoop;
 
     public GameController(Stage stage) {
@@ -112,6 +114,7 @@ public final class GameController {
         this.pendingSuccessResult = Optional.empty();
         this.coachSpeechText = "";
         this.coachSpeechTimeLeft = 0.0;
+        this.clothesChangeFadeTimeLeft = 0.0;
         this.statusMessage = "Нажмите «Начать», чтобы начать день в комнате игрока.";
     }
 
@@ -278,6 +281,7 @@ public final class GameController {
 
     private void update(double deltaSeconds) {
         updateCoachSpeech(deltaSeconds);
+        updateClothesChangeFade(deltaSeconds);
 
         switch (gameState) {
             case PLAYING -> {
@@ -312,7 +316,8 @@ public final class GameController {
                 activeSkillCheck,
                 pendingSuccessResult,
                 workShiftForRender(),
-                coachSpeech()
+                coachSpeech(),
+                clothesChangeFadeAlpha()
         );
     }
 
@@ -481,6 +486,12 @@ public final class GameController {
     }
 
     private void openLocationMenu() {
+        if (locationManager.currentLocation() == LocationId.WORK && workShiftState.workerDressed()) {
+            statusMessage = "Сначала закончите смену и переоденьтесь в обычную одежду.";
+            refreshUi();
+            return;
+        }
+
         inputState.clear();
         gameState = GameState.DIALOGUE;
         statusMessage = "Выберите локацию для перехода.";
@@ -592,20 +603,34 @@ public final class GameController {
     }
 
     private void startWork() {
-        if (workShiftState.completed()) {
-            statusMessage = "Складская смена уже выполнена: 10/10 коробок, награда получена.";
-            refreshUi();
-            return;
-        }
-
-        workShiftState.start();
-        statusMessage = "Складская смена началась: возьмите коробку в приемке и отнесите 10 коробок в отгрузку.";
-        tryWorkInteraction();
+        statusMessage = "Сначала начните смену в зоне под второй большой полкой.";
         refreshUi();
     }
 
     private boolean tryWorkInteraction() {
-        if (locationManager.currentLocation() != LocationId.WORK || !workShiftState.active()) {
+        if (locationManager.currentLocation() != LocationId.WORK) {
+            return false;
+        }
+
+        if (workShiftState.isNearShiftZone(player)) {
+            if (workShiftState.carryingBox()) {
+                statusMessage = "Сначала сдайте коробку в отгрузку, потом вернитесь закончить смену.";
+            } else if (workShiftState.workerDressed()) {
+                workShiftState.endShift(player);
+                startClothesChangeFade();
+                statusMessage = "Смена закончена, вы переоделись обратно.";
+            } else if (workShiftState.completed()) {
+                statusMessage = "Складская смена уже выполнена: 10/10 коробок, награда получена.";
+            } else {
+                workShiftState.start();
+                startClothesChangeFade();
+                statusMessage = "Вы переоделись в рабочую форму. Возьмите коробку в приемке и отнесите 10 коробок в отгрузку.";
+            }
+            refreshUi();
+            return true;
+        }
+
+        if (!workShiftState.active() || !workShiftState.workerDressed()) {
             return false;
         }
 
@@ -1043,6 +1068,25 @@ public final class GameController {
         if (coachSpeechTimeLeft <= 0.0) {
             clearCoachSpeech();
         }
+    }
+
+    private void startClothesChangeFade() {
+        clothesChangeFadeTimeLeft = CLOTHES_CHANGE_FADE_SECONDS;
+    }
+
+    private void updateClothesChangeFade(double deltaSeconds) {
+        if (clothesChangeFadeTimeLeft <= 0) {
+            return;
+        }
+        clothesChangeFadeTimeLeft = Math.max(0, clothesChangeFadeTimeLeft - deltaSeconds);
+    }
+
+    private double clothesChangeFadeAlpha() {
+        if (clothesChangeFadeTimeLeft <= 0) {
+            return 0;
+        }
+        double progress = clothesChangeFadeTimeLeft / CLOTHES_CHANGE_FADE_SECONDS;
+        return progress * 0.96;
     }
 
     private void clearCoachSpeech() {

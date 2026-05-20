@@ -23,7 +23,7 @@ import java.util.Objects;
 
 public final class Hud extends VBox {
 
-    private static final double HUD_SCALE = 0.62;
+    private static final double HUD_SCALE = 0.50;
     private static final double HUD_WIDTH = 760 * HUD_SCALE;
     private static final double HUD_HEIGHT = 410 * HUD_SCALE;
 
