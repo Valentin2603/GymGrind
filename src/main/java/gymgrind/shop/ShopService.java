@@ -17,12 +17,12 @@ public final class ShopService {
 
         return switch (supplementType) {
             case ENERGY_DRINK -> {
-                player.stats().reduceFatigue(30);
-                yield new ShopPurchaseResult(true, "Энергетик куплен. Усталость снижена на 30.");
+                player.stats().reduceFatigue(35);
+                yield new ShopPurchaseResult(true, "Энергетик куплен. Усталость снижена на 35.");
             }
             case RECOVERY_SHOT -> {
-                player.stats().applyDeltas(0, 0, 2, -15, 0, 0);
-                yield new ShopPurchaseResult(true, "Восстанавливающий укол куплен. Выносливость +2, усталость -15.");
+                player.stats().applyDeltas(6, 6, 6, -35, 0, 0);
+                yield new ShopPurchaseResult(true, "Шприц прогресса куплен. Постоянный буст активирован, усталость -35, все статы +6.");
             }
             default -> {
                 player.activeSupplements().activate(supplementType);

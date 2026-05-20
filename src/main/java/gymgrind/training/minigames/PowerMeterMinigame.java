@@ -46,12 +46,12 @@ public final class PowerMeterMinigame extends VBox {
         this.zoneWidth = clamp(0.22 * session.tuning().zoneMultiplier(), 0.08, 0.28);
         this.drainSpeed = 0.34
                 * session.tuning().speedMultiplier()
-                * (1.0 - session.tuning().strengthBonus() * 0.16)
-                * (1.0 + session.tuning().bodyFatLoad() * 0.05);
+                * (1.0 - session.tuning().strengthBonus() * 0.32 - session.tuning().muscleBonus() * 0.12)
+                * (1.0 + session.tuning().bodyFatLoad() * 0.03);
         this.pushPower = 0.085
                 / Math.sqrt(session.weight().speedMultiplier())
-                * (1.0 + session.tuning().muscleBonus() * 0.10)
-                * (1.0 - session.tuning().bodyFatLoad() * 0.04);
+                * (1.0 + session.tuning().strengthBonus() * 0.13 + session.tuning().muscleBonus() * 0.22)
+                * (1.0 - session.tuning().bodyFatLoad() * 0.03);
         this.marker = 0.42;
         this.zoneCenter = 0.64;
         this.score = 45;
@@ -97,14 +97,15 @@ public final class PowerMeterMinigame extends VBox {
         flashSeconds = Math.max(0, flashSeconds - deltaSeconds);
 
         zoneCenter = 0.62
-                + Math.sin(elapsedSeconds * 1.35 * session.tuning().speedMultiplier()) * 0.09
-                + Math.sin(elapsedSeconds * 2.10) * 0.035;
+                + Math.sin(elapsedSeconds * 1.55 * session.tuning().speedMultiplier()) * 0.105
+                + Math.sin(elapsedSeconds * 2.45) * 0.045
+                + Math.sin(elapsedSeconds * 4.60) * 0.018;
         marker = clamp(marker - drainSpeed * deltaSeconds, 0.0, 1.0);
 
         if (isInZone()) {
-            score += 16 * deltaSeconds;
+            score += 12 * deltaSeconds;
         } else {
-            score -= 32 * deltaSeconds * session.tuning().speedMultiplier();
+            score -= 46.8 * deltaSeconds * session.tuning().speedMultiplier();
             flashSeconds = Math.max(flashSeconds, 0.08);
         }
         score = clamp(score, 0, 100);
@@ -177,10 +178,14 @@ public final class PowerMeterMinigame extends VBox {
         timer.stop();
 
         TrainingGrade grade;
-        if (score >= 85) {
+        if (score >= 88) {
             grade = TrainingGrade.EXCELLENT;
-        } else if (score >= 60) {
+        } else if (score >= 74) {
+            grade = TrainingGrade.GOOD;
+        } else if (score >= 56) {
             grade = TrainingGrade.NORMAL;
+        } else if (score >= 36) {
+            grade = TrainingGrade.WEAK;
         } else {
             grade = TrainingGrade.FAIL;
         }

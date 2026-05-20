@@ -98,12 +98,14 @@ public final class DailyQuestManager {
                                                    DailyQuestSnapshot before,
                                                    int workingLoadAfter) {
         boolean isFail = grade == TrainingGrade.FAIL;
-        boolean isNormalOrBetter = grade != TrainingGrade.FAIL;
+        boolean isNormalOrBetter = grade.atLeast(TrainingGrade.NORMAL);
         boolean isExcellent = grade == TrainingGrade.EXCELLENT;
         boolean isHeavy = session.weight() == TrainingWeight.HEAVY;
         boolean isCardio = session.machine().machineType() == MachineType.TREADMILL;
         boolean isStrengthTraining = !isCardio;
-        boolean supplementUsed = before.activeSupplements().size() > player.activeSupplements().activeTypes().size();
+        boolean supplementUsed = before.activeSupplements().size() > player.activeSupplements().activeTypes().size()
+                || before.activeSupplements().contains(SupplementType.PRE_WORKOUT)
+                || player.hasPurchasedSupplement(SupplementType.RECOVERY_SHOT);
 
         progress.trainingCount++;
         progress.trainedMachines.add(session.machine().machineType());
@@ -176,7 +178,7 @@ public final class DailyQuestManager {
         progress.moneyEarned += moneyDelta;
         progress.maxFatigue = Math.max(progress.maxFatigue, player.stats().fatigue());
         progress.minFatigue = Math.min(progress.minFatigue, player.stats().fatigue());
-        progress.workNormalOrBetter |= grade != TrainingGrade.FAIL;
+        progress.workNormalOrBetter |= grade.atLeast(TrainingGrade.NORMAL);
         progress.overtrainedToday |= player.stats().fatigue() >= 100;
         return checkActiveQuests(player, false);
     }
@@ -295,7 +297,7 @@ public final class DailyQuestManager {
             case STAGE_FATIGUE_UNDER_60 -> bool(progress.stageAttempted && player.stats().fatigue() < 60);
             case STAGE_AFTER_PURCHASE -> bool(progress.stageAttempted && progress.boughtSupplement);
             case STAGE_AFTER_NO_FAIL_DAY -> bool(progress.stageAttempted && !progress.failedTrainingToday);
-            case STAGE_READY -> bool(player.stats().form() >= 110 && player.stats().fatigue() < 50);
+            case STAGE_READY -> bool(player.stats().form() >= 120 && player.stats().fatigue() < 50);
             case COMPLETE_DAILY_GOALS -> completedRegularQuestCount();
         };
     }

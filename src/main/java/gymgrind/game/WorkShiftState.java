@@ -6,7 +6,7 @@ import gymgrind.player.Player;
 public final class WorkShiftState {
 
     public static final int TARGET_BOXES = 10;
-    public static final int REWARD_MONEY = 200;
+    public static final int REWARD_MONEY = 220;
     public static final CollisionRect PICKUP_ZONE = new CollisionRect(150, 408, 74, 72);
     public static final CollisionRect DROP_ZONE = new CollisionRect(1046, 250, 90, 98);
     public static final CollisionRect SHIFT_ZONE = new CollisionRect(522, 392, 96, 64);

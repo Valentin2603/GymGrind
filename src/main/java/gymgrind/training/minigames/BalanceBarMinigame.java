@@ -54,14 +54,16 @@ public final class BalanceBarMinigame extends VBox {
         this.canvas = new Canvas(WIDTH, HEIGHT);
         this.driftPower = 0.86
                 * session.tuning().speedMultiplier()
-                * (1.0 - session.tuning().muscleBonus() * 0.06)
+                * (1.0 - session.tuning().muscleBonus() * 0.16)
                 * (1.0 + session.tuning().bodyFatLoad() * 0.05);
         this.controlPower = 0.72
                 / Math.sqrt(session.weight().speedMultiplier())
-                * (1.0 + session.tuning().strengthBonus() * 0.14 + session.tuning().muscleBonus() * 0.04)
+                * (1.0 + session.tuning().strengthBonus() * 0.28 + session.tuning().muscleBonus() * 0.20)
                 * (1.0 - session.tuning().bodyFatLoad() * 0.04);
         this.safeZone = clamp(
-                0.22 * session.tuning().zoneMultiplier() * (1.0 + session.tuning().strengthBonus() * 0.04 - session.tuning().bodyFatLoad() * 0.02),
+                0.22 * session.tuning().zoneMultiplier()
+                        * (1.0 + session.tuning().strengthBonus() * 0.10 + session.tuning().muscleBonus() * 0.07
+                        - session.tuning().bodyFatLoad() * 0.02),
                 0.07,
                 0.27
         );
@@ -139,7 +141,7 @@ public final class BalanceBarMinigame extends VBox {
         instabilitySum += distance * deltaSeconds;
         if (distance <= safeZone) {
             stableSeconds += deltaSeconds;
-            score += 3.1 * deltaSeconds;
+            score += 4.65 * deltaSeconds;
         } else {
             score -= 44 * deltaSeconds * session.tuning().speedMultiplier();
             flashSeconds = Math.max(flashSeconds, 0.08);
@@ -223,12 +225,16 @@ public final class BalanceBarMinigame extends VBox {
 
         double averageInstability = elapsedSeconds <= 0 ? 1.0 : instabilitySum / elapsedSeconds;
         TrainingGrade grade;
-        if (forcedFail || score < 55) {
+        if (forcedFail || score < 36) {
             grade = TrainingGrade.FAIL;
-        } else if (score >= 84 && averageInstability <= safeZone * 0.34 && stableSeconds >= GAME_SECONDS * 0.78) {
+        } else if (score < 56) {
+            grade = TrainingGrade.WEAK;
+        } else if (score < 76) {
+            grade = TrainingGrade.NORMAL;
+        } else if (score >= 90 && averageInstability <= safeZone * 0.40 && stableSeconds >= GAME_SECONDS * 0.74) {
             grade = TrainingGrade.EXCELLENT;
         } else {
-            grade = TrainingGrade.NORMAL;
+            grade = TrainingGrade.GOOD;
         }
 
         String details = forcedFail
