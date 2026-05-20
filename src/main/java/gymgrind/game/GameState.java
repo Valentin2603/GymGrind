@@ -3,6 +3,7 @@ package gymgrind.game;
 public enum GameState {
     MENU("Меню"),
     PLAYING("Игра"),
+    ADMIN("Админ-панель"),
     PAUSE("Пауза"),
     MINIGAME("Мини-игра"),
     RESULT("Результат"),

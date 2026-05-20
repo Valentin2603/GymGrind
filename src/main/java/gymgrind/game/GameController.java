@@ -35,6 +35,8 @@ import gymgrind.training.minigames.PowerMeterMinigame;
 import gymgrind.training.minigames.SkillCheckResult;
 import gymgrind.training.minigames.SkillCheckService;
 import gymgrind.training.minigames.SkillCheckSession;
+import gymgrind.ui.AdminStatValues;
+import gymgrind.ui.AdminStatsPanel;
 import gymgrind.ui.GameView;
 import gymgrind.ui.render.GameRenderer;
 import gymgrind.ui.tutorial.TutorialOverlay;
@@ -55,6 +57,7 @@ public final class GameController {
     private static final double ACTIVITY_STAMINA_COST_MULTIPLIER = 1.3;
     private static final double COACH_SPEECH_DURATION_SECONDS = 9.0;
     private static final boolean SHOW_COACH_SPEECH = false;
+    private static final int STAGE_FORM_TARGET = 120;
 
     private final Stage stage;
     private final GameView view;
@@ -405,6 +408,18 @@ public final class GameController {
             return;
         }
 
+        if (keyCode == KeyCode.F10 && gameState == GameState.PLAYING) {
+            openAdminPanel();
+            return;
+        }
+
+        if (gameState == GameState.ADMIN) {
+            if (keyCode == KeyCode.ESCAPE || keyCode == KeyCode.F10) {
+                closeAdminPanel();
+            }
+            return;
+        }
+
         if (gameState == GameState.PAUSE) {
             if (keyCode == KeyCode.ESCAPE) {
                 closePauseMenu();
@@ -641,13 +656,13 @@ public final class GameController {
         int fatigue = player.stats().fatigue();
         showQuestNotifications(dailyQuestManager.onStage(player));
 
-        if (form >= 100 && fatigue < 80) {
+        if (form >= STAGE_FORM_TARGET && fatigue < 80) {
             gameState = GameState.WIN;
             statusMessage = "Победа! Вы вышли на сцену. Форма: "
                     + form + ", усталость: " + fatigue + ". Enter - начать заново.";
         } else {
             gameState = GameState.LOSE;
-            statusMessage = "Поражение. Вы вышли на сцену слишком рано. Форма: "
+            statusMessage = "Поражение. Для сцены нужна форма " + STAGE_FORM_TARGET + "+. Сейчас форма: "
                     + form + ", усталость: " + fatigue + ". Enter - начать заново.";
         }
 
@@ -1090,6 +1105,63 @@ public final class GameController {
         gameState = GameState.PLAYING;
         nearbyObject = interactionService.findNearbyObject(player, currentMap());
         statusMessage = "Игра продолжена.";
+        view.hideOverlay();
+        refreshUi();
+        view.requestGameFocus();
+    }
+
+    private void openAdminPanel() {
+        inputState.clear();
+        gameState = GameState.ADMIN;
+        statusMessage = "Админ-панель открыта. F10 или Esc закрывает её.";
+        view.showOverlay(new AdminStatsPanel(
+                player,
+                calendarState,
+                values -> applyAdminStats(values, false),
+                values -> applyAdminStats(values, true),
+                this::closeAdminPanel
+        ));
+        refreshUi();
+    }
+
+    private String applyAdminStats(AdminStatValues values, boolean wakeUp) {
+        player.stats().restoreValues(
+                values.strength(),
+                values.muscle(),
+                values.stamina(),
+                values.fatigue(),
+                values.money(),
+                values.bodyFat()
+        );
+        calendarState.setCurrentDay(values.day());
+
+        StringBuilder builder = new StringBuilder("Статы применены. Форма: ")
+                .append(player.stats().form())
+                .append(".");
+
+        if (wakeUp) {
+            player.stats().reduceFatigue(100);
+            Optional<PlayerForm> unlockedForm = player.unlockFormAfterSleep();
+            builder.append(" Персонаж проснулся, усталость 0.");
+            if (unlockedForm.isPresent()) {
+                builder.append(" Открыта новая форма: ")
+                        .append(unlockedForm.get().displayName())
+                        .append(".");
+            } else {
+                builder.append(" Новая форма пока не открылась.");
+            }
+        }
+
+        statusMessage = builder.toString();
+        refreshUi();
+        return statusMessage;
+    }
+
+    private void closeAdminPanel() {
+        inputState.clear();
+        gameState = GameState.PLAYING;
+        nearbyObject = interactionService.findNearbyObject(player, currentMap());
+        statusMessage = "Админ-панель закрыта.";
         view.hideOverlay();
         refreshUi();
         view.requestGameFocus();

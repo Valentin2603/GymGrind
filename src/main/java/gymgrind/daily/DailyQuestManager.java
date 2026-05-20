@@ -297,7 +297,7 @@ public final class DailyQuestManager {
             case STAGE_FATIGUE_UNDER_60 -> bool(progress.stageAttempted && player.stats().fatigue() < 60);
             case STAGE_AFTER_PURCHASE -> bool(progress.stageAttempted && progress.boughtSupplement);
             case STAGE_AFTER_NO_FAIL_DAY -> bool(progress.stageAttempted && !progress.failedTrainingToday);
-            case STAGE_READY -> bool(player.stats().form() >= 110 && player.stats().fatigue() < 50);
+            case STAGE_READY -> bool(player.stats().form() >= 120 && player.stats().fatigue() < 50);
             case COMPLETE_DAILY_GOALS -> completedRegularQuestCount();
         };
     }

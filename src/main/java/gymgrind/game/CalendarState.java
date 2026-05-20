@@ -11,7 +11,7 @@ public final class CalendarState {
     }
 
     public static CalendarState createDefault() {
-        return new CalendarState(1, 30);
+        return new CalendarState(1, 14);
     }
 
     public int currentDay() {
