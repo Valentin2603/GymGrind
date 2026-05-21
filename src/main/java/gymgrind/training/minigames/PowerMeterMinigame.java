@@ -15,6 +15,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
 public final class PowerMeterMinigame extends VBox {
@@ -33,6 +34,8 @@ public final class PowerMeterMinigame extends VBox {
 
     private double marker;
     private double zoneCenter;
+    private double zoneTarget;
+    private double zoneRetargetTimer;
     private double score;
     private double elapsedSeconds;
     private double flashSeconds;
@@ -52,8 +55,10 @@ public final class PowerMeterMinigame extends VBox {
                 / Math.sqrt(session.weight().speedMultiplier())
                 * (1.0 + session.tuning().strengthBonus() * 0.13 + session.tuning().muscleBonus() * 0.22)
                 * (1.0 - session.tuning().bodyFatLoad() * 0.03);
-        this.marker = 0.42;
-        this.zoneCenter = 0.64;
+        this.marker = 0.48;
+        this.zoneCenter = clamp(marker + zoneWidth * 0.18, zoneMin(), zoneMax());
+        this.zoneTarget = zoneCenter;
+        this.zoneRetargetTimer = 0.90;
         this.score = 45;
 
         setAlignment(Pos.CENTER);
@@ -96,10 +101,7 @@ public final class PowerMeterMinigame extends VBox {
         elapsedSeconds += deltaSeconds;
         flashSeconds = Math.max(0, flashSeconds - deltaSeconds);
 
-        zoneCenter = 0.62
-                + Math.sin(elapsedSeconds * 1.55 * session.tuning().speedMultiplier()) * 0.105
-                + Math.sin(elapsedSeconds * 2.45) * 0.045
-                + Math.sin(elapsedSeconds * 4.60) * 0.018;
+        updateZone(deltaSeconds);
         marker = clamp(marker - drainSpeed * deltaSeconds, 0.0, 1.0);
 
         if (isInZone()) {
@@ -124,6 +126,55 @@ public final class PowerMeterMinigame extends VBox {
 
     private void pushMarker() {
         marker = clamp(marker + pushPower, 0.0, 1.0);
+    }
+
+    private void updateZone(double deltaSeconds) {
+        zoneRetargetTimer -= deltaSeconds;
+        if (zoneRetargetTimer <= 0) {
+            retargetZone();
+        }
+
+        double speedFactor = clamp(session.tuning().speedMultiplier(), 0.85, 1.55);
+        double chaseRate = 1.15 * speedFactor;
+        double maxStep = (0.180 + (speedFactor - 1.0) * 0.055) * deltaSeconds;
+        double targetStep = (zoneTarget - zoneCenter) * clamp(deltaSeconds * chaseRate, 0.0, 1.0);
+        targetStep = clamp(targetStep, -maxStep, maxStep);
+
+        double wobble = Math.sin(elapsedSeconds * 4.10 + zoneTarget * 6.0) * 0.007
+                + Math.sin(elapsedSeconds * 6.40) * 0.004;
+        zoneCenter += targetStep + wobble * deltaSeconds;
+        zoneCenter = clamp(zoneCenter, zoneMin(), zoneMax());
+    }
+
+    private void retargetZone() {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        double min = zoneMin();
+        double max = zoneMax();
+        double localRadius = clamp(0.30 + (session.tuning().speedMultiplier() - 1.0) * 0.060, 0.24, 0.40);
+        double minMove = clamp(0.20 + (session.tuning().speedMultiplier() - 1.0) * 0.040, 0.16, 0.28);
+        double nextTarget;
+        if (random.nextDouble() < 0.32) {
+            nextTarget = zoneCenter + random.nextDouble(-localRadius, localRadius);
+            nextTarget = clamp(nextTarget, min, max);
+        } else {
+            nextTarget = random.nextDouble(min, max);
+        }
+
+        for (int attempt = 0; attempt < 6 && Math.abs(nextTarget - zoneCenter) < minMove; attempt++) {
+            nextTarget = random.nextDouble(min, max);
+        }
+
+        zoneTarget = nextTarget;
+        zoneRetargetTimer = random.nextDouble(0.65, 1.15)
+                / clamp(session.tuning().speedMultiplier(), 0.90, 1.55);
+    }
+
+    private double zoneMin() {
+        return zoneWidth / 2.0 + 0.015;
+    }
+
+    private double zoneMax() {
+        return 1.0 - zoneWidth / 2.0 - 0.015;
     }
 
     private void draw() {

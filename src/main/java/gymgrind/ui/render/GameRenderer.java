@@ -1892,7 +1892,7 @@ public final class GameRenderer {
         double canvasWidth = graphicsContext.getCanvas().getWidth();
         double canvasHeight = graphicsContext.getCanvas().getHeight();
         double panelWidth = 640;
-        double panelHeight = 370;
+        double panelHeight = 420;
         double panelLeft = (canvasWidth - panelWidth) / 2.0;
         double panelTop = (canvasHeight - panelHeight) / 2.0;
         Color gradeColor = gradeColor(result.grade());
@@ -1918,18 +1918,25 @@ public final class GameRenderer {
         graphicsContext.fillText("Статистика уже применена к персонажу.", panelLeft + 36, panelTop + 86);
 
         graphicsContext.setFill(LABEL_COLOR);
-        graphicsContext.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 17));
-        graphicsContext.fillText(result.message(), panelLeft + 36, panelTop + 130, panelWidth - 72);
+        Font messageFont = Font.font("Segoe UI", FontWeight.NORMAL, 17);
+        graphicsContext.setFont(messageFont);
+        double messageY = panelTop + 124;
+        double messageLineHeight = 22;
+        List<String> messageLines = wrapText(result.message(), messageFont, panelWidth - 72);
+        for (int index = 0; index < messageLines.size(); index++) {
+            graphicsContext.fillText(messageLines.get(index), panelLeft + 36, messageY + index * messageLineHeight);
+        }
 
         graphicsContext.setStroke(BAR_COLOR);
         graphicsContext.setLineWidth(2);
-        graphicsContext.strokeLine(panelLeft + 36, panelTop + 172, panelLeft + panelWidth - 36, panelTop + 172);
+        double separatorY = Math.max(panelTop + 172, messageY + messageLines.size() * messageLineHeight + 18);
+        graphicsContext.strokeLine(panelLeft + 36, separatorY, panelLeft + panelWidth - 36, separatorY);
 
-        drawResultStats(graphicsContext, result, panelLeft + 36, panelTop + 196, panelWidth - 72, pulse);
+        drawResultStats(graphicsContext, result, panelLeft + 36, separatorY + 24, panelWidth - 72, pulse);
 
         graphicsContext.setFill(SUBTITLE_COLOR);
         graphicsContext.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 15));
-        graphicsContext.fillText("Space или Esc закрывает окно и возвращает в зал.", panelLeft + 36, panelTop + 330);
+        graphicsContext.fillText("Space или Esc закрывает окно и возвращает в зал.", panelLeft + 36, panelTop + panelHeight - 40);
         graphicsContext.restore();
     }
 
