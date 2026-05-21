@@ -2,18 +2,22 @@ package gymgrind.ui;
 
 import gymgrind.game.CalendarState;
 import gymgrind.player.Player;
+import gymgrind.player.PlayerFormDefinition;
 import gymgrind.player.Stats;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
+import java.util.List;
+import java.util.Locale;
 import java.util.function.Function;
 
 public final class AdminStatsPanel extends VBox {
@@ -44,12 +48,12 @@ public final class AdminStatsPanel extends VBox {
         this.moneyField = createField();
         this.bodyFatField = createField();
         this.dayField = createField();
-        this.feedback = new Label("F10 открывает эту панель. Для смены формы нажмите «Применить и сон».");
+        this.feedback = new Label("F10 или Esc закрывает панель. Для проверки новой формы нажмите «Применить и сон».");
         this.currentForm = new Label();
 
         setAlignment(Pos.CENTER);
         setSpacing(14);
-        setMaxWidth(620);
+        setMaxWidth(680);
         setPadding(new Insets(26));
         setFocusTraversable(true);
         setStyle("-fx-background-color: rgba(7, 12, 20, 0.97);"
@@ -57,12 +61,18 @@ public final class AdminStatsPanel extends VBox {
                 + "-fx-border-color: #38BDF8;"
                 + "-fx-border-radius: 22;"
                 + "-fx-border-width: 2;");
+        setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ESCAPE || event.getCode() == KeyCode.F10) {
+                onClose.run();
+                event.consume();
+            }
+        });
 
         Label title = new Label("Админ-панель для тестов");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 26));
         title.setStyle("-fx-text-fill: #F8FAFC;");
 
-        Label subtitle = new Label("Быстро меняет статы для показа. Сон проверяет условия новой формы персонажа.");
+        Label subtitle = new Label("Быстро меняет статы для показа прогресса, смены состояний и финального выхода на сцену.");
         subtitle.setWrapText(true);
         subtitle.setAlignment(Pos.CENTER);
         subtitle.setFont(Font.font("Segoe UI", 14));
@@ -83,11 +93,18 @@ public final class AdminStatsPanel extends VBox {
         HBox quickStats = new HBox(8,
                 quickButton("+25 сила", () -> addInt(strengthField, 25)),
                 quickButton("+25 масса", () -> addInt(muscleField, 25)),
-                quickButton("+20 вын.", () -> addInt(staminaField, 20)),
+                quickButton("+20 выносл.", () -> addInt(staminaField, 20)),
                 quickButton("-5% жир", () -> addDouble(bodyFatField, -5.0)),
                 quickButton("+500 денег", () -> addInt(moneyField, 500))
         );
         quickStats.setAlignment(Pos.CENTER);
+
+        HBox demoPresets = new HBox(8,
+                quickButton("Форма 2", () -> setNaturalFormPreset(0)),
+                quickButton("Форма 3", () -> setNaturalFormPreset(1)),
+                quickButton("Сцена", this::setStageReadyPreset)
+        );
+        demoPresets.setAlignment(Pos.CENTER);
 
         Button apply = createButton("Применить", "#22C55E");
         Button applyAndWake = createButton("Применить и сон", "#F59E0B");
@@ -106,7 +123,7 @@ public final class AdminStatsPanel extends VBox {
         feedback.setStyle("-fx-text-fill: #F8D66D;");
 
         refreshFields();
-        getChildren().addAll(title, subtitle, currentForm, grid, quickStats, buttons, feedback);
+        getChildren().addAll(title, subtitle, currentForm, grid, quickStats, demoPresets, buttons, feedback);
     }
 
     private void applyValues(Function<AdminStatValues, String> action) {
@@ -138,7 +155,7 @@ public final class AdminStatsPanel extends VBox {
         staminaField.setText(Integer.toString(stats.stamina()));
         fatigueField.setText(Integer.toString(stats.fatigue()));
         moneyField.setText(Integer.toString(stats.money()));
-        bodyFatField.setText(String.format(java.util.Locale.US, "%.1f", stats.bodyFat()));
+        bodyFatField.setText(String.format(Locale.US, "%.1f", stats.bodyFat()));
         dayField.setText(Integer.toString(calendarState.currentDay()));
         currentForm.setText("Персонаж: " + player.profile().displayName()
                 + " | форма: " + player.currentForm().displayName()
@@ -191,13 +208,56 @@ public final class AdminStatsPanel extends VBox {
         return button;
     }
 
+    private void setDemoStats(int strength, int muscle, int stamina, int fatigue, int money, double bodyFat) {
+        strengthField.setText(Integer.toString(strength));
+        muscleField.setText(Integer.toString(muscle));
+        staminaField.setText(Integer.toString(stamina));
+        fatigueField.setText(Integer.toString(fatigue));
+        moneyField.setText(Integer.toString(money));
+        bodyFatField.setText(String.format(Locale.US, "%.1f", bodyFat));
+    }
+
+    private void setNaturalFormPreset(int naturalFormIndex) {
+        List<PlayerFormDefinition> naturalForms = player.profile().formProgression().stream()
+                .filter(definition -> definition.requiredPurchasedSupplement() == null)
+                .toList();
+        if (naturalFormIndex >= naturalForms.size()) {
+            feedback.setText("У этого персонажа нет такой натуральной формы.");
+            return;
+        }
+
+        setDemoStatsFor(naturalForms.get(naturalFormIndex), 600);
+        feedback.setText("Порог формы подставлен. Нажмите «Применить и сон», чтобы обновить состояние.");
+    }
+
+    private void setStageReadyPreset() {
+        player.profile().strongestNaturalFormDefinition().ifPresentOrElse(
+                definition -> {
+                    setDemoStatsFor(definition, 1200);
+                    feedback.setText("Статы для выхода на сцену подставлены. Нажмите «Применить и сон».");
+                },
+                () -> feedback.setText("Для этого персонажа не найден натуральный сценический порог.")
+        );
+    }
+
+    private void setDemoStatsFor(PlayerFormDefinition definition, int money) {
+        setDemoStats(
+                definition.minStrength() + 12,
+                definition.minMuscle() + 12,
+                definition.minStamina() + 10,
+                12,
+                money,
+                Math.max(8.0, definition.maxBodyFat() - 0.4)
+        );
+    }
+
     private void addInt(TextField field, int delta) {
         field.setText(Integer.toString(Math.max(0, parseInt(field) + delta)));
     }
 
     private void addDouble(TextField field, double delta) {
         double value = Math.max(8.0, parseDouble(field) + delta);
-        field.setText(String.format(java.util.Locale.US, "%.1f", value));
+        field.setText(String.format(Locale.US, "%.1f", value));
     }
 
     private int parseInt(TextField field) {

@@ -9,6 +9,7 @@ public enum GameState {
     JUDGE_RESULTS("Оценки судей"),
     COMPETITION_RESULT("Итоги соревнования"),
     PAUSE("Пауза"),
+    ADMIN("Админ-панель"),
     MINIGAME("Мини-игра"),
     RESULT("Результат"),
     SHOP("Магазин"),

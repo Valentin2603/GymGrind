@@ -36,6 +36,8 @@ import gymgrind.training.minigames.PowerMeterMinigame;
 import gymgrind.training.minigames.SkillCheckResult;
 import gymgrind.training.minigames.SkillCheckService;
 import gymgrind.training.minigames.SkillCheckSession;
+import gymgrind.ui.AdminStatValues;
+import gymgrind.ui.AdminStatsPanel;
 import gymgrind.ui.GameView;
 import gymgrind.ui.render.GameRenderer;
 import gymgrind.ui.tutorial.TutorialOverlay;
@@ -496,6 +498,15 @@ public final class GameController {
             return;
         }
 
+        if (keyCode == KeyCode.F10) {
+            if (gameState == GameState.ADMIN) {
+                closeAdminPanel();
+            } else if (isExplorationState()) {
+                openAdminPanel();
+            }
+            return;
+        }
+
         if (gameState == GameState.COMPETITION_INTRO) {
             if (keyCode == KeyCode.ENTER) {
                 skipCompetitionIntro();
@@ -531,6 +542,13 @@ public final class GameController {
         if (gameState == GameState.PAUSE) {
             if (keyCode == KeyCode.ESCAPE) {
                 closePauseMenu();
+            }
+            return;
+        }
+
+        if (gameState == GameState.ADMIN) {
+            if (keyCode == KeyCode.ESCAPE) {
+                closeAdminPanel();
             }
             return;
         }
@@ -581,6 +599,7 @@ public final class GameController {
     private void handleKeyReleased(KeyCode keyCode) {
         if (gameState == GameState.MINIGAME
                 || gameState == GameState.RESULT
+                || gameState == GameState.ADMIN
                 || gameState == GameState.DIALOGUE
                 || gameState == GameState.COMPETITION_INTRO
                 || gameState == GameState.POSING_MINIGAME
@@ -1438,6 +1457,62 @@ public final class GameController {
         nearbyObject = interactionService.findNearbyObject(player, currentMap());
         statusMessage = "Подход отменён. Можно попробовать ещё раз.";
         refreshUi();
+    }
+
+    private void openAdminPanel() {
+        inputState.clear();
+        gameState = GameState.ADMIN;
+        statusMessage = "Админ-панель открыта. Можно быстро изменить статы для демонстрации.";
+        view.showOverlay(new AdminStatsPanel(
+                player,
+                calendarState,
+                this::applyAdminStats,
+                this::applyAdminStatsAndWake,
+                this::closeAdminPanel
+        ));
+        refreshUi();
+    }
+
+    private String applyAdminStats(AdminStatValues values) {
+        applyAdminValues(values);
+        statusMessage = "Админ: статы применены. Форма сейчас: " + player.stats().form() + ".";
+        refreshUi();
+        return statusMessage;
+    }
+
+    private String applyAdminStatsAndWake(AdminStatValues values) {
+        applyAdminValues(values);
+        Optional<PlayerForm> unlockedForm = player.unlockFormAfterSleep();
+        statusMessage = unlockedForm
+                .map(form -> "Админ: статы применены, после сна открыта форма: " + form.displayName() + ".")
+                .orElse("Админ: статы применены, сон проверен. Новая форма пока не открылась.");
+        refreshUi();
+        return statusMessage;
+    }
+
+    private void applyAdminValues(AdminStatValues values) {
+        int previousDay = calendarState.currentDay();
+        player.stats().restoreValues(
+                values.strength(),
+                values.muscle(),
+                values.stamina(),
+                values.fatigue(),
+                values.money(),
+                values.bodyFat()
+        );
+        calendarState.setCurrentDay(values.day());
+        if (calendarState.currentDay() != previousDay) {
+            dailyQuestManager.startNewDay(player, calendarState.currentDay());
+        }
+        checkWorkingLoadAchievements();
+    }
+
+    private void closeAdminPanel() {
+        view.hideOverlay();
+        gameState = explorationStateForCurrentLocation();
+        statusMessage = "Админ-панель закрыта.";
+        refreshUi();
+        view.requestGameFocus();
     }
 
     private void openPauseMenu() {
