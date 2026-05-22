@@ -138,11 +138,7 @@ public final class      GameView extends StackPane {
     }
 
     public void updateDailyQuests(List<DailyQuestView> quests, GameState gameState) {
-        boolean visible = gameState != GameState.MENU
-                && gameState != GameState.COMPETITION_INTRO
-                && gameState != GameState.POSING_MINIGAME
-                && gameState != GameState.JUDGE_RESULTS
-                && gameState != GameState.COMPETITION_RESULT;
+        boolean visible = gameState != GameState.MENU && gameState != GameState.COMPETITION_INTRO;
         leftHudColumn.setVisible(visible);
         leftHudColumn.setManaged(visible);
         if (visible) {
