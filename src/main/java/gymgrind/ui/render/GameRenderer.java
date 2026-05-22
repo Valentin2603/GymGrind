@@ -136,7 +136,6 @@ public final class GameRenderer {
         workShiftState.ifPresent(state -> drawCarriedWorkBox(graphicsContext, player, state, renderedCarrySprite));
         drawCoachSpeechBubble(graphicsContext, gameMap, coachSpeechText);
         drawDebugCollisions(graphicsContext, gameMap, player);
-        drawLegend(graphicsContext, gameState, gameMap);
         workShiftState.ifPresent(state -> drawWorkShiftHud(graphicsContext, gameMap, state));
 
         if (activeSkillCheck.isPresent()) {
@@ -226,6 +225,11 @@ public final class GameRenderer {
         for (GymObject gymObject : gameMap.objects()) {
             boolean hideMarker = gameMap.hideEmbeddedObjectMarkers() && gymObject instanceof InteractiveZone;
             boolean nearby = nearbyObject.filter(object -> object == gymObject).isPresent();
+            if (hideMarker
+                    && gymObject instanceof InteractiveZone interactiveZone
+                    && interactiveZone.zoneType() == ZoneType.DOOR) {
+                continue;
+            }
             if (hideMarker && !nearby) {
                 continue;
             }
@@ -252,16 +256,7 @@ public final class GameRenderer {
 
             Image image = imageFor(gymObject);
             if (hideMarker) {
-                graphicsContext.setStroke(HIGHLIGHT);
-                graphicsContext.setLineWidth(3);
-                graphicsContext.strokeRoundRect(
-                        gymObject.left(),
-                        gymObject.top(),
-                        gymObject.width(),
-                        gymObject.height(),
-                        18,
-                        18
-                );
+                drawEmbeddedInteractionHighlight(graphicsContext, gymObject);
             } else if (gymObject instanceof WarehouseProp) {
                 drawWarehouseProp(graphicsContext, gymObject);
             } else if (image == null) {
@@ -292,7 +287,7 @@ public final class GameRenderer {
             }
 
             boolean hideGymAssetLabel = isGymMap(gameMap) && image != null && !nearby;
-            if (!(gymObject instanceof WarehouseProp) && !hideGymAssetLabel && (!hideMarker || nearby)) {
+            if (!(gymObject instanceof WarehouseProp) && !hideMarker && !hideGymAssetLabel) {
                 graphicsContext.setFill(LABEL_COLOR);
                 graphicsContext.fillText(gymObject.name(), gymObject.centerX(), gymObject.centerY() - 6);
 
@@ -302,6 +297,56 @@ public final class GameRenderer {
                 graphicsContext.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
             }
         }
+    }
+
+    private void drawEmbeddedInteractionHighlight(GraphicsContext graphicsContext, GymObject gymObject) {
+        if (gymObject instanceof InteractiveZone interactiveZone && interactiveZone.zoneType() == ZoneType.BED) {
+            drawBedInteractionHighlight(graphicsContext, gymObject);
+            return;
+        }
+
+        graphicsContext.setStroke(Color.color(
+                HIGHLIGHT.getRed(),
+                HIGHLIGHT.getGreen(),
+                HIGHLIGHT.getBlue(),
+                0.78
+        ));
+        graphicsContext.setLineWidth(2.2);
+        graphicsContext.strokeRoundRect(
+                gymObject.left(),
+                gymObject.top(),
+                gymObject.width(),
+                gymObject.height(),
+                14,
+                14
+        );
+    }
+
+    private void drawBedInteractionHighlight(GraphicsContext graphicsContext, GymObject bedZone) {
+        double x = bedZone.left();
+        double y = bedZone.top();
+        double width = bedZone.width();
+        double height = bedZone.height();
+
+        graphicsContext.save();
+        graphicsContext.setStroke(Color.color(
+                HIGHLIGHT.getRed(),
+                HIGHLIGHT.getGreen(),
+                HIGHLIGHT.getBlue(),
+                0.82
+        ));
+        graphicsContext.setLineWidth(2.4);
+        graphicsContext.beginPath();
+        graphicsContext.moveTo(x + width * 0.08, y + height * 0.08);
+        graphicsContext.lineTo(x + width * 0.90, y + height * 0.08);
+        graphicsContext.quadraticCurveTo(x + width, y + height * 0.18, x + width * 0.98, y + height * 0.44);
+        graphicsContext.lineTo(x + width * 0.94, y + height * 0.92);
+        graphicsContext.lineTo(x + width * 0.05, y + height * 0.92);
+        graphicsContext.lineTo(x + width * 0.02, y + height * 0.40);
+        graphicsContext.quadraticCurveTo(x, y + height * 0.16, x + width * 0.08, y + height * 0.08);
+        graphicsContext.closePath();
+        graphicsContext.stroke();
+        graphicsContext.restore();
     }
 
     private void drawGymObjects(GraphicsContext graphicsContext,

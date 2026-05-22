@@ -369,7 +369,7 @@ public final class GameController {
     }
 
     private void refreshUi() {
-        view.updateHud(player, gameState, calendarState);
+        view.updateHud(player, gameState, calendarState, achievementManager.completedAchievements());
 
         view.setHudCompactMode(false);
 
@@ -557,7 +557,6 @@ public final class GameController {
 
         inputState.clear();
         gameState = GameState.DIALOGUE;
-        statusMessage = "Выберите локацию для перехода.";
         view.showLocationMenu(
                 locationManager.currentLocation(),
                 locationManager.availableDestinations(),
@@ -575,7 +574,7 @@ public final class GameController {
         view.hideOverlay();
         gameState = GameState.PLAYING;
         nearbyObject = interactionService.findNearbyObject(player, currentMap());
-        statusMessage = "Переход отменён.";
+        statusMessage = "";
         refreshUi();
         view.requestGameFocus();
     }
@@ -596,7 +595,7 @@ public final class GameController {
         }
         gameState = GameState.PLAYING;
         nearbyObject = Optional.empty();
-        statusMessage = "Вы перешли в локацию: " + locationId.displayName() + ".";
+        statusMessage = "";
         refreshUi();
         view.requestGameFocus();
     }
@@ -609,6 +608,7 @@ public final class GameController {
     }
 
     private void sleepAtHome() {
+        startClothesChangeFade();
         // Form unlocks are checked only after a real sleep at home.
         advanceDayWithFatigueRecovery(player.stats().fatigue(), "Вы выспались дома.");
         if (gameState == GameState.LOSE) {
@@ -821,7 +821,7 @@ public final class GameController {
         }
 
         if (gameState == GameState.DIALOGUE) {
-            return "Выберите локацию мышью или нажмите Esc для отмены.";
+            return "";
         }
 
         if (gameState == GameState.PLAYING && locationManager.currentLocation() == LocationId.WORK) {

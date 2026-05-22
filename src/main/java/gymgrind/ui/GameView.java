@@ -3,6 +3,7 @@ package gymgrind.ui;
 import gymgrind.game.CalendarState;
 import gymgrind.game.GameState;
 import gymgrind.game.LocationId;
+import gymgrind.achievements.AchievementType;
 import gymgrind.daily.DailyQuestNotification;
 import gymgrind.daily.DailyQuestView;
 import gymgrind.player.Player;
@@ -11,6 +12,8 @@ import gymgrind.shop.ShopPurchaseResult;
 import gymgrind.shop.SupplementType;
 import gymgrind.training.TrainingMachine;
 import gymgrind.training.TrainingWeight;
+import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -20,6 +23,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -29,11 +33,13 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.util.Duration;
 
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -80,12 +86,18 @@ public final class      GameView extends StackPane {
     private final Hud hud;
     private final DailyQuestPanel dailyQuestPanel;
     private final ActiveSupplementsPanel activeSupplementsPanel;
+    private final VBox leftHudRoot;
     private final VBox leftHudColumn;
+    private final Button leftHudMenuButton;
     private final MainMenu mainMenu;
     private final Label interactionPrompt;
     private final Label statusMessage;
+    private final PauseTransition interactionPromptHideDelay;
+    private final PauseTransition statusMessageHideDelay;
     private final StackPane overlayLayer;
     private final StackPane tutorialLayer;
+    private String currentInteractionPrompt;
+    private String currentStatusMessage;
 
     public GameView(double width, double height) {
         setPrefSize(width, height);
@@ -95,13 +107,24 @@ public final class      GameView extends StackPane {
         hud = new Hud();
         dailyQuestPanel = new DailyQuestPanel();
         activeSupplementsPanel = new ActiveSupplementsPanel();
-        leftHudColumn = new VBox(10, dailyQuestPanel, activeSupplementsPanel);
-        leftHudColumn.setMaxWidth(370);
+        leftHudColumn = new VBox(8, dailyQuestPanel, activeSupplementsPanel);
+        leftHudColumn.setMaxWidth(300);
+        leftHudColumn.setVisible(false);
+        leftHudColumn.setManaged(false);
+        leftHudMenuButton = createLeftHudMenuButton();
+        leftHudMenuButton.setOnAction(event -> setLeftHudOpen(!leftHudColumn.isVisible()));
+        leftHudRoot = new VBox(8, leftHudMenuButton, leftHudColumn);
+        leftHudRoot.setAlignment(Pos.TOP_LEFT);
+        leftHudRoot.setMaxWidth(300);
         mainMenu = new MainMenu();
         mainMenu.prefWidthProperty().bind(widthProperty());
         mainMenu.prefHeightProperty().bind(heightProperty());
-        interactionPrompt = createMessageLabel("#F8FAFC", "rgba(15, 23, 42, 0.88)");
-        statusMessage = createMessageLabel("#E2E8F0", "rgba(15, 23, 42, 0.82)");
+        interactionPrompt = createToastLabel();
+        statusMessage = createToastLabel();
+        interactionPromptHideDelay = createToastHideDelay(interactionPrompt);
+        statusMessageHideDelay = createToastHideDelay(statusMessage);
+        currentInteractionPrompt = "";
+        currentStatusMessage = "";
         overlayLayer = new StackPane();
         overlayLayer.setVisible(false);
         overlayLayer.setManaged(false);
@@ -111,17 +134,17 @@ public final class      GameView extends StackPane {
         tutorialLayer.setManaged(false);
         tutorialLayer.setPickOnBounds(true);
 
-        VBox bottomMessages = new VBox(10, interactionPrompt, statusMessage);
-        bottomMessages.setPadding(new Insets(0, 24, 24, 24));
+        VBox bottomMessages = new VBox(8, interactionPrompt, statusMessage);
+        bottomMessages.setPadding(new Insets(0, 24, 26, 24));
         bottomMessages.setAlignment(Pos.BOTTOM_CENTER);
         bottomMessages.setMouseTransparent(true);
 
-        getChildren().addAll(canvas, leftHudColumn, hud, bottomMessages, overlayLayer, mainMenu, tutorialLayer);
+        getChildren().addAll(canvas, leftHudRoot, hud, bottomMessages, overlayLayer, mainMenu, tutorialLayer);
 
-        StackPane.setAlignment(leftHudColumn, Pos.TOP_LEFT);
-        StackPane.setMargin(leftHudColumn, new Insets(16, 0, 0, 16));
+        StackPane.setAlignment(leftHudRoot, Pos.TOP_LEFT);
+        StackPane.setMargin(leftHudRoot, new Insets(12, 0, 0, 12));
         StackPane.setAlignment(hud, Pos.TOP_RIGHT);
-        StackPane.setMargin(hud, new Insets(4, 34, 0, 0));
+        StackPane.setMargin(hud, new Insets(12, 18, 0, 0));
         StackPane.setAlignment(bottomMessages, Pos.BOTTOM_CENTER);
         StackPane.setAlignment(overlayLayer, Pos.CENTER);
         StackPane.setAlignment(mainMenu, Pos.CENTER);
@@ -132,17 +155,22 @@ public final class      GameView extends StackPane {
         return canvas.getGraphicsContext2D();
     }
 
-    public void updateHud(Player player, GameState gameState, CalendarState calendarState) {
-        hud.update(player, gameState, calendarState);
+    public void updateHud(Player player,
+                          GameState gameState,
+                          CalendarState calendarState,
+                          Set<AchievementType> completedAchievements) {
+        hud.update(player, gameState, calendarState, completedAchievements);
         activeSupplementsPanel.update(player);
     }
 
     public void updateDailyQuests(List<DailyQuestView> quests, GameState gameState) {
         boolean visible = gameState != GameState.MENU && gameState != GameState.COMPETITION_INTRO;
-        leftHudColumn.setVisible(visible);
-        leftHudColumn.setManaged(visible);
+        leftHudRoot.setVisible(visible);
+        leftHudRoot.setManaged(visible);
         if (visible) {
             dailyQuestPanel.update(quests);
+        } else {
+            setLeftHudOpen(false);
         }
     }
 
@@ -155,13 +183,11 @@ public final class      GameView extends StackPane {
     }
 
     public void setInteractionPrompt(String text) {
-        interactionPrompt.setText(text);
-        interactionPrompt.setVisible(!text.isBlank());
+        currentInteractionPrompt = setToastMessage(interactionPrompt, interactionPromptHideDelay, currentInteractionPrompt, text);
     }
 
     public void setStatusMessage(String text) {
-        statusMessage.setText(text);
-        statusMessage.setVisible(!text.isBlank());
+        currentStatusMessage = setToastMessage(statusMessage, statusMessageHideDelay, currentStatusMessage, text);
     }
 
     public void setMainMenuVisible(boolean visible) {
@@ -671,17 +697,102 @@ public final class      GameView extends StackPane {
         requestFocus();
     }
 
-    private Label createMessageLabel(String textColor, String backgroundColor) {
+    private Label createToastLabel() {
         Label label = new Label();
-        label.setFont(Font.font("Segoe UI", 16));
+        label.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
         label.setWrapText(true);
-        label.setMaxWidth(760);
+        label.setMaxWidth(620);
         label.setAlignment(Pos.CENTER);
-        label.setStyle("-fx-text-fill: " + textColor + ";"
-                + "-fx-background-color: " + backgroundColor + ";"
-                + "-fx-background-radius: 14;"
-                + "-fx-padding: 10 16 10 16;");
+        label.setVisible(false);
+        label.setManaged(false);
+        label.setOpacity(0.0);
+        label.setStyle("-fx-text-fill: #F8E5CC;"
+                + "-fx-background-color: linear-gradient(to bottom, rgba(48, 27, 13, 0.94), rgba(20, 13, 8, 0.94));"
+                + "-fx-background-radius: 12;"
+                + "-fx-border-color: rgba(246, 185, 77, 0.78);"
+                + "-fx-border-radius: 12;"
+                + "-fx-border-width: 1.5;"
+                + "-fx-padding: 9 16 9 16;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.52), 14, 0.35, 0, 3);");
         return label;
+    }
+
+    private PauseTransition createToastHideDelay(Label label) {
+        PauseTransition delay = new PauseTransition(Duration.seconds(5));
+        delay.setOnFinished(event -> fadeToast(label, false));
+        return delay;
+    }
+
+    private String setToastMessage(Label label, PauseTransition hideDelay, String currentText, String newText) {
+        String normalizedText = newText == null ? "" : newText.strip();
+        if (normalizedText.isBlank()) {
+            hideDelay.stop();
+            fadeToast(label, false);
+            return "";
+        }
+        if (normalizedText.equals(currentText)) {
+            return currentText;
+        }
+
+        label.setText(normalizedText);
+        label.setVisible(true);
+        label.setManaged(true);
+        fadeToast(label, true);
+        hideDelay.playFromStart();
+        return normalizedText;
+    }
+
+    private void fadeToast(Label label, boolean visible) {
+        FadeTransition fade = new FadeTransition(Duration.millis(visible ? 160 : 520), label);
+        fade.setFromValue(label.getOpacity());
+        fade.setToValue(visible ? 1.0 : 0.0);
+        if (!visible) {
+            fade.setOnFinished(event -> {
+                label.setVisible(false);
+                label.setManaged(false);
+            });
+        }
+        fade.play();
+    }
+
+    private Button createLeftHudMenuButton() {
+        VBox icon = new VBox(5);
+        icon.setAlignment(Pos.CENTER);
+        icon.setMouseTransparent(true);
+        for (int index = 0; index < 3; index++) {
+            Region line = new Region();
+            line.setPrefSize(24, 3);
+            line.setMinSize(24, 3);
+            line.setMaxSize(24, 3);
+            line.setStyle("-fx-background-color: #F8E5CC; -fx-background-radius: 99;");
+            icon.getChildren().add(line);
+        }
+
+        Button button = new Button();
+        button.setGraphic(icon);
+        button.setPrefSize(54, 46);
+        button.setMinSize(54, 46);
+        button.setMaxSize(54, 46);
+        button.setCursor(Cursor.HAND);
+        button.setFocusTraversable(false);
+        button.setStyle(leftHudMenuButtonStyle(false));
+        Tooltip.install(button, new Tooltip("Ежедневные цели и активные добавки"));
+        return button;
+    }
+
+    private void setLeftHudOpen(boolean open) {
+        leftHudColumn.setVisible(open);
+        leftHudColumn.setManaged(open);
+        leftHudMenuButton.setStyle(leftHudMenuButtonStyle(open));
+    }
+
+    private String leftHudMenuButtonStyle(boolean selected) {
+        return "-fx-background-color: " + (selected ? "rgba(183, 107, 42, 0.98)" : "rgba(24, 17, 12, 0.94)") + ";"
+                + "-fx-background-radius: 10;"
+                + "-fx-border-color: " + (selected ? "#F8D66D" : "rgba(246, 185, 77, 0.72)") + ";"
+                + "-fx-border-radius: 10;"
+                + "-fx-border-width: 1.6;"
+                + "-fx-padding: 0;";
     }
 
     private Button createOverlayButton(String text, String color) {

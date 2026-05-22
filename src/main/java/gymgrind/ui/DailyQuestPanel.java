@@ -21,29 +21,25 @@ public final class DailyQuestPanel extends VBox {
     private final Label notificationLabel;
 
     public DailyQuestPanel() {
-        setSpacing(8);
-        setPadding(new Insets(12));
-        setMaxWidth(370);
-        setPrefHeight(315);
-        setMaxHeight(330);
-        setStyle("-fx-background-color: rgba(8, 15, 23, 0.92);"
-                + "-fx-background-radius: 16;"
-                + "-fx-border-color: #7FDBA4;"
-                + "-fx-border-radius: 16;"
-                + "-fx-border-width: 1.5;");
+        setSpacing(6);
+        setPadding(new Insets(9));
+        setMaxWidth(300);
+        setPrefHeight(252);
+        setMaxHeight(270);
+        setStyle(hudPanelStyle());
 
         Label title = new Label("Ежедневные цели");
-        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        title.setStyle("-fx-text-fill: #F8FAFC;");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        title.setStyle("-fx-text-fill: #F8E5CC;");
 
-        questList = new VBox(6);
-        questList.setMaxHeight(245);
+        questList = new VBox(4);
+        questList.setMaxHeight(198);
 
         notificationLabel = new Label();
         notificationLabel.setWrapText(true);
         notificationLabel.setVisible(false);
         notificationLabel.setManaged(false);
-        notificationLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        notificationLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
         notificationLabel.setStyle("-fx-text-fill: #0F172A;"
                 + "-fx-background-color: #7FDBA4;"
                 + "-fx-background-radius: 12;"
@@ -56,24 +52,24 @@ public final class DailyQuestPanel extends VBox {
         questList.getChildren().clear();
         for (DailyQuestView quest : quests) {
             VBox row = new VBox(1);
-            row.setPadding(new Insets(6, 8, 6, 8));
+            row.setPadding(new Insets(5, 7, 5, 7));
             row.setStyle(quest.completed()
-                    ? "-fx-background-color: rgba(34, 197, 94, 0.12); -fx-background-radius: 10;"
-                    : "-fx-background-color: rgba(148, 163, 184, 0.08); -fx-background-radius: 10;");
+                    ? "-fx-background-color: rgba(127, 219, 164, 0.16); -fx-background-radius: 9;"
+                    : "-fx-background-color: rgba(248, 229, 204, 0.075); -fx-background-radius: 9;");
 
             Label title = new Label((quest.completed() ? "[OK] " : "- ")
                     + quest.title()
                     + " — "
                     + quest.progressText());
             title.setWrapText(true);
-            title.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 12));
+            title.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 10.5));
             title.setStyle(quest.completed()
-                    ? "-fx-text-fill: #86EFAC;"
-                    : "-fx-text-fill: #E2E8F0;");
+                    ? "-fx-text-fill: #9EF6BE;"
+                    : "-fx-text-fill: #F8E5CC;");
 
             Label bonus = new Label(quest.bonusText());
             bonus.setWrapText(true);
-            bonus.setFont(Font.font("Segoe UI", 11));
+            bonus.setFont(Font.font("Segoe UI", 10));
             bonus.setStyle("-fx-text-fill: #F8D66D;");
 
             row.getChildren().addAll(title, bonus);
@@ -111,5 +107,13 @@ public final class DailyQuestPanel extends VBox {
         });
 
         new SequentialTransition(fadeIn, pop, pause, fadeOut).play();
+    }
+
+    private String hudPanelStyle() {
+        return "-fx-background-color: linear-gradient(to bottom, rgba(48, 27, 13, 0.96), rgba(20, 13, 8, 0.96));"
+                + "-fx-background-radius: 12;"
+                + "-fx-border-color: #B76B2A;"
+                + "-fx-border-radius: 12;"
+                + "-fx-border-width: 2;";
     }
 }
