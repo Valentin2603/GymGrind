@@ -15,7 +15,7 @@ final class PlayerFormProgressionTest {
     @Test
     void tamikUnlocksSecondFormWhenThresholdsAreMet() {
         Player player = Player.createDefault(GameMap.createHomeLayout());
-        player.stats().restoreValues(150, 180, 220, 0, 300, 10.6);
+        player.stats().restoreValues(128, 155, 205, 0, 300, 10.5);
 
         Optional<PlayerForm> unlockedForm = player.unlockFormAfterSleep();
 
