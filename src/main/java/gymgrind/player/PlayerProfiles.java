@@ -11,7 +11,7 @@ public final class PlayerProfiles {
     private static final PlayerProfile STREET_ROOKIE = new PlayerProfile(
             "street_rookie",
             "Тамик",
-            "Сухой новичок с хорошей выносливостью. Ему проще жечь жир, чем быстро набирать массу.",
+            "Сухой новичок с хорошей выносливостью. Ему нужно набирать массу.",
             "/assets/characters/tamik_preview.png",
             idleSprites("tamik"),
             walkSprites("tamik"),
@@ -30,7 +30,7 @@ public final class PlayerProfiles {
                             128,
                             155,
                             205,
-                            10.9,
+                            10.5,
                             null
                     ),
                     new PlayerFormDefinition(
@@ -39,7 +39,7 @@ public final class PlayerProfiles {
                             165,
                             205,
                             222,
-                            10.2,
+                            10.0,
                             null
                     ),
                     new PlayerFormDefinition(
@@ -48,7 +48,7 @@ public final class PlayerProfiles {
                             215,
                             270,
                             238,
-                            9.6,
+                            9.0,
                             SupplementType.RECOVERY_SHOT
                     )
             )
@@ -57,7 +57,7 @@ public final class PlayerProfiles {
     private static final PlayerProfile DARK_DRUN = new PlayerProfile(
             "dark_drun",
             "Тёмный друн",
-            "Тяжёлый силовик с мощным стартом по массе и силе, но с низкой выносливостью и высоким процентом жира.",
+            "Персонаж со средними статами, за него будет интересно прокачиваться на всех тренажёрах.",
             "/assets/characters/dark_drun_preview.png",
             idleSprites("dark_drun"),
             walkSprites("dark_drun"),
@@ -103,7 +103,7 @@ public final class PlayerProfiles {
     private static final PlayerProfile FATTY_POPKA = new PlayerProfile(
             "fatty_popka",
             "Жирная Попка",
-            "Сверхтяжёлый персонаж с огромной массой и силой, но почти без выносливости. Идеален для жёсткого старта.",
+            "Тяжёлый силовик с мощным стартом по массе и силе, но с низкой выносливостью и высоким процентом жира.",
             "/assets/characters/fatty_popka_preview.png",
             idleSprites("fatty_popka"),
             walkSprites("fatty_popka"),

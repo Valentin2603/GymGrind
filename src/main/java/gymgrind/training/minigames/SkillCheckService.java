@@ -20,10 +20,10 @@ public final class SkillCheckService {
     private static final double TREADMILL_MIN_SUCCESS_ZONE_WIDTH = 0.09;
 
     private static final int SQUAT_PROMPT_LENGTH = 14;
-    private static final double SQUAT_START_BAR_PROGRESS = 0.28;
-    private static final double SQUAT_DRAIN_PER_SECOND = 0.195;
-    private static final double SQUAT_CORRECT_GAIN = 0.128;
-    private static final double SQUAT_WRONG_PENALTY = 0.27;
+    private static final double SQUAT_START_BAR_PROGRESS = 0.35;
+    private static final double SQUAT_DRAIN_PER_SECOND = 0.17;
+    private static final double SQUAT_CORRECT_GAIN = 0.15;
+    private static final double SQUAT_WRONG_PENALTY = 0.2;
     private static final char[] SQUAT_SYMBOLS = "QWERTYUIOPASDFGHJKLZXCVBNM1234567890".toCharArray();
     private static final KeyCode[] TREADMILL_KEYS = {
             KeyCode.Q, KeyCode.W, KeyCode.E, KeyCode.R, KeyCode.T, KeyCode.Y, KeyCode.U, KeyCode.I, KeyCode.O, KeyCode.P,

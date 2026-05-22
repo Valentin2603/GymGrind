@@ -57,7 +57,7 @@ public final class RhythmMinigame extends VBox {
                 + "-fx-border-radius: 18;"
                 + "-fx-border-width: 2;");
 
-        title = new Label("Беговая дорожка: нажимайте правильные клавиши WASD");
+        title = new Label("Беговая дорожка: проверьте свою выносливость в skill check");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
         title.setStyle("-fx-text-fill: #F8FAFC;");
 
@@ -172,9 +172,9 @@ public final class RhythmMinigame extends VBox {
         timer.stop();
 
         TrainingGrade grade;
-        if (score >= 88) {
+        if (score >= 85) {
             grade = TrainingGrade.EXCELLENT;
-        } else if (score >= 74) {
+        } else if (score >= 70) {
             grade = TrainingGrade.GOOD;
         } else if (score >= 56) {
             grade = TrainingGrade.NORMAL;
