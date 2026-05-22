@@ -19,13 +19,13 @@ public enum FatigueProfile {
     }
 
     public static FatigueProfile fromFatigue(int fatigue) {
-        if (fatigue <= 35) {
+        if (fatigue <= 40) {
             return NORMAL;
         }
-        if (fatigue <= 60) {
+        if (fatigue <= 70) {
             return TIRED;
         }
-        if (fatigue <= 80) {
+        if (fatigue < 90) {
             return EXHAUSTED;
         }
         return DANGER;

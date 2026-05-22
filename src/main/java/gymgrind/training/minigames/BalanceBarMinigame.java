@@ -131,7 +131,7 @@ public final class BalanceBarMinigame extends VBox {
             control += controlPower;
         }
 
-        double waveDrift = Math.sin(elapsedSeconds * 3.35 * session.tuning().speedMultiplier()) * driftPower * 0.62
+        double waveDrift = Math.sin(elapsedSeconds * 3.0 * session.tuning().speedMultiplier()) * driftPower * 0.62
                 + Math.sin(elapsedSeconds * 6.4) * driftPower * 0.22;
         barVelocity += (driftDirection + waveDrift + control) * deltaSeconds;
         barVelocity *= Math.pow(0.45, deltaSeconds);
@@ -141,9 +141,9 @@ public final class BalanceBarMinigame extends VBox {
         instabilitySum += distance * deltaSeconds;
         if (distance <= safeZone) {
             stableSeconds += deltaSeconds;
-            score += 4.65 * deltaSeconds;
+            score += 8 * deltaSeconds;
         } else {
-            score -= 44 * deltaSeconds * session.tuning().speedMultiplier();
+            score -= 30 * deltaSeconds * session.tuning().speedMultiplier();
             flashSeconds = Math.max(flashSeconds, 0.08);
         }
 
@@ -225,11 +225,11 @@ public final class BalanceBarMinigame extends VBox {
 
         double averageInstability = elapsedSeconds <= 0 ? 1.0 : instabilitySum / elapsedSeconds;
         TrainingGrade grade;
-        if (forcedFail || score < 36) {
+        if (forcedFail || score < 30) {
             grade = TrainingGrade.FAIL;
-        } else if (score < 56) {
+        } else if (score < 50) {
             grade = TrainingGrade.WEAK;
-        } else if (score < 76) {
+        } else if (score < 70) {
             grade = TrainingGrade.NORMAL;
         } else if (score >= 90 && averageInstability <= safeZone * 0.40 && stableSeconds >= GAME_SECONDS * 0.74) {
             grade = TrainingGrade.EXCELLENT;
