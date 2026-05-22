@@ -95,7 +95,7 @@ public final class GameRenderer {
         zoneImages.put(ZoneType.COMPUTER, loadImage("/assets/machines/shop_counter.png"));
         zoneImages.put(ZoneType.REST, loadImage("/assets/machines/rest_zone.png"));
         zoneImages.put(ZoneType.STAGE, loadImage("/assets/tiles/stage_tile.png"));
-        zoneImages.put(ZoneType.COACH, loadImage("/assets/npcs/trainer_npc.png"));
+        zoneImages.put(ZoneType.COACH, mirrorImage(loadTrimmedNpcImage("/assets/npcs/trainer_npc.png")));
 
         mapBackgrounds = new HashMap<>();
         playerSpriteSets = new HashMap<>();
@@ -1657,6 +1657,38 @@ public final class GameRenderer {
             return null;
         }
         return new Image(inputStream);
+    }
+
+    private Image loadTrimmedNpcImage(String resourcePath) {
+        Image image = loadImage(resourcePath);
+        if (image == null) {
+            return null;
+        }
+
+        int width = Math.max(1, (int) Math.round(image.getWidth()));
+        int height = Math.max(1, (int) Math.round(image.getHeight()));
+        boolean[] mask = backgroundMask(image, 0, 0, width, height);
+        removeSmallForegroundArtifacts(mask, width, height);
+        FrameBounds bounds = foregroundBounds(mask, width, height);
+        if (bounds.isEmpty()) {
+            return image;
+        }
+
+        int trimmedWidth = bounds.width();
+        int trimmedHeight = bounds.height();
+        WritableImage trimmed = new WritableImage(trimmedWidth, trimmedHeight);
+        for (int y = 0; y < trimmedHeight; y++) {
+            int sourceY = bounds.minY() + y;
+            for (int x = 0; x < trimmedWidth; x++) {
+                int sourceX = bounds.minX() + x;
+                Color color = image.getPixelReader().getColor(sourceX, sourceY);
+                if (mask[sourceY * width + sourceX]) {
+                    color = Color.TRANSPARENT;
+                }
+                trimmed.getPixelWriter().setColor(x, y, color);
+            }
+        }
+        return trimmed;
     }
 
     public boolean toggleDebugCollisions() {

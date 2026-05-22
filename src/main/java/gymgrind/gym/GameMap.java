@@ -192,6 +192,7 @@ public final class GameMap {
                         new CollisionRect(674, 276, 176, 96),
                         new CollisionRect(525, 334, 44, 112),
                         new CollisionRect(615, 334, 44, 112),
+                        new CollisionRect(1038, 328, 92, 170),
                         new CollisionRect(934, 516, 136, 76),
                         new CollisionRect(1128, 460, 50, 102)
                 ),
@@ -234,6 +235,15 @@ public final class GameMap {
                         ),
                         new InteractiveZone(
                                 "Дверь",
+                                ZoneType.COACH,
+                                new Position(1038, 328),
+                                92,
+                                170,
+                                Color.web("#E76F51"),
+                                "Р”СѓС…РѕС‚Р°: РїРѕРґРѕР№РґРё РїРѕР±Р»РёР¶Рµ Рё РЅР°Р¶РјРё E, С‡С‚РѕР±С‹ РІС‹СЃР»СѓС€Р°С‚СЊ С‚СЂРµРЅРµСЂР°."
+                        ),
+                        new InteractiveZone(
+                                "Р”РІРµСЂСЊ",
                                 ZoneType.DOOR,
                                 new Position(552, 622),
                                 176,

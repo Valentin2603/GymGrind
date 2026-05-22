@@ -2,6 +2,8 @@ package gymgrind.gym;
 
 import gymgrind.game.GameState;
 import gymgrind.gym.objects.GymObject;
+import gymgrind.gym.objects.InteractiveZone;
+import gymgrind.gym.objects.ZoneType;
 import gymgrind.player.Player;
 
 import java.util.Comparator;
@@ -24,8 +26,15 @@ public final class InteractionService {
         }
 
         return nearbyObject
-                .map(object -> "Нажмите E: " + object.name())
+                .map(object -> "Нажмите E: " + promptLabel(object))
                 .orElse("Подойдите ближе к объекту, двери или тренажёру.");
+    }
+
+    private String promptLabel(GymObject object) {
+        if (object instanceof InteractiveZone zone && zone.zoneType() == ZoneType.COACH) {
+            return "Duhota";
+        }
+        return object.name();
     }
 
     private double distanceBetween(Player player, GymObject gymObject) {

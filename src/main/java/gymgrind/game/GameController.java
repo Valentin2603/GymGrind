@@ -56,7 +56,7 @@ public final class GameController {
     private static final double ACTIVITY_STAMINA_COST_MULTIPLIER = 1.3;
     private static final double COACH_SPEECH_DURATION_SECONDS = 9.0;
     private static final double CLOTHES_CHANGE_FADE_SECONDS = 0.95;
-    private static final boolean SHOW_COACH_SPEECH = false;
+    private static final boolean SHOW_COACH_SPEECH = true;
 
     private final Stage stage;
     private final GameView view;
