@@ -531,6 +531,10 @@ public final class PosingMinigame {
         return result;
     }
 
+    SkillCheckButton currentTargetButton() {
+        return currentTargetButton;
+    }
+
     private void configureStageAnchor(double screenWidth,
                                       double screenHeight) {
 
