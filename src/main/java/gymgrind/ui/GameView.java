@@ -12,6 +12,8 @@ import gymgrind.shop.ShopPurchaseResult;
 import gymgrind.shop.SupplementType;
 import gymgrind.training.TrainingMachine;
 import gymgrind.training.TrainingWeight;
+import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -31,6 +33,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.util.Duration;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -83,6 +86,10 @@ public final class      GameView extends StackPane {
     private final MainMenu mainMenu;
     private final Label interactionPrompt;
     private final Label statusMessage;
+    private final PauseTransition interactionPromptHideDelay;
+    private final PauseTransition statusMessageHideDelay;
+    private String currentInteractionPrompt;
+    private String currentStatusMessage;
     private final StackPane overlayLayer;
     private final StackPane tutorialLayer;
     private final VBox leftHudRoot;
@@ -108,8 +115,12 @@ public final class      GameView extends StackPane {
         mainMenu = new MainMenu();
         mainMenu.prefWidthProperty().bind(widthProperty());
         mainMenu.prefHeightProperty().bind(heightProperty());
-        interactionPrompt = createMessageLabel("#F8FAFC", "rgba(15, 23, 42, 0.88)");
-        statusMessage = createMessageLabel("#E2E8F0", "rgba(15, 23, 42, 0.82)");
+        interactionPrompt = createToastLabel();
+        statusMessage = createToastLabel();
+        interactionPromptHideDelay = createToastHideDelay(interactionPrompt);
+        statusMessageHideDelay = createToastHideDelay(statusMessage);
+        currentInteractionPrompt = "";
+        currentStatusMessage = "";
         overlayLayer = new StackPane();
         overlayLayer.setVisible(false);
         overlayLayer.setManaged(false);
@@ -119,8 +130,8 @@ public final class      GameView extends StackPane {
         tutorialLayer.setManaged(false);
         tutorialLayer.setPickOnBounds(true);
 
-        VBox bottomMessages = new VBox(10, interactionPrompt, statusMessage);
-        bottomMessages.setPadding(new Insets(0, 24, 24, 24));
+        VBox bottomMessages = new VBox(8, interactionPrompt, statusMessage);
+        bottomMessages.setPadding(new Insets(0, 24, 26, 24));
         bottomMessages.setAlignment(Pos.BOTTOM_CENTER);
         bottomMessages.setMouseTransparent(true);
 
@@ -216,13 +227,11 @@ public final class      GameView extends StackPane {
     }
 
     public void setInteractionPrompt(String text) {
-        interactionPrompt.setText(text);
-        interactionPrompt.setVisible(!text.isBlank());
+        currentInteractionPrompt = setToastMessage(interactionPrompt, interactionPromptHideDelay, currentInteractionPrompt, text);
     }
 
     public void setStatusMessage(String text) {
-        statusMessage.setText(text);
-        statusMessage.setVisible(!text.isBlank());
+        currentStatusMessage = setToastMessage(statusMessage, statusMessageHideDelay, currentStatusMessage, text);
     }
 
     public void setMainMenuVisible(boolean visible) {
@@ -732,18 +741,63 @@ public final class      GameView extends StackPane {
         requestFocus();
     }
 
-    private Label createMessageLabel(String textColor, String backgroundColor) {
+    private Label createToastLabel() {
         Label label = new Label();
-        label.setFont(Font.font("Segoe UI", 16));
+        label.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
         label.setWrapText(true);
-        label.setMaxWidth(760);
+        label.setMaxWidth(620);
         label.setAlignment(Pos.CENTER);
-        label.setStyle("-fx-text-fill: " + textColor + ";"
-                + "-fx-background-color: " + backgroundColor + ";"
-                + "-fx-background-radius: 14;"
-                + "-fx-padding: 10 16 10 16;");
+        label.setVisible(false);
+        label.setManaged(false);
+        label.setOpacity(0.0);
+        label.setStyle("-fx-text-fill: #F8E5CC;"
+                + "-fx-background-color: linear-gradient(to bottom, rgba(48, 27, 13, 0.94), rgba(20, 13, 8, 0.94));"
+                + "-fx-background-radius: 12;"
+                + "-fx-border-color: rgba(246, 185, 77, 0.78);"
+                + "-fx-border-radius: 12;"
+                + "-fx-border-width: 1.5;"
+                + "-fx-padding: 9 16 9 16;"
+                + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.52), 14, 0.35, 0, 3);");
         return label;
     }
+    private PauseTransition createToastHideDelay(Label label) {
+        PauseTransition delay = new PauseTransition(Duration.seconds(5));
+        delay.setOnFinished(event -> fadeToast(label, false));
+        return delay;
+    }
+
+    private String setToastMessage(Label label, PauseTransition hideDelay, String currentText, String newText) {
+        String normalizedText = newText == null ? "" : newText.strip();
+        if (normalizedText.isBlank()) {
+            hideDelay.stop();
+            fadeToast(label, false);
+            return "";
+        }
+        if (normalizedText.equals(currentText)) {
+            return currentText;
+        }
+
+        label.setText(normalizedText);
+        label.setVisible(true);
+        label.setManaged(true);
+        fadeToast(label, true);
+        hideDelay.playFromStart();
+        return normalizedText;
+    }
+
+    private void fadeToast(Label label, boolean visible) {
+        FadeTransition fade = new FadeTransition(Duration.millis(visible ? 160 : 520), label);
+        fade.setFromValue(label.getOpacity());
+        fade.setToValue(visible ? 1.0 : 0.0);
+        if (!visible) {
+            fade.setOnFinished(event -> {
+                label.setVisible(false);
+                label.setManaged(false);
+            });
+        }
+        fade.play();
+    }
+
 
     private Button createOverlayButton(String text, String color) {
         Button button = new Button(text);
