@@ -1,5 +1,6 @@
 package gymgrind.ui;
 
+import gymgrind.achievements.AchievementType;
 import gymgrind.game.CalendarState;
 import gymgrind.game.GameState;
 import gymgrind.game.LocationId;
@@ -20,6 +21,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -30,10 +32,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -86,6 +85,8 @@ public final class      GameView extends StackPane {
     private final Label statusMessage;
     private final StackPane overlayLayer;
     private final StackPane tutorialLayer;
+    private final VBox leftHudRoot;
+    private final Button leftHudMenuButton;
 
     public GameView(double width, double height) {
         setPrefSize(width, height);
@@ -95,8 +96,15 @@ public final class      GameView extends StackPane {
         hud = new Hud();
         dailyQuestPanel = new DailyQuestPanel();
         activeSupplementsPanel = new ActiveSupplementsPanel();
-        leftHudColumn = new VBox(10, dailyQuestPanel, activeSupplementsPanel);
-        leftHudColumn.setMaxWidth(370);
+        leftHudColumn = new VBox(8, dailyQuestPanel, activeSupplementsPanel);
+        leftHudColumn.setMaxWidth(300);
+        leftHudColumn.setVisible(false);
+        leftHudColumn.setManaged(false);
+        leftHudMenuButton = createLeftHudMenuButton();
+        leftHudMenuButton.setOnAction(event -> setLeftHudOpen(!leftHudColumn.isVisible()));
+        leftHudRoot = new VBox(8, leftHudMenuButton, leftHudColumn);
+        leftHudRoot.setAlignment(Pos.TOP_LEFT);
+        leftHudRoot.setMaxWidth(300);
         mainMenu = new MainMenu();
         mainMenu.prefWidthProperty().bind(widthProperty());
         mainMenu.prefHeightProperty().bind(heightProperty());
@@ -116,12 +124,12 @@ public final class      GameView extends StackPane {
         bottomMessages.setAlignment(Pos.BOTTOM_CENTER);
         bottomMessages.setMouseTransparent(true);
 
-        getChildren().addAll(canvas, leftHudColumn, hud, bottomMessages, overlayLayer, mainMenu, tutorialLayer);
+        getChildren().addAll(canvas, leftHudRoot, hud, bottomMessages, overlayLayer, mainMenu, tutorialLayer);
 
-        StackPane.setAlignment(leftHudColumn, Pos.TOP_LEFT);
-        StackPane.setMargin(leftHudColumn, new Insets(16, 0, 0, 16));
+        StackPane.setAlignment(leftHudRoot, Pos.TOP_LEFT);
+        StackPane.setMargin(leftHudRoot, new Insets(12, 0, 0, 12));
         StackPane.setAlignment(hud, Pos.TOP_RIGHT);
-        StackPane.setMargin(hud, new Insets(4, 34, 0, 0));
+        StackPane.setMargin(hud, new Insets(12, 18, 0, 0));
         StackPane.setAlignment(bottomMessages, Pos.BOTTOM_CENTER);
         StackPane.setAlignment(overlayLayer, Pos.CENTER);
         StackPane.setAlignment(mainMenu, Pos.CENTER);
@@ -133,18 +141,71 @@ public final class      GameView extends StackPane {
     }
 
     public void updateHud(Player player, GameState gameState, CalendarState calendarState) {
-        hud.update(player, gameState, calendarState);
+        hud.update(player, gameState, calendarState, Set.of());
         activeSupplementsPanel.update(player);
     }
 
     public void updateDailyQuests(List<DailyQuestView> quests, GameState gameState) {
         boolean visible = gameState != GameState.MENU && gameState != GameState.COMPETITION_INTRO;
-        leftHudColumn.setVisible(visible);
-        leftHudColumn.setManaged(visible);
+        leftHudRoot.setVisible(visible);
+        leftHudRoot.setManaged(visible);
         if (visible) {
             dailyQuestPanel.update(quests);
+        } else {
+            setLeftHudOpen(false);
         }
     }
+
+
+    private Button createLeftHudMenuButton() {
+        VBox icon = new VBox(5);
+        icon.setAlignment(Pos.CENTER);
+        icon.setMouseTransparent(true);
+        for (int index = 0; index < 3; index++) {
+            Region line = new Region();
+            line.setPrefSize(24, 3);
+            line.setMinSize(24, 3);
+            line.setMaxSize(24, 3);
+            line.setStyle("-fx-background-color: #F8E5CC; -fx-background-radius: 99;");
+            icon.getChildren().add(line);
+        }
+
+        Button button = new Button();
+        button.setGraphic(icon);
+        button.setPrefSize(54, 46);
+        button.setMinSize(54, 46);
+        button.setMaxSize(54, 46);
+        button.setCursor(Cursor.HAND);
+        button.setFocusTraversable(false);
+        button.setStyle(leftHudMenuButtonStyle(false));
+        Tooltip.install(button, new Tooltip("Ежедневные цели и активные добавки"));
+        return button;
+    }
+
+    private void setLeftHudOpen(boolean open) {
+        leftHudColumn.setVisible(open);
+        leftHudColumn.setManaged(open);
+        leftHudMenuButton.setStyle(leftHudMenuButtonStyle(open));
+    }
+
+    private String leftHudMenuButtonStyle(boolean selected) {
+        return "-fx-background-color: " + (selected ? "rgba(183, 107, 42, 0.98)" : "rgba(24, 17, 12, 0.94)") + ";"
+                + "-fx-background-radius: 10;"
+                + "-fx-border-color: " + (selected ? "#F8D66D" : "rgba(246, 185, 77, 0.72)") + ";"
+                + "-fx-border-radius: 10;"
+                + "-fx-border-width: 1.6;"
+                + "-fx-padding: 0;";
+    }
+
+    public void updateHud(Player player,
+                          GameState gameState,
+                          CalendarState calendarState,
+                          Set<AchievementType> completedAchievements) {
+        hud.update(player, gameState, calendarState, completedAchievements);
+        activeSupplementsPanel.update(player);
+    }
+
+
 
     public void showDailyQuestCompletion(DailyQuestNotification notification) {
         dailyQuestPanel.showCompletion(notification);
