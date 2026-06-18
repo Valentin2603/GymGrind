@@ -22,8 +22,8 @@ public final class BalanceBarMinigame extends VBox {
 
     private static final double WIDTH = 720;
     private static final double HEIGHT = 210;
-    private static final double GAME_SECONDS = 13.0;
-    private static final double DANGER_LIMIT = 0.74;
+    private static final double GAME_SECONDS = 12.0;
+    private static final double DANGER_LIMIT = 0.80;
 
     private final TrainingSession session;
     private final Consumer<MinigameResult> onFinish;
@@ -52,20 +52,20 @@ public final class BalanceBarMinigame extends VBox {
         this.session = session;
         this.onFinish = onFinish;
         this.canvas = new Canvas(WIDTH, HEIGHT);
-        this.driftPower = 0.86
+        this.driftPower = 0.72
                 * session.tuning().speedMultiplier()
                 * (1.0 - session.tuning().muscleBonus() * 0.16)
                 * (1.0 + session.tuning().bodyFatLoad() * 0.05);
-        this.controlPower = 0.72
+        this.controlPower = 0.80
                 / Math.sqrt(session.weight().speedMultiplier())
                 * (1.0 + session.tuning().strengthBonus() * 0.28 + session.tuning().muscleBonus() * 0.20)
                 * (1.0 - session.tuning().bodyFatLoad() * 0.04);
         this.safeZone = clamp(
-                0.22 * session.tuning().zoneMultiplier()
+                0.24 * session.tuning().zoneMultiplier()
                         * (1.0 + session.tuning().strengthBonus() * 0.10 + session.tuning().muscleBonus() * 0.07
                         - session.tuning().bodyFatLoad() * 0.02),
-                0.07,
-                0.27
+                0.09,
+                0.30
         );
         this.barPosition = ThreadLocalRandom.current().nextDouble(-0.18, 0.18);
         this.score = 48;
@@ -143,7 +143,7 @@ public final class BalanceBarMinigame extends VBox {
             stableSeconds += deltaSeconds;
             score += 8 * deltaSeconds;
         } else {
-            score -= 30 * deltaSeconds * session.tuning().speedMultiplier();
+            score -= 25 * deltaSeconds * session.tuning().speedMultiplier();
             flashSeconds = Math.max(flashSeconds, 0.08);
         }
 

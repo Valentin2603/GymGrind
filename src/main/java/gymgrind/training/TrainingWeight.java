@@ -1,9 +1,9 @@
 package gymgrind.training;
 
 public enum TrainingWeight {
-    LIGHT("Лёгкий", 0.82, "-18%", 0.55, 0.70, 0.82, 1.20, -1),
-    MEDIUM("Средний", 1.00, "рабочий", 1.00, 1.00, 1.00, 1.00, 0),
-    HEAVY("Тяжёлый", 1.18, "+18%", 1.65, 1.75, 1.45, 0.66, 3);
+    LIGHT("Лёгкий", 0.82, "-18%", 0.55, 0.70, 0.75, 1.30, -1),
+    MEDIUM("Средний", 1.00, "рабочий", 1.00, 1.00, 0.90, 1.10, -1),
+    HEAVY("Тяжёлый", 1.18, "+18%", 1.65, 1.75, 1.20, 0.82, 2);
 
     private final String label;
     private final double loadMultiplier;

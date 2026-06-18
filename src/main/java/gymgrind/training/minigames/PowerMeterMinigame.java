@@ -22,7 +22,7 @@ public final class PowerMeterMinigame extends VBox {
 
     private static final double WIDTH = 680;
     private static final double HEIGHT = 170;
-    private static final double GAME_SECONDS = 10.0;
+    private static final double GAME_SECONDS = 9.5;
 
     private final TrainingSession session;
     private final Consumer<MinigameResult> onFinish;
@@ -46,12 +46,12 @@ public final class PowerMeterMinigame extends VBox {
         this.session = session;
         this.onFinish = onFinish;
         this.canvas = new Canvas(WIDTH, HEIGHT);
-        this.zoneWidth = clamp(0.22 * session.tuning().zoneMultiplier(), 0.08, 0.28);
-        this.drainSpeed = 0.34
+        this.zoneWidth = clamp(0.24 * session.tuning().zoneMultiplier(), 0.10, 0.30);
+        this.drainSpeed = 0.29
                 * session.tuning().speedMultiplier()
                 * (1.0 - session.tuning().strengthBonus() * 0.32 - session.tuning().muscleBonus() * 0.12)
                 * (1.0 + session.tuning().bodyFatLoad() * 0.03);
-        this.pushPower = 0.085
+        this.pushPower = 0.090
                 / Math.sqrt(session.weight().speedMultiplier())
                 * (1.0 + session.tuning().strengthBonus() * 0.13 + session.tuning().muscleBonus() * 0.22)
                 * (1.0 - session.tuning().bodyFatLoad() * 0.03);
@@ -107,7 +107,7 @@ public final class PowerMeterMinigame extends VBox {
         if (isInZone()) {
             score += 12 * deltaSeconds;
         } else {
-            score -= 46.8 * deltaSeconds * session.tuning().speedMultiplier();
+            score -= 39.0 * deltaSeconds * session.tuning().speedMultiplier();
             flashSeconds = Math.max(flashSeconds, 0.08);
         }
         score = clamp(score, 0, 100);
@@ -135,8 +135,8 @@ public final class PowerMeterMinigame extends VBox {
         }
 
         double speedFactor = clamp(session.tuning().speedMultiplier(), 0.85, 1.55);
-        double chaseRate = 1.15 * speedFactor;
-        double maxStep = (0.180 + (speedFactor - 1.0) * 0.055) * deltaSeconds;
+        double chaseRate = 1.00 * speedFactor;
+        double maxStep = (0.155 + (speedFactor - 1.0) * 0.048) * deltaSeconds;
         double targetStep = (zoneTarget - zoneCenter) * clamp(deltaSeconds * chaseRate, 0.0, 1.0);
         targetStep = clamp(targetStep, -maxStep, maxStep);
 
@@ -150,8 +150,8 @@ public final class PowerMeterMinigame extends VBox {
         ThreadLocalRandom random = ThreadLocalRandom.current();
         double min = zoneMin();
         double max = zoneMax();
-        double localRadius = clamp(0.30 + (session.tuning().speedMultiplier() - 1.0) * 0.060, 0.24, 0.40);
-        double minMove = clamp(0.20 + (session.tuning().speedMultiplier() - 1.0) * 0.040, 0.16, 0.28);
+        double localRadius = clamp(0.27 + (session.tuning().speedMultiplier() - 1.0) * 0.050, 0.21, 0.37);
+        double minMove = clamp(0.17 + (session.tuning().speedMultiplier() - 1.0) * 0.035, 0.13, 0.25);
         double nextTarget;
         if (random.nextDouble() < 0.32) {
             nextTarget = zoneCenter + random.nextDouble(-localRadius, localRadius);
@@ -165,7 +165,7 @@ public final class PowerMeterMinigame extends VBox {
         }
 
         zoneTarget = nextTarget;
-        zoneRetargetTimer = random.nextDouble(0.65, 1.15)
+        zoneRetargetTimer = random.nextDouble(0.75, 1.25)
                 / clamp(session.tuning().speedMultiplier(), 0.90, 1.55);
     }
 

@@ -13,6 +13,8 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.DropShadow;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -250,6 +252,17 @@ public final class Hud extends VBox {
     private ToggleButton createHudButton(String text) {
         ToggleButton button = new ToggleButton(text);
         button.setCursor(Cursor.HAND);
+        button.setFocusTraversable(false);
+        button.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.SPACE) {
+                event.consume();
+            }
+        });
+        button.addEventFilter(KeyEvent.KEY_RELEASED, event -> {
+            if (event.getCode() == KeyCode.SPACE) {
+                event.consume();
+            }
+        });
         button.setPrefWidth(154);
         button.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
         button.setStyle("-fx-background-color: rgba(24, 17, 12, 0.94);"

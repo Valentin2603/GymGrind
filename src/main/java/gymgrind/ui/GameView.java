@@ -265,6 +265,7 @@ public final class      GameView extends StackPane {
 
     public void showTrainingSetup(TrainingMachine machine,
                                   String workingLoadLabel,
+                                  String playHint,
                                   Function<TrainingWeight, String> weightLabelFactory,
                                   Consumer<TrainingWeight> onWeightSelected,
                                   Runnable onCancel) {
@@ -289,6 +290,19 @@ public final class      GameView extends StackPane {
         subtitle.setAlignment(Pos.CENTER);
         subtitle.setStyle("-fx-text-fill: #CBD5E1;");
 
+        Label instruction = new Label(playHint);
+        instruction.setFont(Font.font("Segoe UI", 14));
+        instruction.setWrapText(true);
+        instruction.setAlignment(Pos.CENTER);
+        instruction.setMaxWidth(380);
+        instruction.setPadding(new Insets(10, 12, 10, 12));
+        instruction.setStyle("-fx-text-fill: #E2E8F0;"
+                + "-fx-background-color: rgba(15, 23, 42, 0.72);"
+                + "-fx-background-radius: 12;"
+                + "-fx-border-color: rgba(125, 219, 164, 0.45);"
+                + "-fx-border-radius: 12;"
+                + "-fx-border-width: 1;");
+
         Button light = createOverlayButton(weightLabelFactory.apply(TrainingWeight.LIGHT), "#22C55E");
         Button medium = createOverlayButton(weightLabelFactory.apply(TrainingWeight.MEDIUM), "#F59E0B");
         Button heavy = createOverlayButton(weightLabelFactory.apply(TrainingWeight.HEAVY), "#EF4444");
@@ -299,7 +313,7 @@ public final class      GameView extends StackPane {
         heavy.setOnAction(event -> onWeightSelected.accept(TrainingWeight.HEAVY));
         cancel.setOnAction(event -> onCancel.run());
 
-        panel.getChildren().addAll(title, subtitle, light, medium, heavy, cancel);
+        panel.getChildren().addAll(title, subtitle, instruction, light, medium, heavy, cancel);
         showOverlay(panel);
     }
 

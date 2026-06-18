@@ -1078,6 +1078,7 @@ public final class GameController {
         view.showTrainingSetup(
                 machine,
                 trainingService.workingLoadLabel(player, machine),
+                trainingInstruction(machine),
                 weight -> trainingService.weightChoiceLabel(player, machine, weight),
                 weight -> startTraining(machine, weight),
                 () -> {
@@ -1090,6 +1091,19 @@ public final class GameController {
                 }
         );
         refreshUi();
+    }
+
+    private String trainingInstruction(TrainingMachine machine) {
+        return switch (machine.machineType()) {
+            case BENCH_PRESS ->
+                    "Как играть: держите маркер штанги в центре. A/Left тянет влево, D/Right тянет вправо. Чем дольше маркер в зелёной зоне, тем лучше результат.";
+            case SQUAT_RACK ->
+                    "Как играть: нажимайте показанные символы по очереди. Верные клавиши заполняют шкалу, ошибки и паузы её опускают.";
+            case TREADMILL ->
+                    "Как играть: нажимайте показанную клавишу, когда маркер попадает в зелёную зону. Нужно набрать несколько точных интервалов.";
+            case DEADLIFT_PLATFORM ->
+                    "Как играть: нажимайте Space короткими нажатиями, чтобы держать силу в зелёной зоне до конца подхода.";
+        };
     }
 
     private int scaledActivityFatigue(int baseFatigue) {

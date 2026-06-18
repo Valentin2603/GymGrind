@@ -14,23 +14,22 @@ public final class SkillCheckService {
     private static final double MIN_MARKER_PROGRESS = 0.0;
     private static final double MAX_MARKER_PROGRESS = 1.0;
 
-    private static final int TREADMILL_TARGET_HITS = 8;
-    private static final int TREADMILL_ATTEMPTS = 12;
-    private static final double TREADMILL_SUCCESS_ZONE_SHRINK = 0.011;
-    private static final double TREADMILL_MIN_SUCCESS_ZONE_WIDTH = 0.09;
+    private static final int TREADMILL_TARGET_HITS = 7;
+    private static final int TREADMILL_ATTEMPTS = 11;
+    private static final double TREADMILL_SUCCESS_ZONE_SHRINK = 0.008;
+    private static final double TREADMILL_MIN_SUCCESS_ZONE_WIDTH = 0.10;
 
-    private static final int SQUAT_PROMPT_LENGTH = 14;
-    private static final double SQUAT_START_BAR_PROGRESS = 0.35;
-    private static final double SQUAT_DRAIN_PER_SECOND = 0.17;
-    private static final double SQUAT_CORRECT_GAIN = 0.15;
-    private static final double SQUAT_WRONG_PENALTY = 0.2;
-    private static final char[] SQUAT_SYMBOLS = "QWERTYUIOPASDFGHJKLZXCVBNM1234567890".toCharArray();
+    private static final int SQUAT_PROMPT_LENGTH = 11;
+    private static final double SQUAT_START_BAR_PROGRESS = 0.42;
+    private static final double SQUAT_DRAIN_PER_SECOND = 0.14;
+    private static final double SQUAT_CORRECT_GAIN = 0.16;
+    private static final double SQUAT_WRONG_PENALTY = 0.16;
+    private static final char[] SQUAT_SYMBOLS = "QWERTASDFGZXCVB12345".toCharArray();
     private static final KeyCode[] TREADMILL_KEYS = {
-            KeyCode.Q, KeyCode.W, KeyCode.E, KeyCode.R, KeyCode.T, KeyCode.Y, KeyCode.U, KeyCode.I, KeyCode.O, KeyCode.P,
-            KeyCode.A, KeyCode.S, KeyCode.D, KeyCode.F, KeyCode.G, KeyCode.H, KeyCode.J, KeyCode.K, KeyCode.L,
-            KeyCode.Z, KeyCode.X, KeyCode.C, KeyCode.V, KeyCode.B, KeyCode.N, KeyCode.M,
-            KeyCode.DIGIT1, KeyCode.DIGIT2, KeyCode.DIGIT3, KeyCode.DIGIT4, KeyCode.DIGIT5,
-            KeyCode.DIGIT6, KeyCode.DIGIT7, KeyCode.DIGIT8, KeyCode.DIGIT9
+            KeyCode.Q, KeyCode.W, KeyCode.E, KeyCode.R,
+            KeyCode.A, KeyCode.S, KeyCode.D, KeyCode.F,
+            KeyCode.Z, KeyCode.X, KeyCode.C, KeyCode.V,
+            KeyCode.DIGIT1, KeyCode.DIGIT2, KeyCode.DIGIT3, KeyCode.DIGIT4
     };
 
     public SkillCheckSession startSession(TrainingSession trainingSession, int strength) {
@@ -350,8 +349,8 @@ public final class SkillCheckService {
                 : tuning.strengthBonus() * 0.18 + tuning.muscleBonus() * 0.12 + tuning.staminaBonus() * 0.01;
         double successZoneWidth = clamp(
                 successZoneWidthFor(machine.machineType()) * tuning.zoneMultiplier() * (1.0 + statZoneBonus - tuning.bodyFatLoad() * 0.04),
-                machine.machineType() == MachineType.TREADMILL ? 0.10 : 0.08,
-                machine.machineType() == MachineType.TREADMILL ? 0.28 : 0.24
+                machine.machineType() == MachineType.TREADMILL ? 0.11 : 0.09,
+                machine.machineType() == MachineType.TREADMILL ? 0.30 : 0.27
         );
         double markerSpeedMultiplier = tuning.speedMultiplier() * clamp(1.0 - statSpeedBonus + tuning.bodyFatLoad() * 0.05, 0.76, 1.08);
         return SkillCheckSession.timingZone(
@@ -428,18 +427,18 @@ public final class SkillCheckService {
 
     private double successZoneWidthFor(MachineType machineType) {
         return switch (machineType) {
-            case BENCH_PRESS -> 0.19;
-            case TREADMILL -> 0.20;
-            case DEADLIFT_PLATFORM -> 0.14;
+            case BENCH_PRESS -> 0.21;
+            case TREADMILL -> 0.22;
+            case DEADLIFT_PLATFORM -> 0.17;
             case SQUAT_RACK -> 0.17;
         };
     }
 
     private double markerSpeedFor(MachineType machineType, int strength) {
         return switch (machineType) {
-            case BENCH_PRESS -> 1.00;
-            case TREADMILL -> 1.62;
-            case DEADLIFT_PLATFORM -> 1.12;
+            case BENCH_PRESS -> 0.88;
+            case TREADMILL -> 1.38;
+            case DEADLIFT_PLATFORM -> 0.98;
             case SQUAT_RACK -> 1.00;
         };
     }
