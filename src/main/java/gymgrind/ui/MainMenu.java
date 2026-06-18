@@ -81,16 +81,16 @@ public final class MainMenu extends StackPane {
         eyebrow.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
         eyebrow.setStyle("-fx-text-fill: #7DD3FC;");
 
-        Label title = new Label("ТВОЯ ДОРОГА\nК СЦЕНЕ");
-        title.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 42));
+        Label title = new Label("ТВОЯ ДОРОГА К СЦЕНЕ");
+        title.setFont(Font.font("Segoe UI", FontWeight.EXTRA_BOLD, 30));
         title.setStyle("-fx-text-fill: #F8FAFC;");
         title.setWrapText(true);
         title.setMaxWidth(Double.MAX_VALUE);
 
         Label subtitle = new Label(
-                "Перед стартом выбери героя. Теперь в меню есть разные стили старта: быстрый сухой новичок и тяжёлый силовик."
+                "Перед стартом выбери героя. В меню есть разные стили старта."
         );
-        subtitle.setFont(Font.font("Segoe UI", 18));
+        subtitle.setFont(Font.font("Segoe UI", 14));
         subtitle.setStyle("-fx-text-fill: #CBD5E1;");
         subtitle.setWrapText(true);
         subtitle.setMaxWidth(Double.MAX_VALUE);
