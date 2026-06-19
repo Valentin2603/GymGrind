@@ -14,7 +14,7 @@ final class CoachDialoguePoolTest {
     void keepsAllCoachPhrasesInOnePlace() {
         assertEquals(3, CoachDialoguePool.phrases().size());
         assertTrue(CoachDialoguePool.phrases().contains(
-                "Ешь нормально, я тебе говорю. Дообавь говна блять каждый день блять сука нахуй блять. Ты меня слышишь или нет?"
+                "Ешь нормально, я тебе говорю. Добавь г*вна бл*ть каждый день бл*ть с*ка н*хуй бл*ть. Ты меня слышишь или нет?"
         ));
     }
 

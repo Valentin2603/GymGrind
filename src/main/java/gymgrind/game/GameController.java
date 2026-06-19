@@ -23,6 +23,7 @@ import gymgrind.save.SaveService;
 import gymgrind.shop.ShopPurchaseResult;
 import gymgrind.shop.ShopService;
 import gymgrind.shop.SupplementService;
+import gymgrind.shop.SupplementType;
 import gymgrind.training.MachineType;
 import gymgrind.training.MinigameResult;
 import gymgrind.training.TrainingGrade;
@@ -143,7 +144,7 @@ public final class GameController {
 
         scene.setOnKeyPressed(event -> handleKeyPressed(event.getCode()));
         scene.setOnKeyReleased(event -> handleKeyReleased(event.getCode()));
-        scene.setOnMousePressed(event -> handleMousePressed());
+        scene.setOnMousePressed(event -> handleMousePressed(event.getX(), event.getY()));
 
         view.setOnStart(this::showTutorialBeforeStart);
         view.setOnContinue(this::loadSavedRun);
@@ -531,7 +532,9 @@ public final class GameController {
         }
 
         if (gameState == GameState.COMPETITION_RESULT) {
-            if (keyCode == KeyCode.ENTER
+            if (keyCode == KeyCode.N) {
+                startNewRun();
+            } else if (keyCode == KeyCode.ENTER
                     || keyCode == KeyCode.SPACE
                     || keyCode == KeyCode.ESCAPE) {
                 closeCompetitionResult();
@@ -618,13 +621,13 @@ public final class GameController {
         }
     }
 
-    private void handleMousePressed() {
+    private void handleMousePressed(double x, double y) {
         if (gameState == GameState.COMPETITION_INTRO) {
             advanceCompetitionIntro();
         } else if (gameState == GameState.JUDGE_RESULTS) {
             advanceJudgeResultsCutscene();
         } else if (gameState == GameState.COMPETITION_RESULT) {
-            closeCompetitionResult();
+            handleCompetitionResultClick(x, y);
         }
     }
 
@@ -882,11 +885,42 @@ public final class GameController {
     private void finishJudgeResultsCutscene() {
         activeJudgeResultsCutscene = Optional.empty();
         PerformanceResult result = latestCompetitionPerformance.orElseGet(() -> new PerformanceResult(0, 0, 0, 0, 0, 0, 0, 0, false));
-        activeCompetitionResultScreen = Optional.of(new CompetitionResultScreen(player.profile().displayName(), result));
+        activeCompetitionResultScreen = Optional.of(new CompetitionResultScreen(
+                player.profile().displayName(),
+                result,
+                player.currentForm().displayName(),
+                player.hasPurchasedSupplement(SupplementType.RECOVERY_SHOT),
+                player.stats().form(),
+                calendarState.currentDay(),
+                player.stats().strength(),
+                player.stats().muscle(),
+                player.stats().stamina(),
+                player.stats().fatigue(),
+                player.stats().money(),
+                player.stats().bodyFatPercent()
+        ));
         gameState = GameState.COMPETITION_RESULT;
         statusMessage = "";
         refreshUi();
         view.requestGameFocus();
+    }
+
+    private void handleCompetitionResultClick(double x, double y) {
+        if (activeCompetitionResultScreen.isEmpty()) {
+            return;
+        }
+
+        CompetitionResultScreen.ResultAction action = activeCompetitionResultScreen.get().actionAt(
+                x,
+                y,
+                view.getGraphicsContext().getCanvas().getWidth(),
+                view.getGraphicsContext().getCanvas().getHeight()
+        );
+        if (action == CompetitionResultScreen.ResultAction.NEW_GAME) {
+            startNewRun();
+        } else if (action == CompetitionResultScreen.ResultAction.CONTINUE) {
+            closeCompetitionResult();
+        }
     }
 
     private void closeCompetitionResult() {

@@ -65,6 +65,9 @@ public final class PosingMinigame {
     private double timeInGoodZone;
     private double timeInPerfectZone;
     private double timeInOverspamZone;
+    private double roundTimeInGoodZone;
+    private double roundTimeInPerfectZone;
+    private double roundTimeInOverspamZone;
 
     private int successfulPresses;
     private int failedPresses;
@@ -109,6 +112,7 @@ public final class PosingMinigame {
         this.timeInGoodZone = 0.0;
         this.timeInPerfectZone = 0.0;
         this.timeInOverspamZone = 0.0;
+        resetRoundZoneTimes();
 
         this.successfulPresses = 0;
         this.failedPresses = 0;
@@ -153,10 +157,13 @@ public final class PosingMinigame {
 
         if (poseMeter >= PERFECT_ZONE_START && poseMeter <= PERFECT_ZONE_END) {
             timeInPerfectZone += deltaSeconds;
+            roundTimeInPerfectZone += deltaSeconds;
         } else if (poseMeter >= GOOD_ZONE_START && poseMeter < PERFECT_ZONE_START) {
             timeInGoodZone += deltaSeconds;
+            roundTimeInGoodZone += deltaSeconds;
         } else if (poseMeter > PERFECT_ZONE_END) {
             timeInOverspamZone += deltaSeconds;
+            roundTimeInOverspamZone += deltaSeconds;
         }
     }
 
@@ -210,9 +217,9 @@ public final class PosingMinigame {
     private void finishRound() {
 
         double roundScore =
-                (timeInPerfectZone * 2.2)
-                        + (timeInGoodZone * 1.0)
-                        - (timeInOverspamZone * 1.5);
+                (roundTimeInPerfectZone * 2.2)
+                        + (roundTimeInGoodZone * 1.0)
+                        - (roundTimeInOverspamZone * 1.5);
 
         roundScore = Math.max(0.0, Math.min(10.0, roundScore));
 
@@ -232,6 +239,7 @@ public final class PosingMinigame {
         roundElapsedMs = 0L;
 
         poseMeter = 0.0;
+        resetRoundZoneTimes();
     }
 
     private void finishCompetition() {
@@ -248,20 +256,33 @@ public final class PosingMinigame {
                 .average()
                 .orElse(0.0);
 
-        double technique =
-                Math.min(10.0, timeInPerfectZone * 1.6);
+        double completedRatio = roundScores.size() / (double) TOTAL_ROUNDS;
+        int totalPresses = successfulPresses + failedPresses;
+        double accuracyScore = totalPresses == 0
+                ? 0.0
+                : (successfulPresses / (double) totalPresses) * 10.0;
+        double comboScore = Math.min(10.0, maxCombo * 0.42);
+        double controlPenalty = Math.min(2.0, timeInOverspamZone * 0.10);
+        double baseScore = (averageRoundScore * 0.55)
+                + (accuracyScore * 0.25)
+                + (comboScore * 0.20);
+        baseScore = (baseScore - controlPenalty) * (0.65 + completedRatio * 0.35);
 
-        double stagePresence =
-                Math.min(10.0, maxCombo * 0.55);
-
-        double muscleControl =
-                Math.max(0.0, 10.0 - (timeInOverspamZone * 2.0));
+        double technique = balancedJudgeScore(
+                baseScore,
+                (averageRoundScore - 5.0) * 0.10
+        );
+        double stagePresence = balancedJudgeScore(
+                baseScore,
+                (comboScore - 5.0) * 0.11
+        );
+        double muscleControl = balancedJudgeScore(
+                baseScore,
+                (accuracyScore - 5.0) * 0.10 - controlPenalty * 0.20
+        );
 
         double total =
-                (averageRoundScore
-                        + technique
-                        + stagePresence
-                        + muscleControl) / 4.0;
+                (technique + stagePresence + muscleControl) / 3.0;
 
         return new PerformanceResult(
                 technique,
@@ -277,6 +298,16 @@ public final class PosingMinigame {
 
                 total >= 5.0
         );
+    }
+
+    private double balancedJudgeScore(double baseScore, double modifier) {
+        return Math.max(0.0, Math.min(9.2, baseScore + modifier));
+    }
+
+    private void resetRoundZoneTimes() {
+        roundTimeInGoodZone = 0.0;
+        roundTimeInPerfectZone = 0.0;
+        roundTimeInOverspamZone = 0.0;
     }
 
     public void render(GraphicsContext graphicsContext,

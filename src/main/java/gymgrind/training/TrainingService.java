@@ -8,6 +8,7 @@ import gymgrind.shop.SupplementType;
 public final class TrainingService {
 
     private static final double STAMINA_COST_MULTIPLIER = 1.3;
+    private static final double GLOBAL_MINIGAME_DIFFICULTY_MULTIPLIER = 1.1;
     private static final int TAMIK_BASE_STRENGTH = 115;
     private static final double WORKING_LOAD_CURVE_SCALE = 230.0;
     private static final int MIN_WORKING_LOAD = 30;
@@ -68,6 +69,9 @@ public final class TrainingService {
             zoneMultiplier *= 1.12;
             player.activeSupplements().consume(SupplementType.ELBOW_WRAPS);
         }
+        speedMultiplier *= GLOBAL_MINIGAME_DIFFICULTY_MULTIPLIER;
+        zoneMultiplier /= GLOBAL_MINIGAME_DIFFICULTY_MULTIPLIER;
+
         int bodyLoadRhythmPenalty = Math.max(0, (int) Math.round(
                 bodyFatLoad * 1.2 + cardioLoad * 1.3 + squatLoad * 0.8
                         - strengthControlBonus * 2.6 - staminaControlBonus * 0.8
